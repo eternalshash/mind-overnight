@@ -1,0 +1,11 @@
+# Ignore environment variables and API keys
+.env
+
+# Ignore Jupyter Notebook checkpoints (keeps your repo clean)
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
+
