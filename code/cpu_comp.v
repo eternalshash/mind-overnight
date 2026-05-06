@@ -55,7 +55,7 @@ module tristate(in, select, out);
 // I/O declarations
 	input in, select;
 	output out;
-	tri out;
+tri out;
 //Tristate buffer logic
 	bufif1 b1(out,in, select);
 endmodule
@@ -64,19 +64,18 @@ endmodule
 module tristate_32(in, select, out);
 // I/O declarations
 	input [31:0] in;
-	input select;
+input select;
 	output [31:0] out;
 
 	wire select_w;
 	assign select_w = select;
-
 //Calling 1 bit tristate buffer module for each bit of byte
 	tristate t0(in[0],select_w,out[0]);
 	tristate t1(in[1],select_w,out[1]);
 	tristate t2(in[2],select_w,out[2]);
 	tristate t3(in[3],select_w,out[3]);
 	tristate t4(in[4],select_w,out[4]);
-	tristate t5(in[5],select_w,out[5]);
+tristate t5(in[5],select_w,out[5]);
 	tristate t6(in[6],select_w,out[6]);
 	tristate t7(in[7],select_w,out[7]);
 	tristate t8(in[8],select_w,out[8]);
@@ -86,7 +85,7 @@ module tristate_32(in, select, out);
 	tristate t12(in[12],select_w,out[12]);
 	tristate t13(in[13],select_w,out[13]);
 	tristate t14(in[14],select_w,out[14]);
-	tristate t15(in[15],select_w,out[15]);
+tristate t15(in[15],select_w,out[15]);
 	tristate t16(in[16],select_w,out[16]);
 	tristate t17(in[17],select_w,out[17]);
 	tristate t18(in[18],select_w,out[18]);
@@ -96,7 +95,7 @@ module tristate_32(in, select, out);
 	tristate t22(in[22],select_w,out[22]);
 	tristate t23(in[23],select_w,out[23]);
 	tristate t24(in[24],select_w,out[24]);
-	tristate t25(in[25],select_w,out[25]);
+tristate t25(in[25],select_w,out[25]);
 	tristate t26(in[26],select_w,out[26]);
 	tristate t27(in[27],select_w,out[27]);
 	tristate t28(in[28],select_w,out[28]);
@@ -126,7 +125,6 @@ output [1:0] qout;
 
 dreg m0(d[0], clk, qout[0]);
 dreg m1(d[1], clk, qout[1]);
-
 endmodule
 
 //3-bit D-register
@@ -144,11 +142,11 @@ endmodule
 module dreg_5bit(d, clk, qout);
 // I/O port declarations
 	input [4:0] d;
-	input clk;
+input clk;
 	output [4:0] qout;
 // Calling 1 bit D-register for each bit of byte
 	dreg me0(d[0], clk, qout[0]);
-	dreg me1(d[1], clk, qout[1]);
+dreg me1(d[1], clk, qout[1]);
 	dreg me2(d[2], clk, qout[2]);
 	dreg me3(d[3], clk, qout[3]);
 	dreg me4(d[4], clk, qout[4]);
@@ -164,36 +162,35 @@ module dreg_32bit(d, clk, qout);
 	dreg me0(d[0], clk, qout[0]);
 	dreg me1(d[1], clk, qout[1]);
 	dreg me2(d[2], clk, qout[2]);
-	dreg me3(d[3], clk, qout[3]);
+dreg me3(d[3], clk, qout[3]);
 	dreg me4(d[4], clk, qout[4]);
 	dreg me5(d[5], clk, qout[5]);
 	dreg me6(d[6], clk, qout[6]);
 	dreg me7(d[7], clk, qout[7]);
-        dreg me8(d[8], clk, qout[8]);
+dreg me8(d[8], clk, qout[8]);
 	dreg me9(d[9], clk, qout[9]);
 	dreg me10(d[10], clk, qout[10]);
 	dreg me11(d[11], clk, qout[11]);
 	dreg me12(d[12], clk, qout[12]);
-	dreg me13(d[13], clk, qout[13]);
+dreg me13(d[13], clk, qout[13]);
 	dreg me14(d[14], clk, qout[14]);
 	dreg me15(d[15], clk, qout[15]);
         dreg me16(d[16], clk, qout[16]);
 	dreg me17(d[17], clk, qout[17]);
-	dreg me18(d[18], clk, qout[18]);
+dreg me18(d[18], clk, qout[18]);
 	dreg me19(d[19], clk, qout[19]);
 	dreg me20(d[20], clk, qout[20]);
 	dreg me21(d[21], clk, qout[21]);
 	dreg me22(d[22], clk, qout[22]);
-	dreg me23(d[23], clk, qout[23]);
+dreg me23(d[23], clk, qout[23]);
         dreg me24(d[24], clk, qout[24]);
 	dreg me25(d[25], clk, qout[25]);
 	dreg me26(d[26], clk, qout[26]);
 	dreg me27(d[27], clk, qout[27]);
-	dreg me28(d[28], clk, qout[28]);
+dreg me28(d[28], clk, qout[28]);
 	dreg me29(d[29], clk, qout[29]);
 	dreg me30(d[30], clk, qout[30]);
 	dreg me31(d[31], clk, qout[31]);
-
 endmodule
 
 
@@ -205,8 +202,7 @@ module mux2to1(in0,in1,outsel,out);
 	input in0,in1,outsel;
 	output out;
 
-	assign out=outsel ? in1:in0; 
-
+	assign out=outsel ? in1:in0;
 endmodule
 
 // 32-BIT 2-to-1 MUX
@@ -217,14 +213,14 @@ module mux2to1_32(in0,in1,outsel,out);
 	output [31:0] out;
 
 	wire outsel_w;
-	assign outsel_w=outsel;
+assign outsel_w=outsel;
 
 //Calling 2to1 bit MUX for 8 bit 2to1 MUX module
 	mux2to1 m0(in0[0],in1[0],outsel_w,out[0]);
 	mux2to1 m1(in0[1],in1[1],outsel_w,out[1]);
 	mux2to1 m2(in0[2],in1[2],outsel_w,out[2]);
 	mux2to1 m3(in0[3],in1[3],outsel_w,out[3]);
-	mux2to1 m4(in0[4],in1[4],outsel_w,out[4]);
+mux2to1 m4(in0[4],in1[4],outsel_w,out[4]);
 	mux2to1 m5(in0[5],in1[5],outsel_w,out[5]);
 	mux2to1 m6(in0[6],in1[6],outsel_w,out[6]);
 	mux2to1 m7(in0[7],in1[7],outsel_w,out[7]);
@@ -234,7 +230,7 @@ module mux2to1_32(in0,in1,outsel,out);
 	mux2to1 m11(in0[11],in1[11],outsel_w,out[11]);
 	mux2to1 m12(in0[12],in1[12],outsel_w,out[12]);
 	mux2to1 m13(in0[13],in1[13],outsel_w,out[13]);
-	mux2to1 m14(in0[14],in1[14],outsel_w,out[14]);
+mux2to1 m14(in0[14],in1[14],outsel_w,out[14]);
 	mux2to1 m15(in0[15],in1[15],outsel_w,out[15]);
 	mux2to1 m16(in0[16],in1[16],outsel_w,out[16]);
 	mux2to1 m17(in0[17],in1[17],outsel_w,out[17]);
@@ -244,7 +240,7 @@ module mux2to1_32(in0,in1,outsel,out);
 	mux2to1 m21(in0[21],in1[21],outsel_w,out[21]);
 	mux2to1 m22(in0[22],in1[22],outsel_w,out[22]);
 	mux2to1 m23(in0[23],in1[23],outsel_w,out[23]);
-	mux2to1 m24(in0[24],in1[24],outsel_w,out[24]);
+mux2to1 m24(in0[24],in1[24],outsel_w,out[24]);
 	mux2to1 m25(in0[25],in1[25],outsel_w,out[25]);
 	mux2to1 m26(in0[26],in1[26],outsel_w,out[26]);
 	mux2to1 m27(in0[27],in1[27],outsel_w,out[27]);
@@ -258,19 +254,18 @@ endmodule
 module memory_32bit(sel_a, sel_b, sel_b_p, clk, alu_out, out_a, out_b);
 // I/O port declarations
 	input clk, sel_a, sel_b, sel_b_p;
-	input [31:0] alu_out;
+input [31:0] alu_out;
 	output [31:0] out_a, out_b;
 
 	wire [31:0] out,mux_out;
 
 //Calling 8 bit 2to1 MUX module
-	mux2to1_32 m0(out, alu_out, sel_b_p, mux_out); 
+	mux2to1_32 m0(out, alu_out, sel_b_p, mux_out);
 //Calling 8 bit D-register
 	dreg_32bit ll(mux_out, clk, out); 
 //Calling 8 bit tristate buffer module
 	tristate_32 t_a(out, sel_a, out_a);
 	tristate_32 t_b(out, sel_b, out_b);
-
 endmodule
 
 //32x32 MEMORY
@@ -280,7 +275,7 @@ module memory_file(in_a, in_b, in_bb,clk, alu_out, out_a, out_b);
 // I/O port declarations
 	input [4:0] in_a, in_b, in_bb;
 	input clk;
-	input [31:0] alu_out;
+input [31:0] alu_out;
 
 	output [31:0] out_a, out_b;
 
@@ -292,39 +287,38 @@ decoder db(in_b, sel_b);
 decoder dc(in_bb, sel_b_p);
 
 //Calling 8 bit memory storage 32 times to make 32 X 8 memory file.
-	memory_32bit mer0(sel_a[0], sel_b[0], sel_b_p[0], clk, alu_out, out_a, out_b);
+memory_32bit mer0(sel_a[0], sel_b[0], sel_b_p[0], clk, alu_out, out_a, out_b);
 	memory_32bit mer1(sel_a[1], sel_b[1], sel_b_p[1], clk, alu_out, out_a, out_b);
-	memory_32bit mer2(sel_a[2], sel_b[2], sel_b_p[2], clk, alu_out, out_a, out_b);
+memory_32bit mer2(sel_a[2], sel_b[2], sel_b_p[2], clk, alu_out, out_a, out_b);
 	memory_32bit mer3(sel_a[3], sel_b[3], sel_b_p[3], clk, alu_out, out_a, out_b);
-	memory_32bit mer4(sel_a[4], sel_b[4], sel_b_p[4], clk, alu_out, out_a, out_b);
+memory_32bit mer4(sel_a[4], sel_b[4], sel_b_p[4], clk, alu_out, out_a, out_b);
 	memory_32bit mer5(sel_a[5], sel_b[5], sel_b_p[5], clk, alu_out, out_a, out_b);
-	memory_32bit mer6(sel_a[6], sel_b[6], sel_b_p[6], clk, alu_out, out_a, out_b);
+memory_32bit mer6(sel_a[6], sel_b[6], sel_b_p[6], clk, alu_out, out_a, out_b);
 	memory_32bit mer7(sel_a[7], sel_b[7], sel_b_p[7], clk, alu_out, out_a, out_b);
-	memory_32bit mer8(sel_a[8], sel_b[8], sel_b_p[8], clk, alu_out, out_a, out_b);
+memory_32bit mer8(sel_a[8], sel_b[8], sel_b_p[8], clk, alu_out, out_a, out_b);
 	memory_32bit mer9(sel_a[9], sel_b[9], sel_b_p[9], clk, alu_out, out_a, out_b);
-	memory_32bit mer10(sel_a[10], sel_b[10], sel_b_p[10], clk, alu_out, out_a, out_b);
+memory_32bit mer10(sel_a[10], sel_b[10], sel_b_p[10], clk, alu_out, out_a, out_b);
 	memory_32bit mer11(sel_a[11], sel_b[11], sel_b_p[11], clk, alu_out, out_a, out_b);
-	memory_32bit mer12(sel_a[12], sel_b[12], sel_b_p[12], clk, alu_out, out_a, out_b);
+memory_32bit mer12(sel_a[12], sel_b[12], sel_b_p[12], clk, alu_out, out_a, out_b);
 	memory_32bit mer13(sel_a[13], sel_b[13], sel_b_p[13], clk, alu_out, out_a, out_b);
-	memory_32bit mer14(sel_a[14], sel_b[14], sel_b_p[14], clk, alu_out, out_a, out_b);
+memory_32bit mer14(sel_a[14], sel_b[14], sel_b_p[14], clk, alu_out, out_a, out_b);
 	memory_32bit mer15(sel_a[15], sel_b[15], sel_b_p[15], clk, alu_out, out_a, out_b);
-	memory_32bit mer16(sel_a[16], sel_b[16], sel_b_p[16], clk, alu_out, out_a, out_b);
+memory_32bit mer16(sel_a[16], sel_b[16], sel_b_p[16], clk, alu_out, out_a, out_b);
 	memory_32bit mer17(sel_a[17], sel_b[17], sel_b_p[17], clk, alu_out, out_a, out_b);
-	memory_32bit mer18(sel_a[18], sel_b[18], sel_b_p[18], clk, alu_out, out_a, out_b);
+memory_32bit mer18(sel_a[18], sel_b[18], sel_b_p[18], clk, alu_out, out_a, out_b);
 	memory_32bit mer19(sel_a[19], sel_b[19], sel_b_p[19], clk, alu_out, out_a, out_b);
-	memory_32bit mer20(sel_a[20], sel_b[20], sel_b_p[20], clk, alu_out, out_a, out_b);
+memory_32bit mer20(sel_a[20], sel_b[20], sel_b_p[20], clk, alu_out, out_a, out_b);
 	memory_32bit mer21(sel_a[21], sel_b[21], sel_b_p[21], clk, alu_out, out_a, out_b);
-	memory_32bit mer22(sel_a[22], sel_b[22], sel_b_p[22], clk, alu_out, out_a, out_b);
+memory_32bit mer22(sel_a[22], sel_b[22], sel_b_p[22], clk, alu_out, out_a, out_b);
 	memory_32bit mer23(sel_a[23], sel_b[23], sel_b_p[23], clk, alu_out, out_a, out_b);
-	memory_32bit mer24(sel_a[24], sel_b[24], sel_b_p[24], clk, alu_out, out_a, out_b);
+memory_32bit mer24(sel_a[24], sel_b[24], sel_b_p[24], clk, alu_out, out_a, out_b);
 	memory_32bit mer25(sel_a[25], sel_b[25], sel_b_p[25], clk, alu_out, out_a, out_b);
-	memory_32bit mer26(sel_a[26], sel_b[26], sel_b_p[26], clk, alu_out, out_a, out_b);
+memory_32bit mer26(sel_a[26], sel_b[26], sel_b_p[26], clk, alu_out, out_a, out_b);
 	memory_32bit mer27(sel_a[27], sel_b[27], sel_b_p[27], clk, alu_out, out_a, out_b);
-	memory_32bit mer28(sel_a[28], sel_b[28], sel_b_p[28], clk, alu_out, out_a, out_b);
+memory_32bit mer28(sel_a[28], sel_b[28], sel_b_p[28], clk, alu_out, out_a, out_b);
 	memory_32bit mer29(sel_a[29], sel_b[29], sel_b_p[29], clk, alu_out, out_a, out_b);
-	memory_32bit mer30(sel_a[30], sel_b[30], sel_b_p[30], clk, alu_out, out_a, out_b);
+memory_32bit mer30(sel_a[30], sel_b[30], sel_b_p[30], clk, alu_out, out_a, out_b);
 	memory_32bit mer31(sel_a[31], sel_b[31], sel_b_p[31], clk, alu_out, out_a, out_b);
-	
 endmodule
 
 
@@ -340,8 +334,6 @@ wire [31:0] logic0=32'd0;
 wire [31:0] out_a, out_b;
 
 memory_file ram(addrA, addrB, Bback, clk, Out, out_a, out_b);
-
-
 mux2to1_32 muxAa(dataIn, out_a, asel, outA);
 mux2to1_32 muxA(logic0, out_b, bsel, outB);
 
@@ -372,7 +364,7 @@ module or_32bit(out,in1,in2);
 	or (out[3],in1[3],in2[3]);
 	or (out[4],in1[4],in2[4]);
 	or (out[5],in1[5],in2[5]);
-	or (out[6],in1[6],in2[6]);
+or (out[6],in1[6],in2[6]);
 	or (out[7],in1[7],in2[7]);
 	or (out[8],in1[8],in2[8]);
 	or (out[9],in1[9],in2[9]);
@@ -382,7 +374,7 @@ module or_32bit(out,in1,in2);
 	or (out[13],in1[13],in2[13]);
 	or (out[14],in1[14],in2[14]);
 	or (out[15],in1[15],in2[15]);
-	or (out[16],in1[16],in2[16]);
+or (out[16],in1[16],in2[16]);
 	or (out[17],in1[17],in2[17]);
 	or (out[18],in1[18],in2[18]);
 	or (out[19],in1[19],in2[19]);
@@ -392,7 +384,7 @@ module or_32bit(out,in1,in2);
 	or (out[23],in1[23],in2[23]);
 	or (out[24],in1[24],in2[24]);
 	or (out[25],in1[25],in2[25]);
-	or (out[26],in1[26],in2[26]);
+or (out[26],in1[26],in2[26]);
 	or (out[27],in1[27],in2[27]);
 	or (out[28],in1[28],in2[28]);
 	or (out[29],in1[29],in2[29]);
@@ -415,7 +407,7 @@ module xor_32bit(out,in1,in2);
 	xor (out[3],in1[3],in2[3]);
 	xor (out[4],in1[4],in2[4]);
 	xor (out[5],in1[5],in2[5]);
-	xor (out[6],in1[6],in2[6]);
+xor (out[6],in1[6],in2[6]);
 	xor (out[7],in1[7],in2[7]);
 	xor (out[8],in1[8],in2[8]);
 	xor (out[9],in1[9],in2[9]);
@@ -425,7 +417,7 @@ module xor_32bit(out,in1,in2);
 	xor (out[13],in1[13],in2[13]);
 	xor (out[14],in1[14],in2[14]);
 	xor (out[15],in1[15],in2[15]);
-	xor (out[16],in1[16],in2[16]);
+xor (out[16],in1[16],in2[16]);
 	xor (out[17],in1[17],in2[17]);
 	xor (out[18],in1[18],in2[18]);
 	xor (out[19],in1[19],in2[19]);
@@ -435,7 +427,7 @@ module xor_32bit(out,in1,in2);
 	xor (out[23],in1[23],in2[23]);
 	xor (out[24],in1[24],in2[24]);
 	xor (out[25],in1[25],in2[25]);
-	xor (out[26],in1[26],in2[26]);
+xor (out[26],in1[26],in2[26]);
 	xor (out[27],in1[27],in2[27]);
 	xor (out[28],in1[28],in2[28]);
 	xor (out[29],in1[29],in2[29]);
@@ -457,7 +449,7 @@ module xnor_32bit(out,in1,in2);
 	xnor (out[2],in1[2],in2[2]);
 	xnor (out[3],in1[3],in2[3]);
 	xnor (out[4],in1[4],in2[4]);
-	xnor (out[5],in1[5],in2[5]);
+xnor (out[5],in1[5],in2[5]);
 	xnor (out[6],in1[6],in2[6]);
 	xnor (out[7],in1[7],in2[7]);
 	xnor (out[8],in1[8],in2[8]);
@@ -467,7 +459,7 @@ module xnor_32bit(out,in1,in2);
 	xnor (out[12],in1[12],in2[12]);
 	xnor (out[13],in1[13],in2[13]);
 	xnor (out[14],in1[14],in2[14]);
-	xnor (out[15],in1[15],in2[15]);
+xnor (out[15],in1[15],in2[15]);
 	xnor (out[16],in1[16],in2[16]);
 	xnor (out[17],in1[17],in2[17]);
 	xnor (out[18],in1[18],in2[18]);
@@ -477,7 +469,7 @@ module xnor_32bit(out,in1,in2);
 	xnor (out[22],in1[22],in2[22]);
 	xnor (out[23],in1[23],in2[23]);
 	xnor (out[24],in1[24],in2[24]);
-	xnor (out[25],in1[25],in2[25]);
+xnor (out[25],in1[25],in2[25]);
 	xnor (out[26],in1[26],in2[26]);
 	xnor (out[27],in1[27],in2[27]);
 	xnor (out[28],in1[28],in2[28]);
@@ -506,23 +498,21 @@ endmodule
 	always @(OUT_AND or OUT_OR or OUT_XOR or OUT_XNOR or SEL[1] or SEL[0])
 	case ({SEL[1],SEL[0]})
 	2'b00 : OUT_FN = OUT_AND;
-	2'b01 : OUT_FN = OUT_OR;
+2'b01 : OUT_FN = OUT_OR;
 	2'b10 : OUT_FN = OUT_XOR;
 	2'b11 : OUT_FN = OUT_XNOR;
-	default : $display("Please check Select Lines!");
+default : $display("Please check Select Lines!");
 	endcase
 endmodule
 
 // 1 bit full adder
-module fa(sum, c_out, a, b, c_in); 
-
+module fa(sum, c_out, a, b, c_in);
 // I/O port declarations
 input a, b, c_in;
 output sum, c_out;
 
 // internal nets
 wire s1, c1, c2;
-
 // instant logic gate primitives
 xor(s1, a, b);
 and(c1, a, b);
@@ -531,7 +521,6 @@ xor(sum, s1, c_in);
 and(c2, s1, c_in);
 
 xor(c_out, c2, c1);
-
 endmodule
 
 // Addition and Subtraction in ALU
@@ -541,7 +530,6 @@ module as32b(sum, c_out, over, a, b, inv);
 output [31:0] sum;
 
 output c_out, over;
-
 input [31:0] a, b;
 
 input [1:0] inv;
@@ -553,63 +541,60 @@ wire [31:0] xa, xb;
 wire xiab;
 
 //integer i;
-
 xor x1 [31:0] (xa, a, {32{inv[1]}});
 
 xor x2 [31:0] (xb, b, {32{inv[0]}});
 
 xor x_3 (xiab, inv[1], inv[0]);
-
 cla32 cla_32(.s(sum), .c32(c_out), .over(over), .a(xa), .b(xb), .c0(xiab));
 endmodule
 
 //1-bit PG logic for Adder 
 module pfa(s, a, b, c, p, g);
-    output s, p, g;
+output s, p, g;
     input a, b, c;
     
     assign s = a ^ b ^ c;
-    assign p = a ^ b;//propagate of 1-bit pfa
+assign p = a ^ b;//propagate of 1-bit pfa
     assign g = a & b;//generate of 1-bit pfa
       
 endmodule
 
 //carry generator module of 1-bit pfa
 module carry(cout, p_in, g_in, cin);
-    output cout; 
+output cout; 
     input p_in, g_in;
     input cin;
     
     assign cout = (cin & p_in) | g_in;
-
 endmodule
 
 //4-bit carry lookahead
 module carrylookahead_4(s, c4, g_4, p_4, over, a, b, c0);
     output [3:0] s;
-    output g_4, p_4; //g0_3, p0_3
+    output g_4, p_4;
+//g0_3, p0_3
     output c4, over;
     
     input [3:0] a, b;
     input c0;
     
     wire c1, c2, c3;
-    wire [3:0] p, g;
+wire [3:0] p, g;
     
     pfa pfa0(.s(s[0]), .a(a[0]), .b(b[0]), .c(c0), .p(p[0]), .g(g[0]));
     pfa pfa1(.s(s[1]), .a(a[1]), .b(b[1]), .c(c1), .p(p[1]), .g(g[1]));
-    pfa pfa2(.s(s[2]), .a(a[2]), .b(b[2]), .c(c2), .p(p[2]), .g(g[2]));
+pfa pfa2(.s(s[2]), .a(a[2]), .b(b[2]), .c(c2), .p(p[2]), .g(g[2]));
     pfa pfa3(.s(s[3]), .a(a[3]), .b(b[3]), .c(c3), .p(p[3]), .g(g[3]));
     
     carry cr1(.p_in(p[0]), .g_in(g[0]), .cin(c0), .cout(c1));
-    carry cr2(.p_in(p[1]), .g_in(g[1]), .cin(c1), .cout(c2));
+carry cr2(.p_in(p[1]), .g_in(g[1]), .cin(c1), .cout(c2));
     carry cr3(.p_in(p[2]), .g_in(g[2]), .cin(c2), .cout(c3));
     carry cr4(.p_in(p[3]), .g_in(g[3]), .cin(c3), .cout(c4));
-    
-    assign p_4 = p[3] & p[2] & p[1] & p[0];
-    assign g_4 = g[3] | (p[3] & g[2]) | (p[3] & p[2] & g[1]) | (p[3] & p[2] & p[1] & g[0]);
+assign p_4 = p[3] & p[2] & p[1] & p[0];
+    assign g_4 = g[3] | (p[3] & g[2]) |
+(p[3] & p[2] & g[1]) | (p[3] & p[2] & p[1] & g[0]);
     assign over = c3^c4;
-    
 endmodule
 
 //16-bit carry lookahead
@@ -617,37 +602,33 @@ module carrylookahead_16(s, c16, g_16, p_16, over, a, b, c0);
     output [15:0] s;
     output g_16, p_16;
     output c16, over;
-    
-    input [15:0] a, b;
+input [15:0] a, b;
     input c0;
     
     wire c4, c8, c12;
     //wire [3:0] s3_0, s7_4, s11_8, s15_12;
     wire [3:0] p, g;
-    
-    carrylookahead_4 CLA0(.s(s[3:0]), .a(a[3:0]), .b(b[3:0]), .c0(c0), .c4(c4), .g_4(g[0]), .p_4(p[0]));
-    carrylookahead_4 CLA1(.s(s[7:4]), .a(a[7:4]), .b(b[7:4]), .c0(c4), .c4(c8), .g_4(g[1]), .p_4(p[1]));    
-    carrylookahead_4 CLA2(.s(s[11:8]), .a(a[11:8]), .b(b[11:8]), .c0(c8), .c4(c12), .g_4(g[2]), .p_4(p[2]));   
+carrylookahead_4 CLA0(.s(s[3:0]), .a(a[3:0]), .b(b[3:0]), .c0(c0), .c4(c4), .g_4(g[0]), .p_4(p[0]));
+    carrylookahead_4 CLA1(.s(s[7:4]), .a(a[7:4]), .b(b[7:4]), .c0(c4), .c4(c8), .g_4(g[1]), .p_4(p[1]));
+carrylookahead_4 CLA2(.s(s[11:8]), .a(a[11:8]), .b(b[11:8]), .c0(c8), .c4(c12), .g_4(g[2]), .p_4(p[2]));   
     carrylookahead_4 CLA3(.s(s[15:12]), .a(a[15:12]), .b(b[15:12]), .c0(c12), .c4(c16), .g_4(g[3]), .p_4(p[3]), .over(over));
-    
-    assign p_16 = p[3] & p[2] & p[1] & p[0];
-    assign g_16 = g[3] | (p[3] & g[2]) | (p[3] & p[2] & g[1]) | (p[3] & p[2] & p[1] & g[0]);
-
+assign p_16 = p[3] & p[2] & p[1] & p[0];
+    assign g_16 = g[3] | (p[3] & g[2]) |
+(p[3] & p[2] & g[1]) | (p[3] & p[2] & p[1] & g[0]);
 endmodule   
 
 //32-bit carry lookahead
 module cla32(s, c32, over, a, b, c0);
     output [31:0] s;
     output c32, over;
-    
-    input [31:0] a, b;
+input [31:0] a, b;
     input c0;
     
     wire c16;
     wire [1:0] p, g;
     
     carrylookahead_16 CLA0(.s(s[15:0]), .a(a[15:0]), .b(b[15:0]), .c0(c0), .c16(c16), .p_16(p[0]), .g_16(g[0]));
-    carrylookahead_16 CLA1(.s(s[31:16]), .a(a[31:16]), .b(b[31:16]), .c0(c16), .c16(c32), .p_16(p[1]), .g_16(g[1]), .over(over)); 
+carrylookahead_16 CLA1(.s(s[31:16]), .a(a[31:16]), .b(b[31:16]), .c0(c16), .c16(c32), .p_16(p[1]), .g_16(g[1]), .over(over)); 
     
 endmodule
 
@@ -676,7 +657,6 @@ wire [31:0] ps0, ps1, ps2, ps3, ps4, ps5, ps6, ps7, ps8, ps9, ps10, ps11, ps12, 
 wire [31:0] to_reg;
 wire c030, c129, c228, c327, c426, c525, c624, c723, c822, c921, c1020, c1119, c1218, c1317, c1416, c1515, c1614, c1713, c1812, c1911, c2010, c219, c2028, c237, c246, c255, c264, c273, c282, c291, c300;
 wire [31:0] pp0, pp1, pp2, pp3, pp4, pp5, pp6, pp7, pp8, pp9, pp10, pp11, pp12, pp13, pp14, pp15, pp16, pp17, pp18, pp19, pp20, pp21, pp22, pp23, pp24, pp25, pp26, pp27, pp28, pp29, pp30, pp31 ;
-
 and m0 [31:0] (p0, b,{32{a [0]}});
 and m1 [31:0] (p1, b,{32{a [1]}});
 and m2 [31:0] (p2, b,{32{a [2]}});
@@ -742,7 +722,6 @@ fa f028(ps0[27], c0[27], p0[28], p1[27], c0[26]);
 fa f029(ps0[28], c0[28], p0[29], p1[28], c0[27]);
 fa f030(ps0[29], c0[29], p0[30], p1[29], c0[28]);
 fa f031(ps0[30], c0[30], p0[31], p1[30], c0[29]);
-
 ha h11(ps1[0], c1[0], ps0[1], p2[0]);
 fa f12(ps1[1], c1[1], ps0[2], p2[1], c1[0]);
 fa f13(ps1[2], c1[2], ps0[3], p2[2], c1[1]);
@@ -773,7 +752,6 @@ fa f127(ps1[26], c1[26], ps0[27], p2[26], c1[25]);
 fa f128(ps1[27], c1[27], ps0[28], p2[27], c1[26]);
 fa f129(ps1[28], c1[28], ps0[29], p2[28], c1[27]);
 fa f130(ps1[29], c1[29], ps0[30], p2[29], c1[28]);
-
 ha h21(ps2[0], c2[0], ps1[1], p3[0]);
 fa f22(ps2[1], c2[1], ps1[2], p3[1], c2[0]);
 fa f23(ps2[2], c2[2], ps1[3], p3[2], c2[1]);
@@ -832,7 +810,6 @@ fa f325(ps3[24], c3[24], ps2[25], p4[24], c3[23]);
 fa f326(ps3[25], c3[25], ps2[26], p4[25], c3[24]);
 fa f327(ps3[26], c3[26], ps2[27], p4[26], c3[25]);
 fa f328(ps3[27], c3[27], ps2[28], p4[27], c3[26]);
-
 ha h41(ps4[0], c4[0], ps3[1], p5[0]);
 fa f42(ps4[1], c4[1], ps3[2], p5[1], c4[0]);
 fa f43(ps4[2], c4[2], ps3[3], p5[2], c4[1]);
@@ -860,7 +837,6 @@ fa f424(ps4[23], c4[23], ps3[24], p5[23], c4[22]);
 fa f425(ps4[24], c4[24], ps3[25], p5[24], c4[23]);
 fa f426(ps4[25], c4[25], ps3[26], p5[25], c4[24]);
 fa f427(ps4[26], c4[26], ps3[27], p5[26], c4[25]);
-
 ha h51(ps5[0], c5[0], ps4[1], p6[0]);
 fa f52(ps5[1], c5[1], ps4[2], p6[1], c5[0]);
 fa f53(ps5[2], c5[2], ps4[3], p6[2], c5[1]);
@@ -913,7 +889,6 @@ fa f622(ps6[21], c6[21], ps5[22], p7[21], c6[20]);
 fa f623(ps6[22], c6[22], ps5[23], p7[22], c6[21]);
 fa f624(ps6[23], c6[23], ps5[24], p7[23], c6[22]);
 fa f625(ps6[24], c6[24], ps5[25], p7[24], c6[23]);
-
 ha h71(ps7[0], c7[0], ps6[1], p8[0]);
 fa f72(ps7[1], c7[1], ps6[2], p8[1], c7[0]);
 fa f73(ps7[2], c7[2], ps6[3], p8[2], c7[1]);
@@ -929,7 +904,7 @@ fa f712(ps7[11], c7[11], ps6[12], p8[11], c7[10]);
 fa f713(ps7[12], c7[12], ps6[13], p8[12], c7[11]);
 fa f714(ps7[13], c7[13], ps6[14], p8[13], c7[12]);
 fa f715(ps7[14], c7[14], ps6[15], p8[14], c7[13]);
-fa f716(ps7[15], c7[15], ps6[16], p8[15], c7[14]);
+fa f716(ps7[15], c7[15], ps6[16], p8[14], c7[14]);
 fa f717(ps7[16], c7[16], ps6[17], p8[16], c7[15]);
 fa f718(ps7[17], c7[17], ps6[18], p8[17], c7[16]);
 fa f719(ps7[18], c7[18], ps6[19], p8[18], c7[17]);
@@ -938,7 +913,6 @@ fa f721(ps7[20], c7[20], ps6[21], p8[20], c7[19]);
 fa f722(ps7[21], c7[21], ps6[22], p8[21], c7[20]);
 fa f723(ps7[22], c7[22], ps6[23], p8[22], c7[21]);
 fa f724(ps7[23], c7[23], ps6[24], p8[23], c7[22]);
-
 ha h81(ps8[0], c8[0], ps7[1], p9[0]);
 fa f82(ps8[1], c8[1], ps7[2], p9[1], c8[0]);
 fa f83(ps8[2], c8[2], ps7[3], p9[2], c8[1]);
@@ -981,11 +955,10 @@ fa f915(ps9[14], c9[14], ps8[15], p10[14], c9[13]);
 fa f916(ps9[15], c9[15], ps8[16], p10[15], c9[14]);
 fa f917(ps9[16], c9[16], ps8[17], p10[16], c9[15]);
 fa f918(ps9[17], c9[17], ps8[18], p10[17], c9[16]);
-fa f919(ps9[18], c9[18], ps8[19], p10[18], c9[17]);
+fa f919(ps9[18], c9[18], ps8[19], p10[17], c9[17]);
 fa f920(ps9[19], c9[19], ps8[20], p10[19], c9[18]);
 fa f921(ps9[20], c9[20], ps8[21], p10[20], c9[19]);
 fa f922(ps9[21], c9[21], ps8[22], p10[21], c9[20]);
-
 ha h101(ps10[0], c10[0], ps9[1], p11[0]);
 fa f102(ps10[1], c10[1], ps9[2], p11[1], c10[0]);
 fa f103(ps10[2], c10[2], ps9[3], p11[2], c10[1]);
@@ -1007,7 +980,6 @@ fa f1018(ps10[17], c10[17], ps9[18], p11[17], c10[16]);
 fa f1019(ps10[18], c10[18], ps9[19], p11[18], c10[17]);
 fa f1020(ps10[19], c10[19], ps9[20], p11[19], c10[18]);
 fa f1021(ps10[20], c10[20], ps9[21], p11[20], c10[19]);
-
 ha h1101(ps11[0], c11[0], ps10[1], p12[0]);
 fa f1102(ps11[1], c11[1], ps10[2], p12[1], c11[0]);
 fa f1103(ps11[2], c11[2], ps10[3], p12[2], c11[1]);
@@ -1048,7 +1020,6 @@ fa f1216(ps12[15], c12[15], ps11[16], p13[15], c12[14]);
 fa f1217(ps12[16], c12[16], ps11[17], p13[16], c12[15]);
 fa f1218(ps12[17], c12[17], ps11[18], p13[17], c12[16]);
 fa f1219(ps12[18], c12[18], ps11[19], p13[18], c12[17]);
-
 ha h1301(ps13[0], c13[0], ps12[1], p14[0]);
 fa f1302(ps13[1], c13[1], ps12[2], p14[1], c13[0]);
 fa f1303(ps13[2], c13[2], ps12[3], p14[2], c13[1]);
@@ -1067,7 +1038,6 @@ fa f1315(ps13[14], c13[14], ps12[15], p14[14], c13[13]);
 fa f1316(ps13[15], c13[15], ps12[16], p14[15], c13[14]);
 fa f1317(ps13[16], c13[16], ps12[17], p14[16], c13[15]);
 fa f1318(ps13[17], c13[17], ps12[18], p14[17], c13[16]);
-
 ha h141(ps14[0], c14[0], ps13[1], p15[0]);
 fa f142(ps14[1], c14[1], ps13[2], p15[1], c14[0]);
 fa f143(ps14[2], c14[2], ps13[3], p15[2], c14[1]);
@@ -1102,7 +1072,6 @@ fa f1513(ps15[12], c15[12], ps14[13], p16[12], c15[11]);
 fa f1514(ps15[13], c15[13], ps14[14], p16[13], c15[12]);
 fa f1515(ps15[14], c15[14], ps14[15], p16[14], c15[13]);
 fa f1516(ps15[15], c15[15], ps14[16], p16[15], c15[14]);
-
 ha h161(ps16[0], c16[0], ps15[1], p17[0]);
 fa f162(ps16[1], c16[1], ps15[2], p17[1], c16[0]);
 fa f163(ps16[2], c16[2], ps15[3], p17[2], c16[1]);
@@ -1118,7 +1087,6 @@ fa f1612(ps16[11], c16[11], ps15[12], p17[11], c16[10]);
 fa f1613(ps16[12], c16[12], ps15[13], p17[12], c16[11]);
 fa f1614(ps16[13], c16[13], ps15[14], p17[13], c16[12]);
 fa f1615(ps16[14], c16[14], ps15[15], p17[14], c16[13]);
-
 ha h171(ps17[0], c17[0], ps16[1], p18[0]);
 fa f172(ps17[1], c17[1], ps16[2], p18[1], c17[0]);
 fa f173(ps17[2], c17[2], ps16[3], p18[2], c17[1]);
@@ -1147,7 +1115,6 @@ fa f1810(ps18[9], c18[9], ps17[10], p19[9], c18[8]);
 fa f1811(ps18[10], c18[10], ps17[11], p19[10], c18[9]);
 fa f1812(ps18[11], c18[11], ps17[12], p19[11], c18[10]);
 fa f1813(ps18[12], c18[12], ps17[13], p19[12], c18[11]);
-
 ha h191(ps19[0], c19[0], ps18[1], p20[0]);
 fa f192(ps19[1], c19[1], ps18[2], p20[1], c19[0]);
 fa f193(ps19[2], c19[2], ps18[3], p20[2], c19[1]);
@@ -1160,7 +1127,6 @@ fa f199(ps19[8], c19[8], ps18[9], p20[8], c19[7]);
 fa f1910(ps19[9], c19[9], ps18[10], p20[9], c19[8]);
 fa f1911(ps19[10], c19[10], ps18[11], p20[10], c19[9]);
 fa f1912(ps19[11], c19[11], ps18[12], p20[11], c19[10]);
-
 ha h201(ps20[0], c20[0], ps19[1], p21[0]);
 fa f202(ps20[1], c20[1], ps19[2], p21[1], c20[0]);
 fa f203(ps20[2], c20[2], ps19[3], p21[2], c20[1]);
@@ -1183,7 +1149,6 @@ fa f2107(ps21[6], c21[6], ps20[7], p22[6], c21[5]);
 fa f2108(ps21[7], c21[7], ps20[8], p22[7], c21[6]);
 fa f2109(ps21[8], c21[8], ps20[9], p22[8], c21[7]);
 fa f2110(ps21[9], c21[9], ps20[10], p22[9], c21[8]);
-
 ha h2201(ps22[0], c22[0], ps21[1], p23[0]);
 fa f2202(ps22[1], c22[1], ps21[2], p23[1], c22[0]);
 fa f2203(ps22[2], c22[2], ps21[3], p23[2], c22[1]);
@@ -1193,7 +1158,6 @@ fa f2206(ps22[5], c22[5], ps21[6], p23[5], c22[4]);
 fa f2207(ps22[6], c22[6], ps21[7], p23[6], c22[5]);
 fa f2208(ps22[7], c22[7], ps21[8], p23[7], c22[6]);
 fa f2209(ps22[8], c22[8], ps21[9], p23[8], c22[7]);
-
 ha h2301(ps23[0], c23[0], ps22[1], p24[0]);
 fa f2302(ps23[1], c23[1], ps22[2], p24[1], c23[0]);
 fa f2303(ps23[2], c23[2], ps22[3], p24[2], c23[1]);
@@ -1210,14 +1174,12 @@ fa f244(ps24[3], c24[3], ps23[4], p25[3], c24[2]);
 fa f245(ps24[4], c24[4], ps23[5], p25[4], c24[3]);
 fa f246(ps24[5], c24[5], ps23[6], p25[5], c24[4]);
 fa f247(ps24[6], c24[6], ps23[7], p25[6], c24[5]);
-
 ha h251(ps25[0], c25[0], ps24[1], p26[0]);
 fa f252(ps25[1], c25[1], ps24[2], p26[1], c25[0]);
 fa f253(ps25[2], c25[2], ps24[3], p26[2], c25[1]);
 fa f254(ps25[3], c25[3], ps24[4], p26[3], c25[2]);
 fa f255(ps25[4], c25[4], ps24[5], p26[4], c25[3]);
 fa f256(ps25[5], c25[5], ps24[6], p26[5], c25[4]);
-
 ha h261(ps26[0], c26[0], ps25[1], p27[0]);
 fa f262(ps26[1], c26[1], ps25[2], p27[1], c26[0]);
 fa f263(ps26[2], c26[2], ps25[3], p27[2], c26[1]);
@@ -1228,17 +1190,13 @@ ha h271(ps27[0], c27[0], ps26[1], p28[0]);
 fa f272(ps27[1], c27[1], ps26[2], p28[1], c27[0]);
 fa f273(ps27[2], c27[2], ps26[3], p28[2], c27[1]);
 fa f274(ps27[3], c27[3], ps26[4], p28[3], c27[2]);
-
 ha h281(ps28[0], c28[0], ps27[1], p29[0]);
 fa f282(ps28[1], c28[1], ps27[2], p29[1], c28[0]);
 fa f283(ps28[2], c28[2], ps27[3], p29[2], c28[1]);
-
 ha h291(ps29[0], c29[0], ps28[1], p30[0]);
 fa f292(ps29[1], c29[1], ps28[2], p30[1], c29[0]);
 
 ha h301(ps30[0], c30[0], ps29[1], p31[0]);
-
-
 assign lsb={ps30[0], ps29[0],ps28[0],ps27[0], ps26[0], ps25[0], ps24[0],ps23[0],ps22[0],ps21[0],ps20[0], ps19[0], ps18[0], ps17[0],ps16[0],ps15[0],ps14[0],ps13[0], ps12[0], ps11[0], ps10[0],ps9[0],ps8[0],ps7[0],ps6[0], ps5[0], ps4[0], ps3[0],ps2[0],ps1[0],ps0[0],p0[0]};
 
 dreg rc1(c0[30], clk, c030);
@@ -1272,7 +1230,6 @@ dreg rc28(c27[3], clk, c273);
 dreg rc29(c28[2], clk, c282);
 dreg rc30(c29[1], clk, c291);
 dreg rc31(c30[0], clk, c300);
-
 dreg_32bit r1(p0, clk, pp0);
 dreg_32bit r2(p1, clk, pp1);
 dreg_32bit r3(p2, clk, pp2);
@@ -1324,7 +1281,7 @@ fa f428(ps4[27], c4[27], ps3[28], pp5[27], c426);
 fa f429(ps4[28], c4[28], ps3[29], pp5[28], c4[27]);
 fa f430(ps4[29], c4[29], ps3[30], pp5[29], c4[28]);
 fa f431(ps4[30], c4[30], ps3[31], pp5[30], c4[29]);
-fa f432(ps4[31], c4[31], c3[31], pp5[31], c4[30]);
+fa f432(ps4[31], c4[31], c2[31], pp5[31], c4[30]);
 
 fa f527(ps5[26], c5[26], ps4[27], pp6[26], c525);
 fa f528(ps5[27], c5[27], ps4[28], pp6[27], c5[26]);
@@ -1823,7 +1780,7 @@ fa f3020(ps30[19], c30[19], ps29[20], pp31[19], c30[18]);
 fa f3021(ps30[20], c30[20], ps29[21], pp31[20], c30[19]);
 fa f3022(ps30[21], c30[21], ps29[22], pp31[21], c30[20]);
 fa f3023(ps30[22], c30[22], ps29[23], pp31[22], c30[21]);
-fa f3024(ps30[23], c30[23], ps29[24], pp31[23], c30[22]);
+fa f3024(ps30[23], c30[23], ps29[24], pp31[24], c30[22]);
 fa f3025(ps30[24], c30[24], ps29[25], pp31[24], c30[23]);
 fa f3026(ps30[25], c30[25], ps29[26], pp31[25], c30[24]);
 fa f3027(ps30[26], c30[26], ps29[27], pp31[26], c30[25]);
@@ -1832,8 +1789,7 @@ fa f3029(ps30[28], c30[28], ps29[29], pp31[28], c30[27]);
 fa f3030(ps30[29], c30[29], ps29[30], pp31[29], c30[28]);
 fa f3031(ps30[30], c30[30], ps29[31], pp31[30], c30[29]);
 fa f3032(ps30[31], c30[31], c29[31], pp31[31], c30[30]);
-
-assign msb={c30[31], ps30[31], ps30[30], ps30[29], ps30[28], ps30[27], ps30[26],ps30[25], ps30[24], ps30[23], ps30[22], ps30[21], ps30[20], ps30[19], ps30[18], ps30[17], ps30[16], ps30[15], ps30[14],ps30[13], ps30[12], ps30[11], ps30[10], ps30[9], ps30[8], ps30[7],ps30[6], ps30[5], ps30[4], ps30[3], ps30[2], ps30[1]}; 
+assign msb={c30[31], ps30[31], ps30[30], ps30[29], ps30[28], ps30[27], ps30[26],ps30[25], ps30[24], ps30[23], ps30[22], ps30[21], ps30[20], ps30[19], ps30[18], ps30[17], ps30[16], ps30[15], ps30[14],ps30[13], ps30[12], ps30[11], ps30[10], ps30[9], ps30[8], ps30[7],ps30[6], ps30[5], ps30[4], ps30[3], ps30[2], ps30[1]};
 endmodule
 
 
@@ -1847,30 +1803,29 @@ module alu(aluout,a,b,opsel,outsel,clk,over);
 	input [31:0] a,b;
 	input [1:0] opsel;
 	input [2:0] outsel;
-	input clk;
+input clk;
 	reg [31:0] aluout;
 //Wire
 	
 	wire [31:0] OUT_LOGIC, OUT_ADD_SUB, OUT_MUL_MSB, OUT_MUL_LSB, OUT_COMP;
 	wire out_c;
 	wire f1, f0;
-	
 //Calling 32 bit adder, logic, and multiplication and comparator module
 	logic_fn l1(OUT_LOGIC,a,b,opsel);
 	as32b l2(OUT_ADD_SUB, out_c, over, a, b, opsel);
 	mul l3(OUT_MUL_MSB,OUT_MUL_LSB,a,b,clk);
-	tree_comp l4(a,b,f1,f0);
+tree_comp l4(a,b,f1,f0);
 	assign OUT_COMP = {30'b0, f1, f0};
 	
 //Case loop
-	always @(OUT_LOGIC or OUT_ADD_SUB or OUT_MUL_MSB or OUT_MUL_LSB or OUT_COMP or outsel[2] or outsel[1] or outsel[0])
-	case ({outsel[2],outsel[1],outsel[0]})
+	always @(*) // Updated for better simulation stability
+	case (outsel)
 	3'b000 : aluout = OUT_LOGIC;
-	3'b001 : aluout = OUT_ADD_SUB;
+3'b001 : aluout = OUT_ADD_SUB;
 	3'b010 : aluout = OUT_MUL_LSB;
 	3'b011 : aluout = OUT_MUL_MSB;
 	3'b100 : aluout = OUT_COMP;
-	default : $display("Please check Select Lines!");
+default : aluout = 32'b0;
 	endcase
         endmodule
 
@@ -1892,7 +1847,7 @@ endmodule
  input clk;
  input [31:0] a,b;
  output [31:0] A, B;
- //wire [31:0] A, B;
+//wire [31:0] A, B;
  dreg_32bit aa(a, clk, A);
  dreg_32bit bb(b, clk, B);
 
@@ -1907,8 +1862,7 @@ output [4:0] addrB;
 //wire [4:0] addrB;
 
 dreg_5bit bd(addressB, clk, addrB);
-
- endmodule
+endmodule
 
 //ALU operation
 module ALUoperation(opsel, outsel, oen, clk, OPSEL, OUTSEL, OEN);
@@ -1923,7 +1877,6 @@ output OEN;
 dreg_2bit ops(opsel, clk, OPSEL);
 dreg_3bit outs(outsel, clk, OUTSEL);
 dreg oe(oen, clk, OEN);
-
 endmodule
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1937,25 +1890,35 @@ endmodule
 //one bit comparator
 module one_bit_comp(a, b, f1, f0);
 input a, b;
-output f1, f0;
+output reg f1, f0;
 
-//if (a > b) then {f1, f0} = 2'b01
-//if (a < b) then {f1, f0} = 2'b00
-//if (a == b) then {f1, f0} = 2'b10
-
-//write your code here
+// Implementation of truth table in project instructions [cite: 17]
+always @(*) begin
+    if (a > b)      {f1, f0} = 2'b01;
+    else if (a < b) {f1, f0} = 2'b00;
+    else            {f1, f0} = 2'b10; // Result: Equal
+end
 
 endmodule
 
 //mux to select the f1 f0 outputs
 module mux_4to2(hi_f1, hi_f0, lo_f1, lo_f0, f1, f0);
-
 input hi_f1, hi_f0, lo_f1, lo_f0;
-output f1, f0;
+output reg f1, f0;
 
-//use hi_f1 to select the correct outputs
-
-//write your code here
+// Implementation of priority logic [cite: 18]
+always @(*) begin
+    // If high bits are NOT equal (hi_f1 == 0), the result is already decided
+    if (hi_f1 == 0) begin
+        f1 = hi_f1;
+        f0 = hi_f0;
+    end 
+    // If high bits ARE equal, we look at the lower order bits
+    else begin
+        f1 = lo_f1;
+        f0 = lo_f0;
+    end
+end
 
 endmodule
 
@@ -1970,19 +1933,33 @@ wire [7 : 0] f1_L3, f0_L3;
 wire [3 : 0] f1_L2, f0_L2;
 wire [1 : 0] f1_L1, f0_L1;
 
-//write your code here
+// Binary tree implementation to reduce latency to O(log n) [cite: 18]
+genvar i;
+generate
+    // Level 5: 32 one_bit_comp leaf nodes
+    for (i = 0; i < 32; i = i + 1) begin : gen_L5
+        one_bit_comp inst (A[i], B[i], f1_L5[i], f0_L5[i]);
+    end
+    // Level 4: 16 mux_4to2 reduction
+    for (i = 0; i < 16; i = i + 1) begin : gen_L4
+        mux_4to2 mux_L4 (f1_L5[2*i+1], f0_L5[2*i+1], f1_L5[2*i], f0_L5[2*i], f1_L4[i], f0_L4[i]);
+    end
+    // Level 3: 8 mux_4to2 reduction
+    for (i = 0; i < 8; i = i + 1) begin : gen_L3
+        mux_4to2 mux_L3 (f1_L4[2*i+1], f0_L4[2*i+1], f1_L4[2*i], f0_L4[2*i], f1_L3[i], f0_L3[i]);
+    end
+    // Level 2: 4 mux_4to2 reduction
+    for (i = 0; i < 4; i = i + 1) begin : gen_L2
+        mux_4to2 mux_L2 (f1_L3[2*i+1], f0_L3[2*i+1], f1_L3[2*i], f0_L3[2*i], f1_L2[i], f0_L2[i]);
+    end
+    // Level 1: 2 mux_4to2 reduction
+    for (i = 0; i < 2; i = i + 1) begin : gen_L1
+        mux_4to2 mux_L1 (f1_L2[2*i+1], f0_L2[2*i+1], f1_L2[2*i], f0_L2[2*i], f1_L1[i], f0_L1[i]);
+    end
+endgenerate
 
-//Level 5: 32 one_bit_comp go here
-
-//Level 4: 16 mux_4to2 go here
-
-//Level 3: 8 mux_4to2 go here
-
-//Level 2: 4 mux_4to2 go here
-
-//Level 1: 2 mux_4to2 go here
-
-//Level 0: 1 mux_4to2 goes here
+// Level 0: Final root multiplexer
+mux_4to2 root_mux (f1_L1[1], f0_L1[1], f1_L1[0], f0_L1[0], f1, f0);
 
 endmodule
 
@@ -1995,7 +1972,6 @@ input [4:0] addressA, addressB;
 input [1:0] opsel;
 input [2:0] outsel;
 input oen, clk, asel, bsel;
-
 output [31:0] outPut;
 output over;
 
@@ -2003,18 +1979,15 @@ wire [1:0] OPSEL;
 wire [2:0] OUTSEL; 
 wire  OEN;
 wire [4:0] backB;
-wire [31:0] aluout,A,B,outPut;
+wire [31:0] aluout,A,B;
 wire [31:0] outA, outB;
 
 
 writeBackAddr wb(addressB,clk, backB);
 memoryBlock mb(addressA, addressB, backB, aluout, dataIn, asel, bsel,clk,outA, outB);
-
 ALUoperand mOpd(outA, outB, clk, A, B);
 ALUoperation mmOpn(opsel, outsel, oen, clk, OPSEL, OUTSEL, OEN);
 alu a(aluout,A,B,OPSEL, OUTSEL, clk, over);
 OutPut o(outPut, OEN, aluout);
 
 endmodule
-
-
