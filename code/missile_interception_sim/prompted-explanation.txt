@@ -63,12 +63,17 @@ Milestone 3: Vectorized Monte Carlo Engine (1,000 Runs)
 - Performance Metrics: 93.8% hit rate (lethal sphere <= 15.0 m), mean time-to-intercept of 162.8 s,
   mean miss distance of 5.24 m.
 
-Milestone 4: Interactive 3D Plotly Visualizer
-- Renders operational zones, terrain planes, and labeled site markers (A0–A9, D0–D9).
-- Dynamic trajectory lines colored by threat profile (Crimson for Ballistic, Orange for
-  Quasi-Ballistic, Magenta for Cruise, Cyan for Interceptors).
-- Detonation Bursts: 3D gold/red starburst particle cloud rendered at (Xi, Yi, Zi) for kills.
-- Miss Vectors: Dashed yellow connecting lines at CPA with distance annotations.
+Milestone 4: Interactive Real-Time Playable 3D Visualizer (Plotly Animation)
+- Interactive Real-Time Playback: Equipped with ▶ Play and ⏸ Pause animation buttons and a smooth
+  timeline scrubbing slider (t = 0 s to terminal intercept).
+- Dynamic Kinematic Heads & Trails: Missile markers display real-time 3D speed (Mach), altitude,
+  and coordinates, leaving color-coded historical trailing paths.
+- Automated Interceptor Staging: Defender interceptors launch dynamically at t = 3.0 s from the optimal
+  battery and guide in 3D toward the predicted intercept point.
+- Dynamic Expanding Detonation Burst: Lethal proximity triggers (CPA <= 15.0 m) generate expanding 3D
+  gold/red starburst particle clouds with "DIRECT HIT / KILL" tags.
+- CPA Miss Vector Transitions: Miss outcomes dynamically render dashed yellow Closest Point of Approach
+  vectors connecting the missiles at CPA with distance annotations.
 
 Milestone 5: Machine Learning Interception Prediction Model
 - Ingests early 3-second radar snippet + engineered kinematic features (velocity magnitude,
