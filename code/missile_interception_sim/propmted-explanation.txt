@@ -220,3 +220,40 @@ full theater-scale saturation warfare:
    - Fleet Magazine Remaining:      165 / 1,200 Interceptors Available
 6. Interactive Playable 3D Visualizer: Renders the complete 1,000-missile theater swarm
    with Play/Pause controls, dynamic missile trails, detonation bursts, and time scrubbing.
+
+================================================================================
+PHASE 6 (REFINED): SPATIAL TARGET VULNERABILITY & MULTI-BATTERY LOAD BALANCING
+================================================================================
+
+1. EXECUTIVE OVERVIEW & SPATIAL VULNERABILITY FINDINGS
+--------------------------------------------------------------------------------
+The refined Phase 6 analysis investigates the spatial targeting clustering of
+1,000 attacker missiles and deploys an optimized multi-battery cooperative net:
+1. Spatial Targeting Distribution & Most Heavily Targeted Areas:
+   - Strategic Command HQ (X=950km, Y=0km): Absorbed 310 missiles (31.0%),
+     representing the primary target for command decapitation.
+   - Strategic Airbase & Fighter Depot (X=920km, Y=-40km): Absorbed 241 missiles (24.1%).
+   - Central Energy & Power Grid (X=940km, Y=65km): Absorbed 158 missiles (15.8%).
+   - Early Warning Radar Array (X=980km, Y=20km): Absorbed 147 missiles (14.7%).
+   - Logistics & Supply Hub (X=970km, Y=-70km): Absorbed 144 missiles (14.4%).
+   - Geographical Sector Breakdown:
+     * Central Sector (Y in [-25, +25] km): 457 threats (45.7%)
+     * South Sector (Y < -25 km): 385 threats (38.5%)
+     * North Sector (Y > +25 km): 158 threats (15.8%)
+2. Multi-Battery Sector Load Balancing & Interception Optimization:
+   - Neighboring SAM batteries share tracking queues to prevent Central Corridor
+     saturation from exhausting localized magazines.
+   - Tuned True Proportional Navigation (N = 4.2) reduced average CPA to < 3.5 m.
+3. Round-by-Round Interception Performance:
+   - Round 1 (Low-Alt Cruise Saturation): 192 Direct Hits (96.0%), 8/8 BDA Kills -> 200/200 (100.0%)
+   - Round 2 (Exo-Atmospheric Ballistic): 198 Direct Hits (99.0%), 2/2 BDA Kills -> 200/200 (100.0%)
+   - Round 3 (Quasi-Ballistic Weave):     197 Direct Hits (98.5%), 3/3 BDA Kills -> 200/200 (100.0%)
+   - Round 4 (Synchronized Mixed Raid):   197 Direct Hits (98.5%), 3/3 BDA Kills -> 200/200 (100.0%)
+   - Round 5 (Concentrated HVA Surge):    193 Direct Hits (96.5%), 7/7 BDA Kills -> 200/200 (100.0%)
+   - Overall Primary Kills: 977 / 1,000 (97.70%)
+   - Overall BDA Secondary Kills: 23 / 23 (100.0%)
+   - Total High-Value Asset Survivability: 1,000 / 1,000 (100.0%)
+   - Remaining Fleet Magazine Inventory: 177 / 1,200 available.
+4. Visualizations:
+   - 2D Point-of-Impact (POI) Density Contour Heatmap & Scatter Map.
+   - 3D Interactive Playable Visualizer showing all 1,000-missile flight paths and detonations.
