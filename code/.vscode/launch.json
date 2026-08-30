@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "C/C++ Runner: Debug Session",
+      "type": "lldb",
+      "request": "launch",
+      "args": [],
+      "cwd": "/Users/schoudhry/Desktop/mind-overnight/code/rust_v1/src",
+      "program": "/Users/schoudhry/Desktop/mind-overnight/code/rust_v1/src/build/Debug/outDebug"
+    }
+  ]
+}
