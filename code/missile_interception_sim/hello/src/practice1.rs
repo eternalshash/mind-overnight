@@ -26,9 +26,11 @@ fn main() {
        ------------------------------------------------------------------------- */
 
     // Write your code for Exercise 2 below:
-    let my_age = // unsigned int should be 21 
+    let my_age: u8 = 21;  // unsigned int should be 21, first you declare the variable and then specify type with u8
 
+    let temperature: i32 = -10;
 
+    let count = 100i32;
 
     /* -------------------------------------------------------------------------
        EXERCISE 3: Floating-Point Numbers (f32 & f64)
@@ -38,18 +40,8 @@ fn main() {
 
     // Write your code for Exercise 3 below:
 
-
-
-    /* -------------------------------------------------------------------------
-       EXERCISE 4: Characters (char)
-       Note: `char` in Rust represents a Unicode scalar value, defined with single quotes ('a').
-       1. Declare a variable named `my_initial` of type `char` and assign it your first initial (single quotes).
-       2. Declare a variable named `emoji` of type `char` and assign it an emoji like '🦀' or '🚀'.
-       ------------------------------------------------------------------------- */
-
-    // Write your code for Exercise 4 below:
-
-
+   let pi: f64 = 3.1415;
+   let rating: f32 = 4.5;
 
     /* -------------------------------------------------------------------------
        EXERCISE 5: Mutability (mut)
@@ -59,6 +51,8 @@ fn main() {
 
     // Write your code for Exercise 5 below:
 
+    let mut score = 0;
+    score = 10;
 
 
     /* -------------------------------------------------------------------------
@@ -68,6 +62,10 @@ fn main() {
        ------------------------------------------------------------------------- */
 
     // Write your code for Bonus Exercise below:
+
+    let favorite_numbers: [i32; 3] = [13, 23, 11];
+    let person_info = ('S', 25u8, true);
+
 
 
 
