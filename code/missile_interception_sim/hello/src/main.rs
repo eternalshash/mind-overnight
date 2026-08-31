@@ -58,7 +58,4 @@ fn main() {
 
     let my_tuple = (5u32, 1u8, true, -5.04f32);
 
-
-
-
 }
