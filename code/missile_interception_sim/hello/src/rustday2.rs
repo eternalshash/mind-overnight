@@ -14,7 +14,8 @@ struct Person {
 struct Unit;
 
 /*
-Tuple 
-
+Tuple structs, just named tuples
+Classic C structures
+Unit structs, which are field-less and useful for any generics 
 
 */
