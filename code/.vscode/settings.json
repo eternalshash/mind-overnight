@@ -1,4 +1,8 @@
 {
+  "python.defaultInterpreterPath": "/Users/schoudhry/anaconda3/bin/python",
+  "python.analysis.extraPaths": [
+    "/Users/schoudhry/anaconda3/lib/python3.11/site-packages"
+  ],
   "C_Cpp_Runner.cCompilerPath": "clang",
   "C_Cpp_Runner.cppCompilerPath": "clang++",
   "C_Cpp_Runner.debuggerPath": "lldb",
