@@ -1,24 +1,6 @@
 #include <Arduino.h>
 #include <avr/io.h>
-
-void uart_init(void) {
-    UBRR0H = 0;
-    UBRR0L = 8;
-    UCSR0A |= (1 << U2X0);
-    UCSR0B = (1 << TXEN0);
-    UCSR0C = (1 << UCSZ01) | (1 << UCSZ00);
-}
-
-void uart_putc(char c) {
-    while (!(UCSR0A & (1 << UDRE0)));
-    UDR0 = c;
-}
-
-void uart_puts(const char *s) {
-    while (*s) {
-        uart_putc(*s++);
-    }
-}
+#include <util/delay.h>
 
 void setup(void) {
     DDRD |= (1 << 2) | (1 << 3) | (1 << 4) | (1 << 5) | (1 << 6) | (1 << 7);
