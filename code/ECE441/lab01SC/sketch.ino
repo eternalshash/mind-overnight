@@ -9,27 +9,21 @@ void setup(void) {
 
 void loop(void) {
     if (!(PINB & (1 << 4)) || !(PINB & (1 << 5))) {
-        PORTD &= ~(1 << 4);
-        PORTD |= (1 << 3);
+        PORTD = (1 << 3) | (1 << 5);
         delay(1000);
 
-        PORTD &= ~(1 << 3);
-        PORTD |= (1 << 2);
+        PORTD = (1 << 2) | (1 << 5);
         delay(1000);
 
-        PORTD &= ~(1 << 5);
-        PORTD |= (1 << 7);
+        PORTD = (1 << 2) | (1 << 7);
         delay(5000);
 
-        PORTD &= ~(1 << 7);
-        PORTD |= (1 << 6);
+        PORTD = (1 << 2) | (1 << 6);
         delay(1000);
 
-        PORTD &= ~(1 << 6);
-        PORTD |= (1 << 5);
+        PORTD = (1 << 2) | (1 << 5);
         delay(1000);
 
-        PORTD &= ~(1 << 2);
-        PORTD |= (1 << 4);
+        PORTD = (1 << 4) | (1 << 5);
     }
 }
