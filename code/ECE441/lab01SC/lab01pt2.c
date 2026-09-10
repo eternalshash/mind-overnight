@@ -41,6 +41,8 @@ void loop(void) {
             button_state = reading;
             if (button_state == 0) {
                 paused = !paused;
+                Serial.print(F("[TELEMETRY][PT2] Button Toggle -> State: "));
+                Serial.println(paused ? F("PAUSED") : F("RUNNING"));
             }
         }
     }
