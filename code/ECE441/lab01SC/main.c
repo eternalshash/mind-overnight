@@ -16,41 +16,6 @@ static const unsigned long debounce_delay = 50;
 static unsigned long last_count_time = 0;
 static unsigned long last_digit_time = 0;
 
-static void uart_init(void) {
-    UBRR0H = 0;
-    UBRR0L = 8;
-    UCSR0A |= (1 << U2X0);
-    UCSR0B = (1 << TXEN0);
-    UCSR0C = (1 << UCSZ01) | (1 << UCSZ00);
-}
-
-static void uart_putc(char c) {
-    while (!(UCSR0A & (1 << UDRE0)));
-    UDR0 = c;
-}
-
-static void uart_puts(const char *s) {
-    while (*s) {
-        uart_putc(*s++);
-    }
-}
-
-static void uart_put_num(uint32_t n) {
-    char buf[12];
-    uint8_t i = 0;
-    if (n == 0) {
-        uart_putc('0');
-        return;
-    }
-    while (n > 0) {
-        buf[i++] = (n % 10) + '0';
-        n /= 10;
-    }
-    while (i > 0) {
-        uart_putc(buf[--i]);
-    }
-}
-
 void setup(void) {
     DDRD |= (0x3F << 2);
     DDRB &= ~(1 << 4);
