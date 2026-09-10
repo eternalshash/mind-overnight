@@ -24,6 +24,8 @@ void setup(void) {
     PORTD = (PORTD & ~0xFC) | ((count & 0x3F) << 2);
     PORTB = (PORTB & ~0x0F) | (pb_digits[digit] & 0x0F);
     PORTC = (PORTC & ~0x07) | (pc_digits[digit] & 0x07);
+    Serial.begin(115200);
+    Serial.println(F("[TELEMETRY][PT2] 6-Bit Counter & 7-Seg Display Initialized"));
 }
 
 void loop(void) {
@@ -39,6 +41,8 @@ void loop(void) {
             button_state = reading;
             if (button_state == 0) {
                 paused = !paused;
+                Serial.print(F("[TELEMETRY][PT2] Button Toggle -> State: "));
+                Serial.println(paused ? F("PAUSED") : F("RUNNING"));
             }
         }
     }
@@ -49,6 +53,8 @@ void loop(void) {
         last_count_time = current_time;
         count = (count + 1) & 0x3F;
         PORTD = (PORTD & ~0xFC) | ((count & 0x3F) << 2);
+        Serial.print(F("[TELEMETRY][PT2] Count: ")); Serial.print(count);
+        Serial.print(F(" | Seg: ")); Serial.println(digit);
     }
 
     if (current_time - last_digit_time >= 500) {
