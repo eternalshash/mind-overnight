@@ -26,9 +26,6 @@ void setup(void) {
     PORTD = (PORTD & ~0xFC) | ((count & 0x3F) << 2);
     PORTB = (PORTB & ~0x0F) | (pb_digits[digit] & 0x0F);
     PORTC = (PORTC & ~0x07) | (pc_digits[digit] & 0x07);
-
-    uart_init();
-    uart_puts("[TELEMETRY][PT2] 6-Bit Counter & 7-Seg Display Initialized\r\n");
 }
 
 void loop(void) {
