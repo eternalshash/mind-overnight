@@ -29,6 +29,7 @@ void loop(void) {
         PORTD &= ~(1 << 7);
         PORTD |= (1 << 6);
         delay(1000);
+        Serial.println(F("[TELEMETRY][PT1] Phase 5: All Red (1s)"));
 
         PORTD &= ~(1 << 6);
         PORTD |= (1 << 5);
@@ -36,5 +37,6 @@ void loop(void) {
 
         PORTD &= ~(1 << 2);
         PORTD |= (1 << 4);
+        Serial.println(F("[TELEMETRY][PT1] Cycle Complete -> State: IDLE (NS: GREEN, EW: RED)"));
     }
 }
