@@ -4,6 +4,8 @@ void setup(void) {
     DDRD |= (1 << 2) | (1 << 3) | (1 << 4) | (1 << 5) | (1 << 6) | (1 << 7);
     DDRB &= ~((1 << 4) | (1 << 5));
     PORTD = (1 << 4) | (1 << 5);
+    Serial.begin(115200);
+    Serial.println(F("[TELEMETRY][PT1] System initialized. State: IDLE (NS: GREEN, EW: RED)"));
 }
 
 void loop(void) {
