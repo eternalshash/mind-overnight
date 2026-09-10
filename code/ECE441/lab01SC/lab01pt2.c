@@ -41,8 +41,6 @@ void loop(void) {
             button_state = reading;
             if (button_state == 0) {
                 paused = !paused;
-                uart_puts("[TELEMETRY][PT2] Button Toggle -> State: ");
-                uart_puts(paused ? "PAUSED\r\n" : "RUNNING\r\n");
             }
         }
     }
