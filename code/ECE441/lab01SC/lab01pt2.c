@@ -24,6 +24,8 @@ void setup(void) {
     PORTD = (PORTD & ~0xFC) | ((count & 0x3F) << 2);
     PORTB = (PORTB & ~0x0F) | (pb_digits[digit] & 0x0F);
     PORTC = (PORTC & ~0x07) | (pc_digits[digit] & 0x07);
+    Serial.begin(115200);
+    Serial.println(F("[TELEMETRY][PT2] 6-Bit Counter & 7-Seg Display Initialized"));
 }
 
 void loop(void) {
