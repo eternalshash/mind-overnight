@@ -19,10 +19,12 @@ void loop(void) {
         PORTD &= ~(1 << 3);
         PORTD |= (1 << 2);
         delay(1000);
+        Serial.println(F("[TELEMETRY][PT1] Phase 3: EW Green (5s)"));
 
         PORTD &= ~(1 << 5);
         PORTD |= (1 << 7);
         delay(5000);
+        Serial.println(F("[TELEMETRY][PT1] Phase 4: EW Yellow (1s)"));
 
         PORTD &= ~(1 << 7);
         PORTD |= (1 << 6);
