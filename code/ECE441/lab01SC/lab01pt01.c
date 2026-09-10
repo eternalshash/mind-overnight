@@ -18,16 +18,13 @@ void loop(void) {
         PORTD &= ~(1 << 3);
         PORTD |= (1 << 2);
         _delay_ms(1000);
-        uart_puts("[TELEMETRY][PT1] Phase 3: EW Green (5s)\r\n");
-
         PORTD &= ~(1 << 5);
         PORTD |= (1 << 7);
-        delay(5000);
-        uart_puts("[TELEMETRY][PT1] Phase 4: EW Yellow (1s)\r\n");
+        _delay_ms(5000);
 
         PORTD &= ~(1 << 7);
         PORTD |= (1 << 6);
-        delay(1000);
+        _delay_ms(1000);
         uart_puts("[TELEMETRY][PT1] Phase 5: All Red (1s)\r\n");
 
         PORTD &= ~(1 << 6);
