@@ -53,6 +53,8 @@ void loop(void) {
         last_count_time = current_time;
         count = (count + 1) & 0x3F;
         PORTD = (PORTD & ~0xFC) | ((count & 0x3F) << 2);
+        Serial.print(F("[TELEMETRY][PT2] Count: ")); Serial.print(count);
+        Serial.print(F(" | Seg: ")); Serial.println(digit);
     }
 
     if (current_time - last_digit_time >= 500) {
