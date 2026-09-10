@@ -51,17 +51,6 @@ void loop(void) {
         last_count_time = current_time;
         count = (count + 1) & 0x3F;
         PORTD = (PORTD & ~0xFC) | ((count & 0x3F) << 2);
-        uart_puts("[TELEMETRY][PT2] Time: ");
-        uart_put_num(current_time);
-        uart_puts("ms | Count: 0b");
-        for (int8_t i = 5; i >= 0; i--) {
-            uart_putc((count & (1 << i)) ? '1' : '0');
-        }
-        uart_puts(" (");
-        uart_put_num(count);
-        uart_puts(") | Seg: ");
-        uart_put_num(digit);
-        uart_puts("\r\n");
     }
 
     if (current_time - last_digit_time >= 500) {
