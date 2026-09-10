@@ -54,6 +54,7 @@ static void uart_put_num(uint32_t n) {
 void setup(void) {
     DDRD |= (0x3F << 2);
     DDRB &= ~(1 << 4);
+    PORTB |= (1 << 4);
     DDRB |= 0x0F;
     DDRC |= 0x07;
 
