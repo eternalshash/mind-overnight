@@ -5,7 +5,7 @@ static const uint8_t pb_digits[10] = {0x00, 0x09, 0x04, 0x00, 0x09, 0x02, 0x02, 
 static const uint8_t pc_digits[10] = {0x04, 0x07, 0x02, 0x03, 0x01, 0x01, 0x00, 0x07, 0x00, 0x01};
 
 static uint8_t count = 0;
-static uint8_t digit = 0;
+static uint8_t digit = 0
 static uint8_t paused = 0;
 
 static uint8_t button_state = 1;
