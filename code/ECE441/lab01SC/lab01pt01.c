@@ -7,8 +7,6 @@ void setup(void) {
     DDRB &= ~((1 << 4) | (1 << 5));
     PORTB |= (1 << 4) | (1 << 5);
     PORTD = (1 << 4) | (1 << 5);
-    uart_init();
-    uart_puts("[TELEMETRY][PT1] System initialized. State: IDLE (NS: GREEN, EW: RED)\r\n");
 }
 
 void loop(void) {
