@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "author": "Anonymous",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-arduino-uno", "id": "uno", "top": 140, "left": 100, "attrs": {} },
+    { "type": "wokwi-led", "id": "led_ns_red", "top": -90, "left": -20, "attrs": { "color": "red", "label": "NS Red" } },
+    { "type": "wokwi-led", "id": "led_ns_yellow", "top": -90, "left": 40, "attrs": { "color": "yellow", "label": "NS Yellow" } },
+    { "type": "wokwi-led", "id": "led_ns_green", "top": -90, "left": 100, "attrs": { "color": "green", "label": "NS Green" } },
+    { "type": "wokwi-resistor", "id": "r_ns_red", "top": -20, "left": -30, "attrs": { "resistance": "220" } },
+    { "type": "wokwi-resistor", "id": "r_ns_yellow", "top": -20, "left": 30, "attrs": { "resistance": "220" } },
+    { "type": "wokwi-resistor", "id": "r_ns_green", "top": -20, "left": 90, "attrs": { "resistance": "220" } },
+    { "type": "wokwi-led", "id": "led_ew_red", "top": -90, "left": 220, "attrs": { "color": "red", "label": "EW Red" } },
+    { "type": "wokwi-led", "id": "led_ew_yellow", "top": -90, "left": 280, "attrs": { "color": "yellow", "label": "EW Yellow" } },
+    { "type": "wokwi-led", "id": "led_ew_green", "top": -90, "left": 340, "attrs": { "color": "green", "label": "EW Green" } },
+    { "type": "wokwi-resistor", "id": "r_ew_red", "top": -20, "left": 210, "attrs": { "resistance": "220" } },
+    { "type": "wokwi-resistor", "id": "r_ew_yellow", "top": -20, "left": 270, "attrs": { "resistance": "220" } },
+    { "type": "wokwi-resistor", "id": "r_ew_green", "top": -20, "left": 330, "attrs": { "resistance": "220" } },
+    { "type": "wokwi-pushbutton", "id": "btn_west", "top": 50, "left": -120, "attrs": { "color": "green", "label": "West Sensor" } },
+    { "type": "wokwi-resistor", "id": "r_pullup_west", "top": 120, "left": -120, "attrs": { "resistance": "10000" } },
+    { "type": "wokwi-pushbutton", "id": "btn_east", "top": 50, "left": 470, "attrs": { "color": "green", "label": "East Sensor" } },
+    { "type": "wokwi-resistor", "id": "r_pullup_east", "top": 120, "left": 470, "attrs": { "resistance": "10000" } }
+  ],
+  "connections": [
+    [ "uno:2", "r_ns_red:1", "green", [ "v0" ] ],
+    [ "r_ns_red:2", "led_ns_red:A", "green", [ "v0" ] ],
+    [ "led_ns_red:C", "uno:GND.1", "black", [ "v0" ] ],
+
+    [ "uno:3", "r_ns_yellow:1", "green", [ "v0" ] ],
+    [ "r_ns_yellow:2", "led_ns_yellow:A", "green", [ "v0" ] ],
+    [ "led_ns_yellow:C", "uno:GND.1", "black", [ "v0" ] ],
+
+    [ "uno:4", "r_ns_green:1", "green", [ "v0" ] ],
+    [ "r_ns_green:2", "led_ns_green:A", "green", [ "v0" ] ],
+    [ "led_ns_green:C", "uno:GND.1", "black", [ "v0" ] ],
+
+    [ "uno:5", "r_ew_red:1", "green", [ "v0" ] ],
+    [ "r_ew_red:2", "led_ew_red:A", "green", [ "v0" ] ],
+    [ "led_ew_red:C", "uno:GND.1", "black", [ "v0" ] ],
+
+    [ "uno:6", "r_ew_yellow:1", "green", [ "v0" ] ],
+    [ "r_ew_yellow:2", "led_ew_yellow:A", "green", [ "v0" ] ],
+    [ "led_ew_yellow:C", "uno:GND.1", "black", [ "v0" ] ],
+
+    [ "uno:7", "r_ew_green:1", "green", [ "v0" ] ],
+    [ "r_ew_green:2", "led_ew_green:A", "green", [ "v0" ] ],
+    [ "led_ew_green:C", "uno:GND.1", "black", [ "v0" ] ],
+
+    [ "uno:5V", "r_pullup_west:1", "red", [ "v0" ] ],
+    [ "r_pullup_west:2", "uno:12", "blue", [ "v0" ] ],
+    [ "btn_west:1.l", "uno:12", "blue", [ "v0" ] ],
+    [ "btn_west:2.l", "uno:GND.2", "black", [ "v0" ] ],
+
+    [ "uno:5V", "r_pullup_east:1", "red", [ "v0" ] ],
+    [ "r_pullup_east:2", "uno:13", "blue", [ "v0" ] ],
+    [ "btn_east:1.l", "uno:13", "blue", [ "v0" ] ],
+    [ "btn_east:2.l", "uno:GND.2", "black", [ "v0" ] ]
+  ],
+  "dependencies": {}
+}
