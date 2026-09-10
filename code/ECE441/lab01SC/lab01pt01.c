@@ -25,14 +25,11 @@ void loop(void) {
         PORTD &= ~(1 << 7);
         PORTD |= (1 << 6);
         _delay_ms(1000);
-        uart_puts("[TELEMETRY][PT1] Phase 5: All Red (1s)\r\n");
-
         PORTD &= ~(1 << 6);
         PORTD |= (1 << 5);
-        delay(1000);
+        _delay_ms(1000);
 
         PORTD &= ~(1 << 2);
         PORTD |= (1 << 4);
-        uart_puts("[TELEMETRY][PT1] Cycle Complete -> State: IDLE (NS: GREEN, EW: RED)\r\n");
     }
 }
