@@ -110,3 +110,42 @@ void loop(void) {
         PORTC = (PORTC & ~0x07) | (pc_digits[digit] & 0x07);
     }
 }
+
+
+/*
+Digital Pin 0 (PD0) is the hardware RX (USART Receiver) pin.      
+Digital Pin 1 (PD1) is the hardware TX (USART Transmitter) pin.
+
+Serial Telemetry & Debugging: The firmware explicitly initializes
+  the USART peripheral via uart_init() (or Serial.begin()) to send    
+  telemetry data, cycle logs, and state information to the computer   
+  over the Serial Monitor.                                            
+  2. Conflict with USB Interface: Pins 0 and 1 are physically wired to
+  the onboard USB-to-Serial bridge microcontroller (ATmega16U2). Using
+  them as general-purpose I/O (GPIO) would disrupt the serial         
+  telemetry stream and cause bus contention with the USB bridge.      
+  3. Firmware Uploading: Arduino uses the UART interface and          
+  bootloader to flash programs over the USB port. Driving these pins  
+  with external components during normal operation can interfere with 
+  uploading new code.  
+
+
+  2. 
+
+ 2. When You Would Be Able to Use Pins 0 and 1 in a Project      
+                                                                      
+  You can use Pins 0 and 1 in a project under the following           
+  circumstances:                                                      
+                                                                      
+  1. Pin-Constrained Standalone Projects: When all other I/O pins     
+  (Digital 2–13 and Analog A0–A5 configured as digital I/O) are fully 
+  occupied and additional GPIO lines are strictly needed.             
+  2. No Serial Monitor / Debugging Required: When your embedded       
+  project is in its final deployment state and no runtime serial      
+  communication, logging, or USB debugging is needed.                 
+  3. Dedicated External UART Communication: When you want to          
+  communicate with external serial hardware (e.g., GPS modules,       
+  Bluetooth HC-05 modules, Wi-Fi ESP8266, or sensors using hardware   
+  serial) rather than using them as standard GPIO.          
+
+*/
