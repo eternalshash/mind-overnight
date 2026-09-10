@@ -11,15 +11,13 @@ void setup(void) {
 
 void loop(void) {
     if (!(PINB & (1 << 4)) || !(PINB & (1 << 5))) {
-        uart_puts("[TELEMETRY][PT1] Sensor Triggered -> Phase 1: NS Yellow (1s)\r\n");
         PORTD &= ~(1 << 4);
         PORTD |= (1 << 3);
-        delay(1000);
-        uart_puts("[TELEMETRY][PT1] Phase 2: All Red (1s)\r\n");
+        _delay_ms(1000);
 
         PORTD &= ~(1 << 3);
         PORTD |= (1 << 2);
-        delay(1000);
+        _delay_ms(1000);
         uart_puts("[TELEMETRY][PT1] Phase 3: EW Green (5s)\r\n");
 
         PORTD &= ~(1 << 5);
