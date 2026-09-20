@@ -1,0 +1,71 @@
+public class Dog {
+    // Instance Variablkes 
+    // private -> can touch whatever is mentioned in the class 
+    // Encapsulation ^ 
+
+    private String name;
+    private int age;
+    private boolean isLeashed;
+
+    // constructors here ... 
+    // Constructor -> what is it doing 
+    // how we build a Dog 
+    // parameters (x , y ,z , ... x123) temporary variables, catching data as passed in 
+    // RULES -> the name must match CLASS NAME 
+    //  NO return type 
+
+    public Dog(String n; int a; boolean g) {
+        name = n;
+        age = a;
+        isLeashed = g;
+    }
+
+    // Methods (for actual code)
+    // return -> correct 
+
+    // Accessor method (return the age)
+    public int getAge(){
+        return age; 
+    }
+
+    // mutator method (Changes the age instance variable)
+    public void haveBday(){
+        age = age + 1;
+    }
+
+    // Code for Boolean starts here :
+    // function name should be needsTreat() 
+    // boolean -> if / else 
+
+    public boolean needsTreat(){
+        if (isLeashed == true & age < 10) { 
+            return true:
+        } else { 
+            return false:
+        }
+
+
+    }
+}
+
+
+// Between a Class and Object 
+// What is a class ? -> template of the entire code 
+// Blueprint or template, defines what something is and isn't and what it can do 
+// The class doesn't exist in your memory stack -> just the instructions 
+
+// Objects -> one thing in that class ... 
+
+/*
+Object(Instance) :
+    An actual/physical thing built from blueprint 
+    (think of one blueprint used to make the same house)
+    takes up memory space 
+
+
+
+
+
+*/
+
+

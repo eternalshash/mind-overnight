@@ -29,3 +29,34 @@ void loop(void) {
         PORTD = (1 << 4) | (1 << 5);
     }
 }
+#include <Arduino.h>
+#include <avr/io.h>
+#include <util/delay.h>
+
+void setup(void) {
+    DDRD |= (1 << 2) | (1 << 3) | (1 << 4) | (1 << 5) | (1 << 6) | (1 << 7);
+    DDRB &= ~((1 << 4) | (1 << 5));
+    PORTB |= (1 << 4) | (1 << 5);
+    PORTD = (1 << 4) | (1 << 5);
+}
+
+void loop(void) {
+    if (!(PINB & (1 << 4)) || !(PINB & (1 << 5))) {
+        PORTD = (1 << 3) | (1 << 5);
+        _delay_ms(1000);
+
+        PORTD = (1 << 2) | (1 << 5);
+        _delay_ms(1000);
+
+        PORTD = (1 << 2) | (1 << 7);
+        _delay_ms(5000);
+
+        PORTD = (1 << 2) | (1 << 6);
+        _delay_ms(1000);
+
+        PORTD = (1 << 2) | (1 << 5);
+        _delay_ms(1000);
+
+        PORTD = (1 << 4) | (1 << 5);
+    }
+}
