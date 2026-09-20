@@ -1,3 +1,54 @@
+import java.util.Scanner; 
+
+/*
+Scanner input = new Scanner(System.in);
+
+Instantiating -> 
+
+you are using an object (new)
+passing (System.in -> keyboard inoput stream
+passed to the construcor. 
+
+input.nextInt()
+     .nextDouble() 
+input.next() -> reading the next single word and stopping at the first space
+input.nextLine() -> reading the entire line (very common)  -> it stops when the user hits ENTER  
+
+
+Accessors & Mutators (Getter and Setter)
+
+
+Encapsulation and Data Hiding ! -
+
+Private Instance Variables 
+    when we mark something as private (think private variables)
+    we prevent outside classes from directly modifying or viewing the internal states of an object (Age = - 31)
+
+Public Interfaces
+    the class provides public methods to control how data is read or modified 
+
+    Why ?
+        Validation and Read/Write cases
+
+Accessors Methods (Getters):
+    Returns the current value of an instance variable wihtou modifying it 
+    Signature : 
+        Acess level -> public 
+        Return Type : it should match the type of variable being returned 
+
+    public boolean isCat() {
+        return isCat;
+    }
+
+    
+
+
+*/
+
+
+
+
+
 public class Dog {
     // Instance Variablkes 
     // private -> can touch whatever is mentioned in the class 
@@ -47,8 +98,6 @@ public class Dog {
 
     }
 }
-
-
 // Between a Class and Object 
 // What is a class ? -> template of the entire code 
 // Blueprint or template, defines what something is and isn't and what it can do 
@@ -61,11 +110,42 @@ Object(Instance) :
     An actual/physical thing built from blueprint 
     (think of one blueprint used to make the same house)
     takes up memory space 
+*/
 
 
+public class Main {
+    public static void main(String[] args) { 
+        // ... how would you run this code 
+        Dog myDog = newDog("Summer", 5, true);
 
+        //
 
+        myDog.haveBday();
+
+        //
+
+        //
+
+    }
+}
+
+/*
+
+The Prompt:
+Write a complete class called BankAccount.
+
+It should have two private instance variables: a String for accountHolder and a double for balance.
+
+Write a constructor that takes a String and a double as parameters and assigns them to the instance variables.
+
+Write a void mutator method called deposit that takes a double amount as a parameter and adds it to the balance.
+
+Write a boolean method called canWithdraw that takes a double amount. It should return true if the balance is greater than or equal to the amount, and false otherwise.
 
 */
+
+
+
+
 
 
