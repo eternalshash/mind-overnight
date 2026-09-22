@@ -13,3 +13,8 @@ def monte_carlo_dcf(simulations=10000):
 def plot_valuation(valuations):
     plt.figure(figsize=(10,6))
     plt.hist(valuations, bins=50, color='blue', alpha=0.7)
+    plt.title('Monte Carlo DCF Valuation Distribution')
+    plt.xlabel('Implied Enterprise Value ($B)')
+    plt.ylabel('Frequency')
+    
+    os.makedirs('../charts', exist_ok=True)
