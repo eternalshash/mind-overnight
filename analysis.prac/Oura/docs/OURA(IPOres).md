@@ -28,3 +28,13 @@ Stochastic variables included annual ring unit growth (ranging from 1.5M to 4.0M
 *   **Base Case**: Reflects steady state growth and historical churn rates.
 *   **Bear Case**: Accounts for increased churn due to macroeconomic pressures or competitive incursions.
 
+**Public Peer Comps Benchmarking:**
+Oura's multiples (EV/Sales, EV/ARR) must be contextualized against a bespoke comps basket:
+*   **Garmin (GRMN)**: For hardware resilience and sports defense.
+*   **Apple (AAPL)**: For ecosystem lock-in.
+*   **Dexcom (DXCM)**: For clinical-grade recurring revenue.
+*   **Historical Fitbit**: As a cautionary tale of the hardware commoditization trap.
+
+Oura commands a premium over traditional hardware peers, reflecting its SaaS transition, but trades at a discount to pure-play software given the capital intensity of physical manufacturing.
+
+## Strategic Moat & Big Tech Risk Assessment
