@@ -23,3 +23,8 @@ def unit_economics_waterfall():
     plt.figure(figsize=(10,6))
     plt.bar(['Hardware ASP', 'BOM Cost', 'Hardware Profit', 'SaaS LTV'], 
             [399, -239, 160, 183])
+    plt.title('Unit Economics Waterfall')
+    plt.ylabel('USD')
+    os.makedirs('../charts', exist_ok=True)
+    plt.savefig('../charts/unit_economics_waterfall.png')
+
