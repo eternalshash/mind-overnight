@@ -1,0 +1,703 @@
+{
+  "player_id": "brian-brobbey",
+  "player_name": "Brian Brobbey",
+  "club": "Sunderland",
+  "player_position": "ST",
+  "formation": "4-3-3",
+  "global_average": 6.08,
+  "total_matches_analyzed": 9,
+  "total_matchups_analyzed": 48,
+  "hardest_defenders": [
+    {
+      "Defender": "Micky van de Ven",
+      "Defender_Team": "Tottenham Hotspur",
+      "Attacker_Rating": 5.4,
+      "Defender_Rating": 6.7,
+      "Games": 1,
+      "Weighted_Difficulty": 5.91
+    },
+    {
+      "Defender": "Pedro Porro",
+      "Defender_Team": "Tottenham Hotspur",
+      "Attacker_Rating": 5.4,
+      "Defender_Rating": 6.7,
+      "Games": 1,
+      "Weighted_Difficulty": 5.91
+    },
+    {
+      "Defender": "Tino Livramento",
+      "Defender_Team": "Newcastle United",
+      "Attacker_Rating": 5.4,
+      "Defender_Rating": 6.8,
+      "Games": 1,
+      "Weighted_Difficulty": 5.91
+    },
+    {
+      "Defender": "Sven Botman",
+      "Defender_Team": "Newcastle United",
+      "Attacker_Rating": 5.4,
+      "Defender_Rating": 7.4,
+      "Games": 1,
+      "Weighted_Difficulty": 5.91
+    },
+    {
+      "Defender": "Lewis Hall",
+      "Defender_Team": "Newcastle United",
+      "Attacker_Rating": 5.4,
+      "Defender_Rating": 6.9,
+      "Games": 1,
+      "Weighted_Difficulty": 5.91
+    },
+    {
+      "Defender": "Malick Thiaw",
+      "Defender_Team": "Newcastle United",
+      "Attacker_Rating": 5.4,
+      "Defender_Rating": 6.4,
+      "Games": 1,
+      "Weighted_Difficulty": 5.91
+    },
+    {
+      "Defender": "Kevin Danso",
+      "Defender_Team": "Tottenham Hotspur",
+      "Attacker_Rating": 5.4,
+      "Defender_Rating": 7.1,
+      "Games": 1,
+      "Weighted_Difficulty": 5.91
+    },
+    {
+      "Defender": "Kieran Trippier",
+      "Defender_Team": "Newcastle United",
+      "Attacker_Rating": 5.4,
+      "Defender_Rating": 6.8,
+      "Games": 1,
+      "Weighted_Difficulty": 5.91
+    },
+    {
+      "Defender": "Destiny Udogie",
+      "Defender_Team": "Tottenham Hotspur",
+      "Attacker_Rating": 5.4,
+      "Defender_Rating": 6.5,
+      "Games": 1,
+      "Weighted_Difficulty": 5.91
+    },
+    {
+      "Defender": "Dan Burn",
+      "Defender_Team": "Newcastle United",
+      "Attacker_Rating": 5.4,
+      "Defender_Rating": 7.2,
+      "Games": 1,
+      "Weighted_Difficulty": 5.91
+    },
+    {
+      "Defender": "Cristian Romero",
+      "Defender_Team": "Tottenham Hotspur",
+      "Attacker_Rating": 5.4,
+      "Defender_Rating": 7.1,
+      "Games": 1,
+      "Weighted_Difficulty": 5.91
+    },
+    {
+      "Defender": "Virgil van Dijk",
+      "Defender_Team": "Liverpool FC",
+      "Attacker_Rating": 5.9,
+      "Defender_Rating": 8.5,
+      "Games": 1,
+      "Weighted_Difficulty": 6.04
+    },
+    {
+      "Defender": "Ibrahima Konat\u00e9",
+      "Defender_Team": "Liverpool FC",
+      "Attacker_Rating": 5.9,
+      "Defender_Rating": 8.0,
+      "Games": 1,
+      "Weighted_Difficulty": 6.04
+    },
+    {
+      "Defender": "Wataru Endo",
+      "Defender_Team": "Liverpool FC",
+      "Attacker_Rating": 5.9,
+      "Defender_Rating": 7.0,
+      "Games": 1,
+      "Weighted_Difficulty": 6.04
+    },
+    {
+      "Defender": "Joe Gomez",
+      "Defender_Team": "Liverpool FC",
+      "Attacker_Rating": 5.9,
+      "Defender_Rating": 7.0,
+      "Games": 1,
+      "Weighted_Difficulty": 6.04
+    },
+    {
+      "Defender": "Andy Robertson",
+      "Defender_Team": "Liverpool FC",
+      "Attacker_Rating": 5.9,
+      "Defender_Rating": 7.1,
+      "Games": 1,
+      "Weighted_Difficulty": 6.04
+    },
+    {
+      "Defender": "Morato",
+      "Defender_Team": "Nottingham Forest",
+      "Attacker_Rating": 6.0,
+      "Defender_Rating": 7.1,
+      "Games": 1,
+      "Weighted_Difficulty": 6.06
+    },
+    {
+      "Defender": "Nikola Milenkovi\u0107",
+      "Defender_Team": "Nottingham Forest",
+      "Attacker_Rating": 6.0,
+      "Defender_Rating": 8.1,
+      "Games": 1,
+      "Weighted_Difficulty": 6.06
+    },
+    {
+      "Defender": "Luca Netz",
+      "Defender_Team": "Nottingham Forest",
+      "Attacker_Rating": 6.0,
+      "Defender_Rating": 6.7,
+      "Games": 1,
+      "Weighted_Difficulty": 6.06
+    },
+    {
+      "Defender": "Timothy Castagne",
+      "Defender_Team": "Fulham",
+      "Attacker_Rating": 6.0,
+      "Defender_Rating": 6.7,
+      "Games": 1,
+      "Weighted_Difficulty": 6.06
+    },
+    {
+      "Defender": "Ola Aina",
+      "Defender_Team": "Nottingham Forest",
+      "Attacker_Rating": 6.0,
+      "Defender_Rating": 7.4,
+      "Games": 1,
+      "Weighted_Difficulty": 6.06
+    },
+    {
+      "Defender": "Neco Williams",
+      "Defender_Team": "Nottingham Forest",
+      "Attacker_Rating": 6.0,
+      "Defender_Rating": 6.4,
+      "Games": 1,
+      "Weighted_Difficulty": 6.06
+    },
+    {
+      "Defender": "Kenny Tete",
+      "Defender_Team": "Fulham",
+      "Attacker_Rating": 6.0,
+      "Defender_Rating": 6.9,
+      "Games": 1,
+      "Weighted_Difficulty": 6.06
+    },
+    {
+      "Defender": "Joachim Andersen",
+      "Defender_Team": "Fulham",
+      "Attacker_Rating": 6.0,
+      "Defender_Rating": 7.3,
+      "Games": 1,
+      "Weighted_Difficulty": 6.06
+    },
+    {
+      "Defender": "Jair",
+      "Defender_Team": "Nottingham Forest",
+      "Attacker_Rating": 6.0,
+      "Defender_Rating": 6.9,
+      "Games": 1,
+      "Weighted_Difficulty": 6.06
+    },
+    {
+      "Defender": "Calvin Bassey",
+      "Defender_Team": "Fulham",
+      "Attacker_Rating": 6.0,
+      "Defender_Rating": 7.4,
+      "Games": 1,
+      "Weighted_Difficulty": 6.06
+    },
+    {
+      "Defender": "Jorge Cuenca",
+      "Defender_Team": "Fulham",
+      "Attacker_Rating": 6.0,
+      "Defender_Rating": 6.6,
+      "Games": 1,
+      "Weighted_Difficulty": 6.06
+    },
+    {
+      "Defender": "Ryan Sessegnon",
+      "Defender_Team": "Fulham",
+      "Attacker_Rating": 6.0,
+      "Defender_Rating": 5.9,
+      "Games": 1,
+      "Weighted_Difficulty": 6.06
+    },
+    {
+      "Defender": "Lewis Dunk",
+      "Defender_Team": "Brighton & Hove Albion",
+      "Attacker_Rating": 6.3,
+      "Defender_Rating": 8.0,
+      "Games": 1,
+      "Weighted_Difficulty": 6.14
+    },
+    {
+      "Defender": "Jan Paul van Hecke",
+      "Defender_Team": "Brighton & Hove Albion",
+      "Attacker_Rating": 6.3,
+      "Defender_Rating": 7.4,
+      "Games": 1,
+      "Weighted_Difficulty": 6.14
+    }
+  ],
+  "backline_stats": [
+    {
+      "team": "Fulham",
+      "attacker_avg": 6.0,
+      "defender_avg": 6.8,
+      "encounters": 6,
+      "diff_vs_global": -0.08
+    },
+    {
+      "team": "Newcastle United",
+      "attacker_avg": 5.4,
+      "defender_avg": 6.92,
+      "encounters": 6,
+      "diff_vs_global": -0.68
+    },
+    {
+      "team": "Norway",
+      "attacker_avg": 6.7,
+      "defender_avg": 6.73,
+      "encounters": 6,
+      "diff_vs_global": 0.62
+    },
+    {
+      "team": "Nottingham Forest",
+      "attacker_avg": 6.0,
+      "defender_avg": 7.1,
+      "encounters": 6,
+      "diff_vs_global": -0.08
+    },
+    {
+      "team": "Aston Villa",
+      "attacker_avg": 6.3,
+      "defender_avg": 6.5,
+      "encounters": 5,
+      "diff_vs_global": 0.22
+    },
+    {
+      "team": "Brighton & Hove Albion",
+      "attacker_avg": 6.3,
+      "defender_avg": 7.24,
+      "encounters": 5,
+      "diff_vs_global": 0.22
+    },
+    {
+      "team": "Liverpool FC",
+      "attacker_avg": 5.9,
+      "defender_avg": 7.52,
+      "encounters": 5,
+      "diff_vs_global": -0.18
+    },
+    {
+      "team": "Tottenham Hotspur",
+      "attacker_avg": 5.4,
+      "defender_avg": 6.82,
+      "encounters": 5,
+      "diff_vs_global": -0.68
+    },
+    {
+      "team": "Ecuador",
+      "attacker_avg": 6.9,
+      "defender_avg": 6.58,
+      "encounters": 4,
+      "diff_vs_global": 0.82
+    }
+  ],
+  "defender_lookup": {
+    "andyrobertson": {
+      "Defender": "Andy Robertson",
+      "Defender_Team": "Liverpool FC",
+      "Games": 1,
+      "Attacker_Rating": 5.9,
+      "Defender_Rating": 7.1,
+      "Weighted_Difficulty": 6.04
+    },
+    "calvinbassey": {
+      "Defender": "Calvin Bassey",
+      "Defender_Team": "Fulham",
+      "Games": 1,
+      "Attacker_Rating": 6.0,
+      "Defender_Rating": 7.4,
+      "Weighted_Difficulty": 6.06
+    },
+    "cristianromero": {
+      "Defender": "Cristian Romero",
+      "Defender_Team": "Tottenham Hotspur",
+      "Games": 1,
+      "Attacker_Rating": 5.4,
+      "Defender_Rating": 7.1,
+      "Weighted_Difficulty": 5.91
+    },
+    "danburn": {
+      "Defender": "Dan Burn",
+      "Defender_Team": "Newcastle United",
+      "Games": 1,
+      "Attacker_Rating": 5.4,
+      "Defender_Rating": 7.2,
+      "Weighted_Difficulty": 5.91
+    },
+    "davidmllerwolfe": {
+      "Defender": "David M\u00f8ller Wolfe",
+      "Defender_Team": "Norway",
+      "Games": 1,
+      "Attacker_Rating": 6.7,
+      "Defender_Rating": 6.8,
+      "Weighted_Difficulty": 6.24
+    },
+    "destinyudogie": {
+      "Defender": "Destiny Udogie",
+      "Defender_Team": "Tottenham Hotspur",
+      "Games": 1,
+      "Attacker_Rating": 5.4,
+      "Defender_Rating": 6.5,
+      "Weighted_Difficulty": 5.91
+    },
+    "ezrikonsa": {
+      "Defender": "Ezri Konsa",
+      "Defender_Team": "Aston Villa",
+      "Games": 1,
+      "Attacker_Rating": 6.3,
+      "Defender_Rating": 6.5,
+      "Weighted_Difficulty": 6.14
+    },
+    "ferdikadolu": {
+      "Defender": "Ferdi Kad\u0131o\u011flu",
+      "Defender_Team": "Brighton & Hove Albion",
+      "Games": 1,
+      "Attacker_Rating": 6.3,
+      "Defender_Rating": 7.4,
+      "Weighted_Difficulty": 6.14
+    },
+    "fredrikandrbjrkan": {
+      "Defender": "Fredrik Andr\u00e9 Bj\u00f8rkan",
+      "Defender_Team": "Norway",
+      "Games": 1,
+      "Attacker_Rating": 6.7,
+      "Defender_Rating": 6.7,
+      "Weighted_Difficulty": 6.24
+    },
+    "flixtorres": {
+      "Defender": "F\u00e9lix Torres",
+      "Defender_Team": "Ecuador",
+      "Games": 1,
+      "Attacker_Rating": 6.9,
+      "Defender_Rating": 6.4,
+      "Weighted_Difficulty": 6.28
+    },
+    "ianmaatsen": {
+      "Defender": "Ian Maatsen",
+      "Defender_Team": "Aston Villa",
+      "Games": 1,
+      "Attacker_Rating": 6.3,
+      "Defender_Rating": 6.6,
+      "Weighted_Difficulty": 6.14
+    },
+    "ibrahimakonat": {
+      "Defender": "Ibrahima Konat\u00e9",
+      "Defender_Team": "Liverpool FC",
+      "Games": 1,
+      "Attacker_Rating": 5.9,
+      "Defender_Rating": 8.0,
+      "Weighted_Difficulty": 6.04
+    },
+    "jair": {
+      "Defender": "Jair",
+      "Defender_Team": "Nottingham Forest",
+      "Games": 1,
+      "Attacker_Rating": 6.0,
+      "Defender_Rating": 6.9,
+      "Weighted_Difficulty": 6.06
+    },
+    "janpaulvanhecke": {
+      "Defender": "Jan Paul van Hecke",
+      "Defender_Team": "Brighton & Hove Albion",
+      "Games": 1,
+      "Attacker_Rating": 6.3,
+      "Defender_Rating": 7.4,
+      "Weighted_Difficulty": 6.14
+    },
+    "joachimandersen": {
+      "Defender": "Joachim Andersen",
+      "Defender_Team": "Fulham",
+      "Games": 1,
+      "Attacker_Rating": 6.0,
+      "Defender_Rating": 7.3,
+      "Weighted_Difficulty": 6.06
+    },
+    "joegomez": {
+      "Defender": "Joe Gomez",
+      "Defender_Team": "Liverpool FC",
+      "Games": 1,
+      "Attacker_Rating": 5.9,
+      "Defender_Rating": 7.0,
+      "Weighted_Difficulty": 6.04
+    },
+    "joelordez": {
+      "Defender": "Joel Ord\u00f3\u00f1ez",
+      "Defender_Team": "Ecuador",
+      "Games": 1,
+      "Attacker_Rating": 6.9,
+      "Defender_Rating": 6.7,
+      "Weighted_Difficulty": 6.28
+    },
+    "jorgecuenca": {
+      "Defender": "Jorge Cuenca",
+      "Defender_Team": "Fulham",
+      "Games": 1,
+      "Attacker_Rating": 6.0,
+      "Defender_Rating": 6.6,
+      "Weighted_Difficulty": 6.06
+    },
+    "julianryerson": {
+      "Defender": "Julian Ryerson",
+      "Defender_Team": "Norway",
+      "Games": 1,
+      "Attacker_Rating": 6.7,
+      "Defender_Rating": 7.1,
+      "Weighted_Difficulty": 6.24
+    },
+    "kennytete": {
+      "Defender": "Kenny Tete",
+      "Defender_Team": "Fulham",
+      "Games": 1,
+      "Attacker_Rating": 6.0,
+      "Defender_Rating": 6.9,
+      "Weighted_Difficulty": 6.06
+    },
+    "kevindanso": {
+      "Defender": "Kevin Danso",
+      "Defender_Team": "Tottenham Hotspur",
+      "Games": 1,
+      "Attacker_Rating": 5.4,
+      "Defender_Rating": 7.1,
+      "Weighted_Difficulty": 5.91
+    },
+    "kierantrippier": {
+      "Defender": "Kieran Trippier",
+      "Defender_Team": "Newcastle United",
+      "Games": 1,
+      "Attacker_Rating": 5.4,
+      "Defender_Rating": 6.8,
+      "Weighted_Difficulty": 5.91
+    },
+    "kristofferajer": {
+      "Defender": "Kristoffer Ajer",
+      "Defender_Team": "Norway",
+      "Games": 1,
+      "Attacker_Rating": 6.7,
+      "Defender_Rating": 6.4,
+      "Weighted_Difficulty": 6.24
+    },
+    "leostigrd": {
+      "Defender": "Leo \u00d8stig\u00e5rd",
+      "Defender_Team": "Norway",
+      "Games": 1,
+      "Attacker_Rating": 6.7,
+      "Defender_Rating": 7.0,
+      "Weighted_Difficulty": 6.24
+    },
+    "lewisdunk": {
+      "Defender": "Lewis Dunk",
+      "Defender_Team": "Brighton & Hove Albion",
+      "Games": 1,
+      "Attacker_Rating": 6.3,
+      "Defender_Rating": 8.0,
+      "Weighted_Difficulty": 6.14
+    },
+    "lewishall": {
+      "Defender": "Lewis Hall",
+      "Defender_Team": "Newcastle United",
+      "Games": 1,
+      "Attacker_Rating": 5.4,
+      "Defender_Rating": 6.9,
+      "Weighted_Difficulty": 5.91
+    },
+    "lucanetz": {
+      "Defender": "Luca Netz",
+      "Defender_Team": "Nottingham Forest",
+      "Games": 1,
+      "Attacker_Rating": 6.0,
+      "Defender_Rating": 6.7,
+      "Weighted_Difficulty": 6.06
+    },
+    "lucasdigne": {
+      "Defender": "Lucas Digne",
+      "Defender_Team": "Aston Villa",
+      "Games": 1,
+      "Attacker_Rating": 6.3,
+      "Defender_Rating": 6.8,
+      "Weighted_Difficulty": 6.14
+    },
+    "malickthiaw": {
+      "Defender": "Malick Thiaw",
+      "Defender_Team": "Newcastle United",
+      "Games": 1,
+      "Attacker_Rating": 5.4,
+      "Defender_Rating": 6.4,
+      "Weighted_Difficulty": 5.91
+    },
+    "matswieffer": {
+      "Defender": "Mats Wieffer",
+      "Defender_Team": "Brighton & Hove Albion",
+      "Games": 1,
+      "Attacker_Rating": 6.3,
+      "Defender_Rating": 7.0,
+      "Weighted_Difficulty": 6.14
+    },
+    "mattycash": {
+      "Defender": "Matty Cash",
+      "Defender_Team": "Aston Villa",
+      "Games": 1,
+      "Attacker_Rating": 6.3,
+      "Defender_Rating": 6.3,
+      "Weighted_Difficulty": 6.14
+    },
+    "maximdecuyper": {
+      "Defender": "Maxim De Cuyper",
+      "Defender_Team": "Brighton & Hove Albion",
+      "Games": 1,
+      "Attacker_Rating": 6.3,
+      "Defender_Rating": 6.4,
+      "Weighted_Difficulty": 6.14
+    },
+    "mickyvandeven": {
+      "Defender": "Micky van de Ven",
+      "Defender_Team": "Tottenham Hotspur",
+      "Games": 1,
+      "Attacker_Rating": 5.4,
+      "Defender_Rating": 6.7,
+      "Weighted_Difficulty": 5.91
+    },
+    "morato": {
+      "Defender": "Morato",
+      "Defender_Team": "Nottingham Forest",
+      "Games": 1,
+      "Attacker_Rating": 6.0,
+      "Defender_Rating": 7.1,
+      "Weighted_Difficulty": 6.06
+    },
+    "necowilliams": {
+      "Defender": "Neco Williams",
+      "Defender_Team": "Nottingham Forest",
+      "Games": 1,
+      "Attacker_Rating": 6.0,
+      "Defender_Rating": 6.4,
+      "Weighted_Difficulty": 6.06
+    },
+    "nikolamilenkovi": {
+      "Defender": "Nikola Milenkovi\u0107",
+      "Defender_Team": "Nottingham Forest",
+      "Games": 1,
+      "Attacker_Rating": 6.0,
+      "Defender_Rating": 8.1,
+      "Weighted_Difficulty": 6.06
+    },
+    "olaaina": {
+      "Defender": "Ola Aina",
+      "Defender_Team": "Nottingham Forest",
+      "Games": 1,
+      "Attacker_Rating": 6.0,
+      "Defender_Rating": 7.4,
+      "Weighted_Difficulty": 6.06
+    },
+    "pedroporro": {
+      "Defender": "Pedro Porro",
+      "Defender_Team": "Tottenham Hotspur",
+      "Games": 1,
+      "Attacker_Rating": 5.4,
+      "Defender_Rating": 6.7,
+      "Weighted_Difficulty": 5.91
+    },
+    "ryansessegnon": {
+      "Defender": "Ryan Sessegnon",
+      "Defender_Team": "Fulham",
+      "Games": 1,
+      "Attacker_Rating": 6.0,
+      "Defender_Rating": 5.9,
+      "Weighted_Difficulty": 6.06
+    },
+    "svenbotman": {
+      "Defender": "Sven Botman",
+      "Defender_Team": "Newcastle United",
+      "Games": 1,
+      "Attacker_Rating": 5.4,
+      "Defender_Rating": 7.4,
+      "Weighted_Difficulty": 5.91
+    },
+    "timothycastagne": {
+      "Defender": "Timothy Castagne",
+      "Defender_Team": "Fulham",
+      "Games": 1,
+      "Attacker_Rating": 6.0,
+      "Defender_Rating": 6.7,
+      "Weighted_Difficulty": 6.06
+    },
+    "tinolivramento": {
+      "Defender": "Tino Livramento",
+      "Defender_Team": "Newcastle United",
+      "Games": 1,
+      "Attacker_Rating": 5.4,
+      "Defender_Rating": 6.8,
+      "Weighted_Difficulty": 5.91
+    },
+    "torbjrnheggem": {
+      "Defender": "Torbj\u00f8rn Heggem",
+      "Defender_Team": "Norway",
+      "Games": 1,
+      "Attacker_Rating": 6.7,
+      "Defender_Rating": 6.4,
+      "Weighted_Difficulty": 6.24
+    },
+    "tyronemings": {
+      "Defender": "Tyrone Mings",
+      "Defender_Team": "Aston Villa",
+      "Games": 1,
+      "Attacker_Rating": 6.3,
+      "Defender_Rating": 6.3,
+      "Weighted_Difficulty": 6.14
+    },
+    "virgilvandijk": {
+      "Defender": "Virgil van Dijk",
+      "Defender_Team": "Liverpool FC",
+      "Games": 1,
+      "Attacker_Rating": 5.9,
+      "Defender_Rating": 8.5,
+      "Weighted_Difficulty": 6.04
+    },
+    "wataruendo": {
+      "Defender": "Wataru Endo",
+      "Defender_Team": "Liverpool FC",
+      "Games": 1,
+      "Attacker_Rating": 5.9,
+      "Defender_Rating": 7.0,
+      "Weighted_Difficulty": 6.04
+    },
+    "willianpacho": {
+      "Defender": "Willian Pacho",
+      "Defender_Team": "Ecuador",
+      "Games": 1,
+      "Attacker_Rating": 6.9,
+      "Defender_Rating": 6.4,
+      "Weighted_Difficulty": 6.28
+    },
+    "ngelopreciado": {
+      "Defender": "\u00c1ngelo Preciado",
+      "Defender_Team": "Ecuador",
+      "Games": 1,
+      "Attacker_Rating": 6.9,
+      "Defender_Rating": 6.8,
+      "Weighted_Difficulty": 6.28
+    }
+  }
+}

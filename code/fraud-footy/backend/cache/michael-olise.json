@@ -1,0 +1,474 @@
+{
+  "player_id": "michael-olise",
+  "player_name": "Michael Olise",
+  "club": "FC Bayern M\u00fcnchen",
+  "player_position": "CAM",
+  "formation": "4-3-3",
+  "global_average": 7.92,
+  "total_matches_analyzed": 6,
+  "total_matchups_analyzed": 26,
+  "hardest_defenders": [
+    {
+      "Defender": "Robert Andrich",
+      "Defender_Team": "Bayer 04 Leverkusen",
+      "Attacker_Rating": 7.2,
+      "Defender_Rating": 7.4,
+      "Games": 1,
+      "Weighted_Difficulty": 7.74
+    },
+    {
+      "Defender": "Edmond Tapsoba",
+      "Defender_Team": "Bayer 04 Leverkusen",
+      "Attacker_Rating": 7.2,
+      "Defender_Rating": 6.8,
+      "Games": 1,
+      "Weighted_Difficulty": 7.74
+    },
+    {
+      "Defender": "Jarell Quansah",
+      "Defender_Team": "Bayer 04 Leverkusen",
+      "Attacker_Rating": 7.2,
+      "Defender_Rating": 6.0,
+      "Games": 1,
+      "Weighted_Difficulty": 7.74
+    },
+    {
+      "Defender": "Ramon Hendriks",
+      "Defender_Team": "VfB Stuttgart",
+      "Attacker_Rating": 7.5,
+      "Defender_Rating": 5.9,
+      "Games": 1,
+      "Weighted_Difficulty": 7.82
+    },
+    {
+      "Defender": "Maximilian Mittelst\u00e4dt",
+      "Defender_Team": "VfB Stuttgart",
+      "Attacker_Rating": 7.5,
+      "Defender_Rating": 7.2,
+      "Games": 1,
+      "Weighted_Difficulty": 7.82
+    },
+    {
+      "Defender": "Finn Jeltsch",
+      "Defender_Team": "VfB Stuttgart",
+      "Attacker_Rating": 7.5,
+      "Defender_Rating": 5.8,
+      "Games": 1,
+      "Weighted_Difficulty": 7.82
+    },
+    {
+      "Defender": "Jeff Chabot",
+      "Defender_Team": "VfB Stuttgart",
+      "Attacker_Rating": 7.5,
+      "Defender_Rating": 7.5,
+      "Games": 1,
+      "Weighted_Difficulty": 7.82
+    },
+    {
+      "Defender": "Josha Vagnoman",
+      "Defender_Team": "VfB Stuttgart",
+      "Attacker_Rating": 7.5,
+      "Defender_Rating": 5.5,
+      "Games": 1,
+      "Weighted_Difficulty": 7.82
+    },
+    {
+      "Defender": "Luca Jaquez",
+      "Defender_Team": "VfB Stuttgart",
+      "Attacker_Rating": 7.5,
+      "Defender_Rating": 6.6,
+      "Games": 1,
+      "Weighted_Difficulty": 7.82
+    },
+    {
+      "Defender": "Karol Mets",
+      "Defender_Team": "FC St. Pauli",
+      "Attacker_Rating": 7.8,
+      "Defender_Rating": 5.6,
+      "Games": 1,
+      "Weighted_Difficulty": 7.89
+    },
+    {
+      "Defender": "Tomoya Ando",
+      "Defender_Team": "FC St. Pauli",
+      "Attacker_Rating": 7.8,
+      "Defender_Rating": 5.3,
+      "Games": 1,
+      "Weighted_Difficulty": 7.89
+    },
+    {
+      "Defender": "Hauke Wahl",
+      "Defender_Team": "FC St. Pauli",
+      "Attacker_Rating": 7.8,
+      "Defender_Rating": 6.4,
+      "Games": 1,
+      "Weighted_Difficulty": 7.89
+    },
+    {
+      "Defender": "Louis Oppie",
+      "Defender_Team": "FC St. Pauli",
+      "Attacker_Rating": 7.8,
+      "Defender_Rating": 6.1,
+      "Games": 1,
+      "Weighted_Difficulty": 7.89
+    },
+    {
+      "Defender": "Nuno Mendes",
+      "Defender_Team": "Paris Saint-Germain",
+      "Attacker_Rating": 8.1,
+      "Defender_Rating": 5.6,
+      "Games": 1,
+      "Weighted_Difficulty": 7.96
+    },
+    {
+      "Defender": "Marquinhos",
+      "Defender_Team": "Paris Saint-Germain",
+      "Attacker_Rating": 8.1,
+      "Defender_Rating": 6.6,
+      "Games": 1,
+      "Weighted_Difficulty": 7.96
+    },
+    {
+      "Defender": "Achraf Hakimi",
+      "Defender_Team": "Paris Saint-Germain",
+      "Attacker_Rating": 8.1,
+      "Defender_Rating": 5.9,
+      "Games": 1,
+      "Weighted_Difficulty": 7.96
+    },
+    {
+      "Defender": "Willian Pacho",
+      "Defender_Team": "Paris Saint-Germain",
+      "Attacker_Rating": 8.1,
+      "Defender_Rating": 5.6,
+      "Games": 1,
+      "Weighted_Difficulty": 7.96
+    },
+    {
+      "Defender": "Lucas Hern\u00e1ndez",
+      "Defender_Team": "Paris Saint-Germain",
+      "Attacker_Rating": 8.1,
+      "Defender_Rating": 6.6,
+      "Games": 1,
+      "Weighted_Difficulty": 7.96
+    },
+    {
+      "Defender": "Dominik Kohr",
+      "Defender_Team": "1. FSV Mainz 05",
+      "Attacker_Rating": 8.4,
+      "Defender_Rating": 6.6,
+      "Games": 1,
+      "Weighted_Difficulty": 8.04
+    },
+    {
+      "Defender": "Danny da Costa",
+      "Defender_Team": "1. FSV Mainz 05",
+      "Attacker_Rating": 8.4,
+      "Defender_Rating": 5.8,
+      "Games": 1,
+      "Weighted_Difficulty": 8.04
+    },
+    {
+      "Defender": "Stefan Posch",
+      "Defender_Team": "1. FSV Mainz 05",
+      "Attacker_Rating": 8.4,
+      "Defender_Rating": 6.1,
+      "Games": 1,
+      "Weighted_Difficulty": 8.04
+    },
+    {
+      "Defender": "Anthony Caci",
+      "Defender_Team": "1. FSV Mainz 05",
+      "Attacker_Rating": 8.4,
+      "Defender_Rating": 6.2,
+      "Games": 1,
+      "Weighted_Difficulty": 8.04
+    },
+    {
+      "Defender": "Ferland Mendy",
+      "Defender_Team": "Real Madrid",
+      "Attacker_Rating": 8.5,
+      "Defender_Rating": 5.8,
+      "Games": 1,
+      "Weighted_Difficulty": 8.06
+    },
+    {
+      "Defender": "Antonio R\u00fcdiger",
+      "Defender_Team": "Real Madrid",
+      "Attacker_Rating": 8.5,
+      "Defender_Rating": 6.6,
+      "Games": 1,
+      "Weighted_Difficulty": 8.06
+    },
+    {
+      "Defender": "Trent Alexander-Arnold",
+      "Defender_Team": "Real Madrid",
+      "Attacker_Rating": 8.5,
+      "Defender_Rating": 6.8,
+      "Games": 1,
+      "Weighted_Difficulty": 8.06
+    },
+    {
+      "Defender": "\u00c9der Milit\u00e3o",
+      "Defender_Team": "Real Madrid",
+      "Attacker_Rating": 8.5,
+      "Defender_Rating": 6.4,
+      "Games": 1,
+      "Weighted_Difficulty": 8.06
+    }
+  ],
+  "backline_stats": [
+    {
+      "team": "VfB Stuttgart",
+      "attacker_avg": 7.5,
+      "defender_avg": 6.42,
+      "encounters": 6,
+      "diff_vs_global": -0.42
+    },
+    {
+      "team": "Paris Saint-Germain",
+      "attacker_avg": 8.1,
+      "defender_avg": 6.06,
+      "encounters": 5,
+      "diff_vs_global": 0.18
+    },
+    {
+      "team": "1. FSV Mainz 05",
+      "attacker_avg": 8.4,
+      "defender_avg": 6.18,
+      "encounters": 4,
+      "diff_vs_global": 0.48
+    },
+    {
+      "team": "FC St. Pauli",
+      "attacker_avg": 7.8,
+      "defender_avg": 5.85,
+      "encounters": 4,
+      "diff_vs_global": -0.12
+    },
+    {
+      "team": "Real Madrid",
+      "attacker_avg": 8.5,
+      "defender_avg": 6.4,
+      "encounters": 4,
+      "diff_vs_global": 0.58
+    },
+    {
+      "team": "Bayer 04 Leverkusen",
+      "attacker_avg": 7.2,
+      "defender_avg": 6.73,
+      "encounters": 3,
+      "diff_vs_global": -0.72
+    }
+  ],
+  "defender_lookup": {
+    "achrafhakimi": {
+      "Defender": "Achraf Hakimi",
+      "Defender_Team": "Paris Saint-Germain",
+      "Games": 1,
+      "Attacker_Rating": 8.1,
+      "Defender_Rating": 5.9,
+      "Weighted_Difficulty": 7.96
+    },
+    "anthonycaci": {
+      "Defender": "Anthony Caci",
+      "Defender_Team": "1. FSV Mainz 05",
+      "Games": 1,
+      "Attacker_Rating": 8.4,
+      "Defender_Rating": 6.2,
+      "Weighted_Difficulty": 8.04
+    },
+    "antoniordiger": {
+      "Defender": "Antonio R\u00fcdiger",
+      "Defender_Team": "Real Madrid",
+      "Games": 1,
+      "Attacker_Rating": 8.5,
+      "Defender_Rating": 6.6,
+      "Weighted_Difficulty": 8.06
+    },
+    "dannydacosta": {
+      "Defender": "Danny da Costa",
+      "Defender_Team": "1. FSV Mainz 05",
+      "Games": 1,
+      "Attacker_Rating": 8.4,
+      "Defender_Rating": 5.8,
+      "Weighted_Difficulty": 8.04
+    },
+    "dominikkohr": {
+      "Defender": "Dominik Kohr",
+      "Defender_Team": "1. FSV Mainz 05",
+      "Games": 1,
+      "Attacker_Rating": 8.4,
+      "Defender_Rating": 6.6,
+      "Weighted_Difficulty": 8.04
+    },
+    "edmondtapsoba": {
+      "Defender": "Edmond Tapsoba",
+      "Defender_Team": "Bayer 04 Leverkusen",
+      "Games": 1,
+      "Attacker_Rating": 7.2,
+      "Defender_Rating": 6.8,
+      "Weighted_Difficulty": 7.74
+    },
+    "ferlandmendy": {
+      "Defender": "Ferland Mendy",
+      "Defender_Team": "Real Madrid",
+      "Games": 1,
+      "Attacker_Rating": 8.5,
+      "Defender_Rating": 5.8,
+      "Weighted_Difficulty": 8.06
+    },
+    "finnjeltsch": {
+      "Defender": "Finn Jeltsch",
+      "Defender_Team": "VfB Stuttgart",
+      "Games": 1,
+      "Attacker_Rating": 7.5,
+      "Defender_Rating": 5.8,
+      "Weighted_Difficulty": 7.82
+    },
+    "haukewahl": {
+      "Defender": "Hauke Wahl",
+      "Defender_Team": "FC St. Pauli",
+      "Games": 1,
+      "Attacker_Rating": 7.8,
+      "Defender_Rating": 6.4,
+      "Weighted_Difficulty": 7.89
+    },
+    "jarellquansah": {
+      "Defender": "Jarell Quansah",
+      "Defender_Team": "Bayer 04 Leverkusen",
+      "Games": 1,
+      "Attacker_Rating": 7.2,
+      "Defender_Rating": 6.0,
+      "Weighted_Difficulty": 7.74
+    },
+    "jeffchabot": {
+      "Defender": "Jeff Chabot",
+      "Defender_Team": "VfB Stuttgart",
+      "Games": 1,
+      "Attacker_Rating": 7.5,
+      "Defender_Rating": 7.5,
+      "Weighted_Difficulty": 7.82
+    },
+    "joshavagnoman": {
+      "Defender": "Josha Vagnoman",
+      "Defender_Team": "VfB Stuttgart",
+      "Games": 1,
+      "Attacker_Rating": 7.5,
+      "Defender_Rating": 5.5,
+      "Weighted_Difficulty": 7.82
+    },
+    "karolmets": {
+      "Defender": "Karol Mets",
+      "Defender_Team": "FC St. Pauli",
+      "Games": 1,
+      "Attacker_Rating": 7.8,
+      "Defender_Rating": 5.6,
+      "Weighted_Difficulty": 7.89
+    },
+    "louisoppie": {
+      "Defender": "Louis Oppie",
+      "Defender_Team": "FC St. Pauli",
+      "Games": 1,
+      "Attacker_Rating": 7.8,
+      "Defender_Rating": 6.1,
+      "Weighted_Difficulty": 7.89
+    },
+    "lucajaquez": {
+      "Defender": "Luca Jaquez",
+      "Defender_Team": "VfB Stuttgart",
+      "Games": 1,
+      "Attacker_Rating": 7.5,
+      "Defender_Rating": 6.6,
+      "Weighted_Difficulty": 7.82
+    },
+    "lucashernndez": {
+      "Defender": "Lucas Hern\u00e1ndez",
+      "Defender_Team": "Paris Saint-Germain",
+      "Games": 1,
+      "Attacker_Rating": 8.1,
+      "Defender_Rating": 6.6,
+      "Weighted_Difficulty": 7.96
+    },
+    "marquinhos": {
+      "Defender": "Marquinhos",
+      "Defender_Team": "Paris Saint-Germain",
+      "Games": 1,
+      "Attacker_Rating": 8.1,
+      "Defender_Rating": 6.6,
+      "Weighted_Difficulty": 7.96
+    },
+    "maximilianmittelstdt": {
+      "Defender": "Maximilian Mittelst\u00e4dt",
+      "Defender_Team": "VfB Stuttgart",
+      "Games": 1,
+      "Attacker_Rating": 7.5,
+      "Defender_Rating": 7.2,
+      "Weighted_Difficulty": 7.82
+    },
+    "nunomendes": {
+      "Defender": "Nuno Mendes",
+      "Defender_Team": "Paris Saint-Germain",
+      "Games": 1,
+      "Attacker_Rating": 8.1,
+      "Defender_Rating": 5.6,
+      "Weighted_Difficulty": 7.96
+    },
+    "ramonhendriks": {
+      "Defender": "Ramon Hendriks",
+      "Defender_Team": "VfB Stuttgart",
+      "Games": 1,
+      "Attacker_Rating": 7.5,
+      "Defender_Rating": 5.9,
+      "Weighted_Difficulty": 7.82
+    },
+    "robertandrich": {
+      "Defender": "Robert Andrich",
+      "Defender_Team": "Bayer 04 Leverkusen",
+      "Games": 1,
+      "Attacker_Rating": 7.2,
+      "Defender_Rating": 7.4,
+      "Weighted_Difficulty": 7.74
+    },
+    "stefanposch": {
+      "Defender": "Stefan Posch",
+      "Defender_Team": "1. FSV Mainz 05",
+      "Games": 1,
+      "Attacker_Rating": 8.4,
+      "Defender_Rating": 6.1,
+      "Weighted_Difficulty": 8.04
+    },
+    "tomoyaando": {
+      "Defender": "Tomoya Ando",
+      "Defender_Team": "FC St. Pauli",
+      "Games": 1,
+      "Attacker_Rating": 7.8,
+      "Defender_Rating": 5.3,
+      "Weighted_Difficulty": 7.89
+    },
+    "trentalexanderarnold": {
+      "Defender": "Trent Alexander-Arnold",
+      "Defender_Team": "Real Madrid",
+      "Games": 1,
+      "Attacker_Rating": 8.5,
+      "Defender_Rating": 6.8,
+      "Weighted_Difficulty": 8.06
+    },
+    "willianpacho": {
+      "Defender": "Willian Pacho",
+      "Defender_Team": "Paris Saint-Germain",
+      "Games": 1,
+      "Attacker_Rating": 8.1,
+      "Defender_Rating": 5.6,
+      "Weighted_Difficulty": 7.96
+    },
+    "dermilito": {
+      "Defender": "\u00c9der Milit\u00e3o",
+      "Defender_Team": "Real Madrid",
+      "Games": 1,
+      "Attacker_Rating": 8.5,
+      "Defender_Rating": 6.4,
+      "Weighted_Difficulty": 8.06
+    }
+  }
+}

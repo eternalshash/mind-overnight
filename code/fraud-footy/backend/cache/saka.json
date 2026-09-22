@@ -1,0 +1,694 @@
+{
+  "player_id": "saka",
+  "player_name": "Bukayo Saka",
+  "club": "Arsenal",
+  "player_position": "RW",
+  "formation": "4-3-3",
+  "global_average": 7.18,
+  "total_matches_analyzed": 11,
+  "total_matchups_analyzed": 46,
+  "hardest_defenders": [
+    {
+      "Defender": "Bjorn Meijer",
+      "Defender_Team": "Club Brugge KV",
+      "Attacker_Rating": 6.4,
+      "Defender_Rating": 6.8,
+      "Games": 1,
+      "Weighted_Difficulty": 6.98
+    },
+    {
+      "Defender": "Joel Ord\u00f3\u00f1ez",
+      "Defender_Team": "Club Brugge KV",
+      "Attacker_Rating": 6.4,
+      "Defender_Rating": 6.5,
+      "Games": 1,
+      "Weighted_Difficulty": 6.98
+    },
+    {
+      "Defender": "Joaquin Seys",
+      "Defender_Team": "Club Brugge KV",
+      "Attacker_Rating": 6.4,
+      "Defender_Rating": 6.2,
+      "Games": 1,
+      "Weighted_Difficulty": 6.98
+    },
+    {
+      "Defender": "Hugo Siquet",
+      "Defender_Team": "Club Brugge KV",
+      "Attacker_Rating": 6.4,
+      "Defender_Rating": 6.4,
+      "Games": 1,
+      "Weighted_Difficulty": 6.98
+    },
+    {
+      "Defender": "Kyriani Sabbe",
+      "Defender_Team": "Club Brugge KV",
+      "Attacker_Rating": 6.4,
+      "Defender_Rating": 6.7,
+      "Games": 1,
+      "Weighted_Difficulty": 6.98
+    },
+    {
+      "Defender": "Brandon Mechele",
+      "Defender_Team": "Club Brugge KV",
+      "Attacker_Rating": 6.4,
+      "Defender_Rating": 6.2,
+      "Games": 1,
+      "Weighted_Difficulty": 6.98
+    },
+    {
+      "Defender": "Victor Lindelof",
+      "Defender_Team": "Aston Villa",
+      "Attacker_Rating": 6.5,
+      "Defender_Rating": 6.7,
+      "Games": 1,
+      "Weighted_Difficulty": 7.01
+    },
+    {
+      "Defender": "Ezri Konsa",
+      "Defender_Team": "Aston Villa",
+      "Attacker_Rating": 6.5,
+      "Defender_Rating": 6.6,
+      "Games": 1,
+      "Weighted_Difficulty": 7.01
+    },
+    {
+      "Defender": "Ian Maatsen",
+      "Defender_Team": "Aston Villa",
+      "Attacker_Rating": 6.5,
+      "Defender_Rating": 6.4,
+      "Games": 1,
+      "Weighted_Difficulty": 7.01
+    },
+    {
+      "Defender": "Matty Cash",
+      "Defender_Team": "Aston Villa",
+      "Attacker_Rating": 6.5,
+      "Defender_Rating": 7.8,
+      "Games": 1,
+      "Weighted_Difficulty": 7.01
+    },
+    {
+      "Defender": "Pau Torres",
+      "Defender_Team": "Aston Villa",
+      "Attacker_Rating": 6.5,
+      "Defender_Rating": 6.9,
+      "Games": 1,
+      "Weighted_Difficulty": 7.01
+    },
+    {
+      "Defender": "Vitaliy Mykolenko",
+      "Defender_Team": "Everton",
+      "Attacker_Rating": 6.6,
+      "Defender_Rating": 6.7,
+      "Games": 1,
+      "Weighted_Difficulty": 7.04
+    },
+    {
+      "Defender": "Michael Keane",
+      "Defender_Team": "Everton",
+      "Attacker_Rating": 6.6,
+      "Defender_Rating": 7.7,
+      "Games": 1,
+      "Weighted_Difficulty": 7.04
+    },
+    {
+      "Defender": "Jake O'Brien",
+      "Defender_Team": "Everton",
+      "Attacker_Rating": 6.6,
+      "Defender_Rating": 6.7,
+      "Games": 1,
+      "Weighted_Difficulty": 7.04
+    },
+    {
+      "Defender": "James Tarkowski",
+      "Defender_Team": "Everton",
+      "Attacker_Rating": 6.6,
+      "Defender_Rating": 7.8,
+      "Games": 1,
+      "Weighted_Difficulty": 7.04
+    },
+    {
+      "Defender": "Josip Stani\u0161i\u0107",
+      "Defender_Team": "FC Bayern M\u00fcnchen",
+      "Attacker_Rating": 6.7,
+      "Defender_Rating": 6.4,
+      "Games": 1,
+      "Weighted_Difficulty": 7.06
+    },
+    {
+      "Defender": "Dayot Upamecano",
+      "Defender_Team": "FC Bayern M\u00fcnchen",
+      "Attacker_Rating": 6.7,
+      "Defender_Rating": 5.9,
+      "Games": 1,
+      "Weighted_Difficulty": 7.06
+    },
+    {
+      "Defender": "Konrad Laimer",
+      "Defender_Team": "FC Bayern M\u00fcnchen",
+      "Attacker_Rating": 6.7,
+      "Defender_Rating": 6.0,
+      "Games": 1,
+      "Weighted_Difficulty": 7.06
+    },
+    {
+      "Defender": "Min-jae Kim",
+      "Defender_Team": "FC Bayern M\u00fcnchen",
+      "Attacker_Rating": 6.7,
+      "Defender_Rating": 6.7,
+      "Games": 1,
+      "Weighted_Difficulty": 7.06
+    },
+    {
+      "Defender": "Jonathan Tah",
+      "Defender_Team": "FC Bayern M\u00fcnchen",
+      "Attacker_Rating": 6.7,
+      "Defender_Rating": 6.2,
+      "Games": 1,
+      "Weighted_Difficulty": 7.06
+    },
+    {
+      "Defender": "Raphael Guerreiro",
+      "Defender_Team": "FC Bayern M\u00fcnchen",
+      "Attacker_Rating": 6.7,
+      "Defender_Rating": 6.7,
+      "Games": 1,
+      "Weighted_Difficulty": 7.06
+    },
+    {
+      "Defender": "Kevin Danso",
+      "Defender_Team": "Tottenham Hotspur",
+      "Attacker_Rating": 6.9,
+      "Defender_Rating": 6.2,
+      "Games": 1,
+      "Weighted_Difficulty": 7.11
+    },
+    {
+      "Defender": "Pedro Porro",
+      "Defender_Team": "Tottenham Hotspur",
+      "Attacker_Rating": 6.9,
+      "Defender_Rating": 6.8,
+      "Games": 1,
+      "Weighted_Difficulty": 7.11
+    },
+    {
+      "Defender": "Cristian Romero",
+      "Defender_Team": "Tottenham Hotspur",
+      "Attacker_Rating": 6.9,
+      "Defender_Rating": 6.5,
+      "Games": 1,
+      "Weighted_Difficulty": 7.11
+    },
+    {
+      "Defender": "Micky van de Ven",
+      "Defender_Team": "Tottenham Hotspur",
+      "Attacker_Rating": 6.9,
+      "Defender_Rating": 5.6,
+      "Games": 1,
+      "Weighted_Difficulty": 7.11
+    },
+    {
+      "Defender": "Chris Richards",
+      "Defender_Team": "Crystal Palace",
+      "Attacker_Rating": 7.3,
+      "Defender_Rating": 7.0,
+      "Games": 1,
+      "Weighted_Difficulty": 7.21
+    },
+    {
+      "Defender": "Marc Gu\u00e9hi",
+      "Defender_Team": "Crystal Palace",
+      "Attacker_Rating": 7.3,
+      "Defender_Rating": 7.6,
+      "Games": 1,
+      "Weighted_Difficulty": 7.21
+    },
+    {
+      "Defender": "Maxence Lacroix",
+      "Defender_Team": "Crystal Palace",
+      "Attacker_Rating": 7.3,
+      "Defender_Rating": 6.3,
+      "Games": 1,
+      "Weighted_Difficulty": 7.21
+    },
+    {
+      "Defender": "Nathaniel Clyne",
+      "Defender_Team": "Crystal Palace",
+      "Attacker_Rating": 7.3,
+      "Defender_Rating": 6.8,
+      "Games": 1,
+      "Weighted_Difficulty": 7.21
+    },
+    {
+      "Defender": "Wesley Fofana",
+      "Defender_Team": "Chelsea",
+      "Attacker_Rating": 7.4,
+      "Defender_Rating": 6.9,
+      "Games": 1,
+      "Weighted_Difficulty": 7.24
+    }
+  ],
+  "backline_stats": [
+    {
+      "team": "Brentford",
+      "attacker_avg": 8.2,
+      "defender_avg": 6.52,
+      "encounters": 6,
+      "diff_vs_global": 1.02
+    },
+    {
+      "team": "Club Brugge KV",
+      "attacker_avg": 6.4,
+      "defender_avg": 6.47,
+      "encounters": 6,
+      "diff_vs_global": -0.78
+    },
+    {
+      "team": "FC Bayern M\u00fcnchen",
+      "attacker_avg": 6.7,
+      "defender_avg": 6.32,
+      "encounters": 6,
+      "diff_vs_global": -0.48
+    },
+    {
+      "team": "Aston Villa",
+      "attacker_avg": 6.5,
+      "defender_avg": 6.88,
+      "encounters": 5,
+      "diff_vs_global": -0.68
+    },
+    {
+      "team": "Chelsea",
+      "attacker_avg": 7.4,
+      "defender_avg": 6.98,
+      "encounters": 4,
+      "diff_vs_global": 0.22
+    },
+    {
+      "team": "Crystal Palace",
+      "attacker_avg": 7.3,
+      "defender_avg": 6.92,
+      "encounters": 4,
+      "diff_vs_global": 0.12
+    },
+    {
+      "team": "Everton",
+      "attacker_avg": 6.6,
+      "defender_avg": 7.22,
+      "encounters": 4,
+      "diff_vs_global": -0.58
+    },
+    {
+      "team": "Tottenham Hotspur",
+      "attacker_avg": 6.9,
+      "defender_avg": 6.28,
+      "encounters": 4,
+      "diff_vs_global": -0.28
+    },
+    {
+      "team": "Wolverhampton",
+      "attacker_avg": 8.5,
+      "defender_avg": 6.25,
+      "encounters": 4,
+      "diff_vs_global": 1.32
+    },
+    {
+      "team": "Brighton & Hove Albion",
+      "attacker_avg": 7.7,
+      "defender_avg": 6.87,
+      "encounters": 3,
+      "diff_vs_global": 0.52
+    }
+  ],
+  "defender_lookup": {
+    "bjornmeijer": {
+      "Defender": "Bjorn Meijer",
+      "Defender_Team": "Club Brugge KV",
+      "Games": 1,
+      "Attacker_Rating": 6.4,
+      "Defender_Rating": 6.8,
+      "Weighted_Difficulty": 6.98
+    },
+    "brandonmechele": {
+      "Defender": "Brandon Mechele",
+      "Defender_Team": "Club Brugge KV",
+      "Games": 1,
+      "Attacker_Rating": 6.4,
+      "Defender_Rating": 6.2,
+      "Weighted_Difficulty": 6.98
+    },
+    "chrisrichards": {
+      "Defender": "Chris Richards",
+      "Defender_Team": "Crystal Palace",
+      "Games": 1,
+      "Attacker_Rating": 7.3,
+      "Defender_Rating": 7.0,
+      "Weighted_Difficulty": 7.21
+    },
+    "cristianromero": {
+      "Defender": "Cristian Romero",
+      "Defender_Team": "Tottenham Hotspur",
+      "Games": 1,
+      "Attacker_Rating": 6.9,
+      "Defender_Rating": 6.5,
+      "Weighted_Difficulty": 7.11
+    },
+    "dayotupamecano": {
+      "Defender": "Dayot Upamecano",
+      "Defender_Team": "FC Bayern M\u00fcnchen",
+      "Games": 1,
+      "Attacker_Rating": 6.7,
+      "Defender_Rating": 5.9,
+      "Weighted_Difficulty": 7.06
+    },
+    "diegocoppola": {
+      "Defender": "Diego Coppola",
+      "Defender_Team": "Brighton & Hove Albion",
+      "Games": 1,
+      "Attacker_Rating": 7.7,
+      "Defender_Rating": 5.9,
+      "Weighted_Difficulty": 7.31
+    },
+    "emmanuelagbadou": {
+      "Defender": "Emmanuel Agbadou",
+      "Defender_Team": "Wolverhampton",
+      "Games": 1,
+      "Attacker_Rating": 8.5,
+      "Defender_Rating": 6.9,
+      "Weighted_Difficulty": 7.51
+    },
+    "ethanpinnock": {
+      "Defender": "Ethan Pinnock",
+      "Defender_Team": "Brentford",
+      "Games": 1,
+      "Attacker_Rating": 8.2,
+      "Defender_Rating": 7.2,
+      "Weighted_Difficulty": 7.44
+    },
+    "ezrikonsa": {
+      "Defender": "Ezri Konsa",
+      "Defender_Team": "Aston Villa",
+      "Games": 1,
+      "Attacker_Rating": 6.5,
+      "Defender_Rating": 6.6,
+      "Weighted_Difficulty": 7.01
+    },
+    "hugosiquet": {
+      "Defender": "Hugo Siquet",
+      "Defender_Team": "Club Brugge KV",
+      "Games": 1,
+      "Attacker_Rating": 6.4,
+      "Defender_Rating": 6.4,
+      "Weighted_Difficulty": 6.98
+    },
+    "ianmaatsen": {
+      "Defender": "Ian Maatsen",
+      "Defender_Team": "Aston Villa",
+      "Games": 1,
+      "Attacker_Rating": 6.5,
+      "Defender_Rating": 6.4,
+      "Weighted_Difficulty": 7.01
+    },
+    "jacksontchatchoua": {
+      "Defender": "Jackson Tchatchoua",
+      "Defender_Team": "Wolverhampton",
+      "Games": 1,
+      "Attacker_Rating": 8.5,
+      "Defender_Rating": 5.9,
+      "Weighted_Difficulty": 7.51
+    },
+    "jakeobrien": {
+      "Defender": "Jake O'Brien",
+      "Defender_Team": "Everton",
+      "Games": 1,
+      "Attacker_Rating": 6.6,
+      "Defender_Rating": 6.7,
+      "Weighted_Difficulty": 7.04
+    },
+    "jamestarkowski": {
+      "Defender": "James Tarkowski",
+      "Defender_Team": "Everton",
+      "Games": 1,
+      "Attacker_Rating": 6.6,
+      "Defender_Rating": 7.8,
+      "Weighted_Difficulty": 7.04
+    },
+    "janpaulvanhecke": {
+      "Defender": "Jan Paul van Hecke",
+      "Defender_Team": "Brighton & Hove Albion",
+      "Games": 1,
+      "Attacker_Rating": 7.7,
+      "Defender_Rating": 7.7,
+      "Weighted_Difficulty": 7.31
+    },
+    "joaquinseys": {
+      "Defender": "Joaquin Seys",
+      "Defender_Team": "Club Brugge KV",
+      "Games": 1,
+      "Attacker_Rating": 6.4,
+      "Defender_Rating": 6.2,
+      "Weighted_Difficulty": 6.98
+    },
+    "joelordez": {
+      "Defender": "Joel Ord\u00f3\u00f1ez",
+      "Defender_Team": "Club Brugge KV",
+      "Games": 1,
+      "Attacker_Rating": 6.4,
+      "Defender_Rating": 6.5,
+      "Weighted_Difficulty": 6.98
+    },
+    "jonathantah": {
+      "Defender": "Jonathan Tah",
+      "Defender_Team": "FC Bayern M\u00fcnchen",
+      "Games": 1,
+      "Attacker_Rating": 6.7,
+      "Defender_Rating": 6.2,
+      "Weighted_Difficulty": 7.06
+    },
+    "josipstanii": {
+      "Defender": "Josip Stani\u0161i\u0107",
+      "Defender_Team": "FC Bayern M\u00fcnchen",
+      "Games": 1,
+      "Attacker_Rating": 6.7,
+      "Defender_Rating": 6.4,
+      "Weighted_Difficulty": 7.06
+    },
+    "kevindanso": {
+      "Defender": "Kevin Danso",
+      "Defender_Team": "Tottenham Hotspur",
+      "Games": 1,
+      "Attacker_Rating": 6.9,
+      "Defender_Rating": 6.2,
+      "Weighted_Difficulty": 7.11
+    },
+    "konradlaimer": {
+      "Defender": "Konrad Laimer",
+      "Defender_Team": "FC Bayern M\u00fcnchen",
+      "Games": 1,
+      "Attacker_Rating": 6.7,
+      "Defender_Rating": 6.0,
+      "Weighted_Difficulty": 7.06
+    },
+    "kristofferajer": {
+      "Defender": "Kristoffer Ajer",
+      "Defender_Team": "Brentford",
+      "Games": 1,
+      "Attacker_Rating": 8.2,
+      "Defender_Rating": 5.9,
+      "Weighted_Difficulty": 7.44
+    },
+    "kyrianisabbe": {
+      "Defender": "Kyriani Sabbe",
+      "Defender_Team": "Club Brugge KV",
+      "Games": 1,
+      "Attacker_Rating": 6.4,
+      "Defender_Rating": 6.7,
+      "Weighted_Difficulty": 6.98
+    },
+    "lewisdunk": {
+      "Defender": "Lewis Dunk",
+      "Defender_Team": "Brighton & Hove Albion",
+      "Games": 1,
+      "Attacker_Rating": 7.7,
+      "Defender_Rating": 7.0,
+      "Weighted_Difficulty": 7.31
+    },
+    "malogusto": {
+      "Defender": "Malo Gusto",
+      "Defender_Team": "Chelsea",
+      "Games": 1,
+      "Attacker_Rating": 7.4,
+      "Defender_Rating": 6.7,
+      "Weighted_Difficulty": 7.24
+    },
+    "marccucurella": {
+      "Defender": "Marc Cucurella",
+      "Defender_Team": "Chelsea",
+      "Games": 1,
+      "Attacker_Rating": 7.4,
+      "Defender_Rating": 6.5,
+      "Weighted_Difficulty": 7.24
+    },
+    "marcguhi": {
+      "Defender": "Marc Gu\u00e9hi",
+      "Defender_Team": "Crystal Palace",
+      "Games": 1,
+      "Attacker_Rating": 7.3,
+      "Defender_Rating": 7.6,
+      "Weighted_Difficulty": 7.21
+    },
+    "mattycash": {
+      "Defender": "Matty Cash",
+      "Defender_Team": "Aston Villa",
+      "Games": 1,
+      "Attacker_Rating": 6.5,
+      "Defender_Rating": 7.8,
+      "Weighted_Difficulty": 7.01
+    },
+    "maxencelacroix": {
+      "Defender": "Maxence Lacroix",
+      "Defender_Team": "Crystal Palace",
+      "Games": 1,
+      "Attacker_Rating": 7.3,
+      "Defender_Rating": 6.3,
+      "Weighted_Difficulty": 7.21
+    },
+    "michaelkayode": {
+      "Defender": "Michael Kayode",
+      "Defender_Team": "Brentford",
+      "Games": 1,
+      "Attacker_Rating": 8.2,
+      "Defender_Rating": 6.6,
+      "Weighted_Difficulty": 7.44
+    },
+    "michaelkeane": {
+      "Defender": "Michael Keane",
+      "Defender_Team": "Everton",
+      "Games": 1,
+      "Attacker_Rating": 6.6,
+      "Defender_Rating": 7.7,
+      "Weighted_Difficulty": 7.04
+    },
+    "mickyvandeven": {
+      "Defender": "Micky van de Ven",
+      "Defender_Team": "Tottenham Hotspur",
+      "Games": 1,
+      "Attacker_Rating": 6.9,
+      "Defender_Rating": 5.6,
+      "Weighted_Difficulty": 7.11
+    },
+    "minjaekim": {
+      "Defender": "Min-jae Kim",
+      "Defender_Team": "FC Bayern M\u00fcnchen",
+      "Games": 1,
+      "Attacker_Rating": 6.7,
+      "Defender_Rating": 6.7,
+      "Weighted_Difficulty": 7.06
+    },
+    "nathancollins": {
+      "Defender": "Nathan Collins",
+      "Defender_Team": "Brentford",
+      "Games": 1,
+      "Attacker_Rating": 8.2,
+      "Defender_Rating": 6.3,
+      "Weighted_Difficulty": 7.44
+    },
+    "nathanielclyne": {
+      "Defender": "Nathaniel Clyne",
+      "Defender_Team": "Crystal Palace",
+      "Games": 1,
+      "Attacker_Rating": 7.3,
+      "Defender_Rating": 6.8,
+      "Weighted_Difficulty": 7.21
+    },
+    "pautorres": {
+      "Defender": "Pau Torres",
+      "Defender_Team": "Aston Villa",
+      "Games": 1,
+      "Attacker_Rating": 6.5,
+      "Defender_Rating": 6.9,
+      "Weighted_Difficulty": 7.01
+    },
+    "pedroporro": {
+      "Defender": "Pedro Porro",
+      "Defender_Team": "Tottenham Hotspur",
+      "Games": 1,
+      "Attacker_Rating": 6.9,
+      "Defender_Rating": 6.8,
+      "Weighted_Difficulty": 7.11
+    },
+    "raphaelguerreiro": {
+      "Defender": "Raphael Guerreiro",
+      "Defender_Team": "FC Bayern M\u00fcnchen",
+      "Games": 1,
+      "Attacker_Rating": 6.7,
+      "Defender_Rating": 6.7,
+      "Weighted_Difficulty": 7.06
+    },
+    "ricohenry": {
+      "Defender": "Rico Henry",
+      "Defender_Team": "Brentford",
+      "Games": 1,
+      "Attacker_Rating": 8.2,
+      "Defender_Rating": 6.8,
+      "Weighted_Difficulty": 7.44
+    },
+    "seppvandenberg": {
+      "Defender": "Sepp van den Berg",
+      "Defender_Team": "Brentford",
+      "Games": 1,
+      "Attacker_Rating": 8.2,
+      "Defender_Rating": 6.3,
+      "Weighted_Difficulty": 7.44
+    },
+    "totigomes": {
+      "Defender": "Toti Gomes",
+      "Defender_Team": "Wolverhampton",
+      "Games": 1,
+      "Attacker_Rating": 8.5,
+      "Defender_Rating": 6.4,
+      "Weighted_Difficulty": 7.51
+    },
+    "trevohchalobah": {
+      "Defender": "Trevoh Chalobah",
+      "Defender_Team": "Chelsea",
+      "Games": 1,
+      "Attacker_Rating": 7.4,
+      "Defender_Rating": 7.8,
+      "Weighted_Difficulty": 7.24
+    },
+    "victorlindelof": {
+      "Defender": "Victor Lindelof",
+      "Defender_Team": "Aston Villa",
+      "Games": 1,
+      "Attacker_Rating": 6.5,
+      "Defender_Rating": 6.7,
+      "Weighted_Difficulty": 7.01
+    },
+    "vitaliymykolenko": {
+      "Defender": "Vitaliy Mykolenko",
+      "Defender_Team": "Everton",
+      "Games": 1,
+      "Attacker_Rating": 6.6,
+      "Defender_Rating": 6.7,
+      "Weighted_Difficulty": 7.04
+    },
+    "wesleyfofana": {
+      "Defender": "Wesley Fofana",
+      "Defender_Team": "Chelsea",
+      "Games": 1,
+      "Attacker_Rating": 7.4,
+      "Defender_Rating": 6.9,
+      "Weighted_Difficulty": 7.24
+    },
+    "yersonmosquera": {
+      "Defender": "Yerson Mosquera",
+      "Defender_Team": "Wolverhampton",
+      "Games": 1,
+      "Attacker_Rating": 8.5,
+      "Defender_Rating": 5.8,
+      "Weighted_Difficulty": 7.51
+    }
+  }
+}

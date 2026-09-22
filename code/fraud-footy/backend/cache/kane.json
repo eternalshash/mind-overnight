@@ -1,0 +1,1268 @@
+{
+  "player_id": "kane",
+  "player_name": "Harry Kane",
+  "club": "FC Bayern M\u00fcnchen",
+  "player_position": "ST",
+  "formation": "4-2-3-1",
+  "global_average": 7.61,
+  "total_matches_analyzed": 28,
+  "total_matchups_analyzed": 132,
+  "hardest_defenders": [
+    {
+      "Defender": "Louis Oppie",
+      "Defender_Team": "FC St. Pauli",
+      "Attacker_Rating": 6.1,
+      "Defender_Rating": 6.0,
+      "Games": 1,
+      "Weighted_Difficulty": 7.23
+    },
+    {
+      "Defender": "Arkadiusz Pyrka",
+      "Defender_Team": "FC St. Pauli",
+      "Attacker_Rating": 6.1,
+      "Defender_Rating": 6.5,
+      "Games": 1,
+      "Weighted_Difficulty": 7.23
+    },
+    {
+      "Defender": "Eric Smith",
+      "Defender_Team": "FC St. Pauli",
+      "Attacker_Rating": 6.1,
+      "Defender_Rating": 6.3,
+      "Games": 1,
+      "Weighted_Difficulty": 7.23
+    },
+    {
+      "Defender": "Lars Ritzka",
+      "Defender_Team": "FC St. Pauli",
+      "Attacker_Rating": 6.1,
+      "Defender_Rating": 6.4,
+      "Games": 1,
+      "Weighted_Difficulty": 7.23
+    },
+    {
+      "Defender": "Karol Mets",
+      "Defender_Team": "FC St. Pauli",
+      "Attacker_Rating": 6.1,
+      "Defender_Rating": 5.9,
+      "Games": 1,
+      "Weighted_Difficulty": 7.23
+    },
+    {
+      "Defender": "Hauke Wahl",
+      "Defender_Team": "FC St. Pauli",
+      "Attacker_Rating": 6.1,
+      "Defender_Rating": 6.4,
+      "Games": 1,
+      "Weighted_Difficulty": 7.23
+    },
+    {
+      "Defender": "Douglas Mendes",
+      "Defender_Team": "Red Bull Salzburg",
+      "Attacker_Rating": 6.3,
+      "Defender_Rating": 5.6,
+      "Games": 1,
+      "Weighted_Difficulty": 7.28
+    },
+    {
+      "Defender": "Tim Trummer",
+      "Defender_Team": "Red Bull Salzburg",
+      "Attacker_Rating": 6.3,
+      "Defender_Rating": 6.9,
+      "Games": 1,
+      "Weighted_Difficulty": 7.28
+    },
+    {
+      "Defender": "Stefan Lainer",
+      "Defender_Team": "Red Bull Salzburg",
+      "Attacker_Rating": 6.3,
+      "Defender_Rating": 5.3,
+      "Games": 1,
+      "Weighted_Difficulty": 7.28
+    },
+    {
+      "Defender": "Frans Kr\u00e4tzig",
+      "Defender_Team": "Red Bull Salzburg",
+      "Attacker_Rating": 6.3,
+      "Defender_Rating": 6.7,
+      "Games": 1,
+      "Weighted_Difficulty": 7.28
+    },
+    {
+      "Defender": "Joane Gadou",
+      "Defender_Team": "Red Bull Salzburg",
+      "Attacker_Rating": 6.3,
+      "Defender_Rating": 6.6,
+      "Games": 1,
+      "Weighted_Difficulty": 7.28
+    },
+    {
+      "Defender": "Jannik Schuster",
+      "Defender_Team": "Red Bull Salzburg",
+      "Attacker_Rating": 6.3,
+      "Defender_Rating": 6.4,
+      "Games": 1,
+      "Weighted_Difficulty": 7.28
+    },
+    {
+      "Defender": "Jacob Rasmussen",
+      "Defender_Team": "Red Bull Salzburg",
+      "Attacker_Rating": 6.3,
+      "Defender_Rating": 6.1,
+      "Games": 1,
+      "Weighted_Difficulty": 7.28
+    },
+    {
+      "Defender": "Keven Schlotterbeck",
+      "Defender_Team": "FC Augsburg",
+      "Attacker_Rating": 6.4,
+      "Defender_Rating": 7.0,
+      "Games": 1,
+      "Weighted_Difficulty": 7.31
+    },
+    {
+      "Defender": "Arthur Chaves",
+      "Defender_Team": "FC Augsburg",
+      "Attacker_Rating": 6.4,
+      "Defender_Rating": 8.0,
+      "Games": 1,
+      "Weighted_Difficulty": 7.31
+    },
+    {
+      "Defender": "Cedric Zesiger",
+      "Defender_Team": "FC Augsburg",
+      "Attacker_Rating": 6.4,
+      "Defender_Rating": 7.5,
+      "Games": 1,
+      "Weighted_Difficulty": 7.31
+    },
+    {
+      "Defender": "Eduardo Quaresma",
+      "Defender_Team": "Sporting CP",
+      "Attacker_Rating": 6.7,
+      "Defender_Rating": 5.8,
+      "Games": 1,
+      "Weighted_Difficulty": 7.38
+    },
+    {
+      "Defender": "Giorgos Vagiannidis",
+      "Defender_Team": "Sporting CP",
+      "Attacker_Rating": 6.7,
+      "Defender_Rating": 6.8,
+      "Games": 1,
+      "Weighted_Difficulty": 7.38
+    },
+    {
+      "Defender": "Ricardo Mangas",
+      "Defender_Team": "Sporting CP",
+      "Attacker_Rating": 6.7,
+      "Defender_Rating": 6.0,
+      "Games": 1,
+      "Weighted_Difficulty": 7.38
+    },
+    {
+      "Defender": "Ousmane Diomande",
+      "Defender_Team": "Sporting CP",
+      "Attacker_Rating": 6.7,
+      "Defender_Rating": 6.7,
+      "Games": 1,
+      "Weighted_Difficulty": 7.38
+    },
+    {
+      "Defender": "Matheus Reis",
+      "Defender_Team": "Sporting CP",
+      "Attacker_Rating": 6.7,
+      "Defender_Rating": 6.6,
+      "Games": 1,
+      "Weighted_Difficulty": 7.38
+    },
+    {
+      "Defender": "Iv\u00e1n Fresneda",
+      "Defender_Team": "Sporting CP",
+      "Attacker_Rating": 6.7,
+      "Defender_Rating": 5.9,
+      "Games": 1,
+      "Weighted_Difficulty": 7.38
+    },
+    {
+      "Defender": "Maximiliano Ara\u00fajo",
+      "Defender_Team": "Sporting CP",
+      "Attacker_Rating": 6.7,
+      "Defender_Rating": 5.7,
+      "Games": 1,
+      "Weighted_Difficulty": 7.38
+    },
+    {
+      "Defender": "William Saliba",
+      "Defender_Team": "Arsenal",
+      "Attacker_Rating": 6.8,
+      "Defender_Rating": 6.3,
+      "Games": 1,
+      "Weighted_Difficulty": 7.41
+    },
+    {
+      "Defender": "Ben White",
+      "Defender_Team": "Arsenal",
+      "Attacker_Rating": 6.8,
+      "Defender_Rating": 6.7,
+      "Games": 1,
+      "Weighted_Difficulty": 7.41
+    },
+    {
+      "Defender": "Cristhian Mosquera",
+      "Defender_Team": "Arsenal",
+      "Attacker_Rating": 6.8,
+      "Defender_Rating": 6.8,
+      "Games": 1,
+      "Weighted_Difficulty": 7.41
+    },
+    {
+      "Defender": "Myles Lewis-Skelly",
+      "Defender_Team": "Arsenal",
+      "Attacker_Rating": 6.8,
+      "Defender_Rating": 6.0,
+      "Games": 1,
+      "Weighted_Difficulty": 7.41
+    },
+    {
+      "Defender": "Jurri\u00ebn Timber",
+      "Defender_Team": "Arsenal",
+      "Attacker_Rating": 6.8,
+      "Defender_Rating": 7.8,
+      "Games": 1,
+      "Weighted_Difficulty": 7.41
+    },
+    {
+      "Defender": "Riccardo Calafiori",
+      "Defender_Team": "Arsenal",
+      "Attacker_Rating": 6.8,
+      "Defender_Rating": 7.4,
+      "Games": 1,
+      "Weighted_Difficulty": 7.41
+    },
+    {
+      "Defender": "Diogo Leite",
+      "Defender_Team": "1. FC Union Berlin",
+      "Attacker_Rating": 6.9,
+      "Defender_Rating": 6.1,
+      "Games": 1,
+      "Weighted_Difficulty": 7.43
+    }
+  ],
+  "backline_stats": [
+    {
+      "team": "VfB Stuttgart",
+      "attacker_avg": 8.11,
+      "defender_avg": 6.08,
+      "encounters": 11,
+      "diff_vs_global": 0.5
+    },
+    {
+      "team": "Real Madrid",
+      "attacker_avg": 7.89,
+      "defender_avg": 6.66,
+      "encounters": 9,
+      "diff_vs_global": 0.28
+    },
+    {
+      "team": "1. FC Union Berlin",
+      "attacker_avg": 7.4,
+      "defender_avg": 6.4,
+      "encounters": 9,
+      "diff_vs_global": -0.21
+    },
+    {
+      "team": "RB Leipzig",
+      "attacker_avg": 7.4,
+      "defender_avg": 6.19,
+      "encounters": 8,
+      "diff_vs_global": -0.21
+    },
+    {
+      "team": "Sporting CP",
+      "attacker_avg": 6.7,
+      "defender_avg": 6.21,
+      "encounters": 7,
+      "diff_vs_global": -0.91
+    },
+    {
+      "team": "Red Bull Salzburg",
+      "attacker_avg": 6.3,
+      "defender_avg": 6.23,
+      "encounters": 7,
+      "diff_vs_global": -1.31
+    },
+    {
+      "team": "Arsenal",
+      "attacker_avg": 6.8,
+      "defender_avg": 6.83,
+      "encounters": 6,
+      "diff_vs_global": -0.81
+    },
+    {
+      "team": "Bayer 04 Leverkusen",
+      "attacker_avg": 7.4,
+      "defender_avg": 6.72,
+      "encounters": 6,
+      "diff_vs_global": -0.21
+    },
+    {
+      "team": "SV Werder Bremen",
+      "attacker_avg": 8.3,
+      "defender_avg": 6.4,
+      "encounters": 6,
+      "diff_vs_global": 0.69
+    },
+    {
+      "team": "FC St. Pauli",
+      "attacker_avg": 6.1,
+      "defender_avg": 6.25,
+      "encounters": 6,
+      "diff_vs_global": -1.51
+    },
+    {
+      "team": "1. FC Heidenheim",
+      "attacker_avg": 8.0,
+      "defender_avg": 6.3,
+      "encounters": 5,
+      "diff_vs_global": 0.39
+    },
+    {
+      "team": "TSG Hoffenheim",
+      "attacker_avg": 8.5,
+      "defender_avg": 5.3,
+      "encounters": 5,
+      "diff_vs_global": 0.89
+    }
+  ],
+  "defender_lookup": {
+    "albianhajdari": {
+      "Defender": "Albian Hajdari",
+      "Defender_Team": "TSG Hoffenheim",
+      "Games": 1,
+      "Attacker_Rating": 8.5,
+      "Defender_Rating": 6.0,
+      "Weighted_Difficulty": 7.83
+    },
+    "ameenaldakhil": {
+      "Defender": "Ameen Al-Dakhil",
+      "Defender_Team": "VfB Stuttgart",
+      "Games": 1,
+      "Attacker_Rating": 9.2,
+      "Defender_Rating": 5.5,
+      "Weighted_Difficulty": 8.01
+    },
+    "antoniorudiger": {
+      "Defender": "Antonio Rudiger",
+      "Defender_Team": "Real Madrid",
+      "Games": 2,
+      "Attacker_Rating": 7.9,
+      "Defender_Rating": 6.5,
+      "Weighted_Difficulty": 7.73
+    },
+    "arkadiuszpyrka": {
+      "Defender": "Arkadiusz Pyrka",
+      "Defender_Team": "FC St. Pauli",
+      "Games": 1,
+      "Attacker_Rating": 6.1,
+      "Defender_Rating": 6.5,
+      "Weighted_Difficulty": 7.23
+    },
+    "armandoobispo": {
+      "Defender": "Armando Obispo",
+      "Defender_Team": "PSV Eindhoven",
+      "Games": 1,
+      "Attacker_Rating": 8.3,
+      "Defender_Rating": 7.0,
+      "Weighted_Difficulty": 7.78
+    },
+    "arthurchaves": {
+      "Defender": "Arthur Chaves",
+      "Defender_Team": "FC Augsburg",
+      "Games": 1,
+      "Attacker_Rating": 6.4,
+      "Defender_Rating": 8.0,
+      "Weighted_Difficulty": 7.31
+    },
+    "aurleamenda": {
+      "Defender": "Aur\u00e8le Amenda",
+      "Defender_Team": "Eintracht Frankfurt",
+      "Games": 1,
+      "Attacker_Rating": 8.2,
+      "Defender_Rating": 5.2,
+      "Weighted_Difficulty": 7.76
+    },
+    "benwhite": {
+      "Defender": "Ben White",
+      "Defender_Team": "Arsenal",
+      "Games": 1,
+      "Attacker_Rating": 6.8,
+      "Defender_Rating": 6.7,
+      "Weighted_Difficulty": 7.41
+    },
+    "benediktgimber": {
+      "Defender": "Benedikt Gimber",
+      "Defender_Team": "1. FC Heidenheim",
+      "Games": 1,
+      "Attacker_Rating": 8.0,
+      "Defender_Rating": 7.0,
+      "Weighted_Difficulty": 7.71
+    },
+    "castellolukeba": {
+      "Defender": "Castello Lukeba",
+      "Defender_Team": "RB Leipzig",
+      "Games": 2,
+      "Attacker_Rating": 7.4,
+      "Defender_Rating": 6.15,
+      "Weighted_Difficulty": 7.53
+    },
+    "cedriczesiger": {
+      "Defender": "Cedric Zesiger",
+      "Defender_Team": "FC Augsburg",
+      "Games": 1,
+      "Attacker_Rating": 6.4,
+      "Defender_Rating": 7.5,
+      "Weighted_Difficulty": 7.31
+    },
+    "cenkzkaar": {
+      "Defender": "Cenk \u00d6zka\u00e7ar",
+      "Defender_Team": "1. FC K\u00f6ln",
+      "Games": 1,
+      "Attacker_Rating": 7.3,
+      "Defender_Rating": 6.3,
+      "Weighted_Difficulty": 7.53
+    },
+    "christianburgess": {
+      "Defender": "Christian Burgess",
+      "Defender_Team": "Royale Union Saint-Gilloise",
+      "Games": 1,
+      "Attacker_Rating": 7.9,
+      "Defender_Rating": 6.0,
+      "Weighted_Difficulty": 7.68
+    },
+    "cristhianmosquera": {
+      "Defender": "Cristhian Mosquera",
+      "Defender_Team": "Arsenal",
+      "Games": 1,
+      "Attacker_Rating": 6.8,
+      "Defender_Rating": 6.8,
+      "Weighted_Difficulty": 7.41
+    },
+    "danielelfadli": {
+      "Defender": "Daniel Elfadli",
+      "Defender_Team": "Hamburger SV",
+      "Games": 1,
+      "Attacker_Rating": 7.0,
+      "Defender_Rating": 6.8,
+      "Weighted_Difficulty": 7.46
+    },
+    "danilhodoekhi": {
+      "Defender": "Danilho Doekhi",
+      "Defender_Team": "1. FC Union Berlin",
+      "Games": 2,
+      "Attacker_Rating": 7.35,
+      "Defender_Rating": 5.8,
+      "Weighted_Difficulty": 7.51
+    },
+    "dannydacosta": {
+      "Defender": "Danny da Costa",
+      "Defender_Team": "1. FSV Mainz 05",
+      "Games": 1,
+      "Attacker_Rating": 7.2,
+      "Defender_Rating": 6.4,
+      "Weighted_Difficulty": 7.51
+    },
+    "davidraum": {
+      "Defender": "David Raum",
+      "Defender_Team": "RB Leipzig",
+      "Games": 2,
+      "Attacker_Rating": 7.4,
+      "Defender_Rating": 6.5,
+      "Weighted_Difficulty": 7.53
+    },
+    "deanhuijsen": {
+      "Defender": "Dean Huijsen",
+      "Defender_Team": "Real Madrid",
+      "Games": 1,
+      "Attacker_Rating": 7.8,
+      "Defender_Rating": 6.5,
+      "Weighted_Difficulty": 7.66
+    },
+    "denisvavro": {
+      "Defender": "Denis Vavro",
+      "Defender_Team": "VfL Wolfsburg",
+      "Games": 1,
+      "Attacker_Rating": 8.8,
+      "Defender_Rating": 6.3,
+      "Weighted_Difficulty": 7.91
+    },
+    "diogoleite": {
+      "Defender": "Diogo Leite",
+      "Defender_Team": "1. FC Union Berlin",
+      "Games": 1,
+      "Attacker_Rating": 6.9,
+      "Defender_Rating": 6.1,
+      "Weighted_Difficulty": 7.43
+    },
+    "douglasmendes": {
+      "Defender": "Douglas Mendes",
+      "Defender_Team": "Red Bull Salzburg",
+      "Games": 1,
+      "Attacker_Rating": 6.3,
+      "Defender_Rating": 5.6,
+      "Weighted_Difficulty": 7.28
+    },
+    "edmondtapsoba": {
+      "Defender": "Edmond Tapsoba",
+      "Defender_Team": "Bayer 04 Leverkusen",
+      "Games": 2,
+      "Attacker_Rating": 7.4,
+      "Defender_Rating": 6.75,
+      "Weighted_Difficulty": 7.53
+    },
+    "eduardoquaresma": {
+      "Defender": "Eduardo Quaresma",
+      "Defender_Team": "Sporting CP",
+      "Games": 1,
+      "Attacker_Rating": 6.7,
+      "Defender_Rating": 5.8,
+      "Weighted_Difficulty": 7.38
+    },
+    "eliasbaum": {
+      "Defender": "Elias Baum",
+      "Defender_Team": "Eintracht Frankfurt",
+      "Games": 1,
+      "Attacker_Rating": 8.2,
+      "Defender_Rating": 6.7,
+      "Weighted_Difficulty": 7.76
+    },
+    "ellyesskhiri": {
+      "Defender": "Ellyes Skhiri",
+      "Defender_Team": "Eintracht Frankfurt",
+      "Games": 1,
+      "Attacker_Rating": 8.2,
+      "Defender_Rating": 6.6,
+      "Weighted_Difficulty": 7.76
+    },
+    "emrecan": {
+      "Defender": "Emre Can",
+      "Defender_Team": "Borussia Dortmund",
+      "Games": 1,
+      "Attacker_Rating": 8.7,
+      "Defender_Rating": 7.2,
+      "Weighted_Difficulty": 7.88
+    },
+    "ericsmith": {
+      "Defender": "Eric Smith",
+      "Defender_Team": "FC St. Pauli",
+      "Games": 1,
+      "Attacker_Rating": 6.1,
+      "Defender_Rating": 6.3,
+      "Weighted_Difficulty": 7.23
+    },
+    "feddeleysen": {
+      "Defender": "Fedde Leysen",
+      "Defender_Team": "Royale Union Saint-Gilloise",
+      "Games": 1,
+      "Attacker_Rating": 7.9,
+      "Defender_Rating": 6.7,
+      "Weighted_Difficulty": 7.68
+    },
+    "ferlandmendy": {
+      "Defender": "Ferland Mendy",
+      "Defender_Team": "Real Madrid",
+      "Games": 1,
+      "Attacker_Rating": 8.0,
+      "Defender_Rating": 5.8,
+      "Weighted_Difficulty": 7.71
+    },
+    "finnjeltsch": {
+      "Defender": "Finn Jeltsch",
+      "Defender_Team": "VfB Stuttgart",
+      "Games": 1,
+      "Attacker_Rating": 7.2,
+      "Defender_Rating": 5.8,
+      "Weighted_Difficulty": 7.51
+    },
+    "franskrtzig": {
+      "Defender": "Frans Kr\u00e4tzig",
+      "Defender_Team": "Red Bull Salzburg",
+      "Games": 1,
+      "Attacker_Rating": 6.3,
+      "Defender_Rating": 6.7,
+      "Weighted_Difficulty": 7.28
+    },
+    "giorgigocholeishvili": {
+      "Defender": "Giorgi Gocholeishvili",
+      "Defender_Team": "Hamburger SV",
+      "Games": 1,
+      "Attacker_Rating": 7.0,
+      "Defender_Rating": 7.0,
+      "Weighted_Difficulty": 7.46
+    },
+    "giorgioscalvini": {
+      "Defender": "Giorgio Scalvini",
+      "Defender_Team": "Atalanta",
+      "Games": 1,
+      "Attacker_Rating": 9.1,
+      "Defender_Rating": 6.4,
+      "Weighted_Difficulty": 7.98
+    },
+    "giorgosvagiannidis": {
+      "Defender": "Giorgos Vagiannidis",
+      "Defender_Team": "Sporting CP",
+      "Games": 1,
+      "Attacker_Rating": 6.7,
+      "Defender_Rating": 6.8,
+      "Weighted_Difficulty": 7.38
+    },
+    "haktabomartraore": {
+      "Defender": "Haktab Omar Traore",
+      "Defender_Team": "1. FC Heidenheim",
+      "Games": 1,
+      "Attacker_Rating": 8.0,
+      "Defender_Rating": 5.6,
+      "Weighted_Difficulty": 7.71
+    },
+    "haukewahl": {
+      "Defender": "Hauke Wahl",
+      "Defender_Team": "FC St. Pauli",
+      "Games": 1,
+      "Attacker_Rating": 6.1,
+      "Defender_Rating": 6.4,
+      "Weighted_Difficulty": 7.23
+    },
+    "honestahanor": {
+      "Defender": "Honest Ahanor",
+      "Defender_Team": "Atalanta",
+      "Games": 1,
+      "Attacker_Rating": 9.1,
+      "Defender_Rating": 6.7,
+      "Weighted_Difficulty": 7.98
+    },
+    "isaacschmidt": {
+      "Defender": "Isaac Schmidt",
+      "Defender_Team": "SV Werder Bremen",
+      "Games": 1,
+      "Attacker_Rating": 8.3,
+      "Defender_Rating": 6.5,
+      "Weighted_Difficulty": 7.78
+    },
+    "isakhien": {
+      "Defender": "Isak Hien",
+      "Defender_Team": "Atalanta",
+      "Games": 1,
+      "Attacker_Rating": 9.1,
+      "Defender_Rating": 5.7,
+      "Weighted_Difficulty": 7.98
+    },
+    "ivnfresneda": {
+      "Defender": "Iv\u00e1n Fresneda",
+      "Defender_Team": "Sporting CP",
+      "Games": 1,
+      "Attacker_Rating": 6.7,
+      "Defender_Rating": 5.9,
+      "Weighted_Difficulty": 7.38
+    },
+    "jacobrasmussen": {
+      "Defender": "Jacob Rasmussen",
+      "Defender_Team": "Red Bull Salzburg",
+      "Games": 1,
+      "Attacker_Rating": 6.3,
+      "Defender_Rating": 6.1,
+      "Weighted_Difficulty": 7.28
+    },
+    "jahmaisimpsonpusey": {
+      "Defender": "Jahmai Simpson-Pusey",
+      "Defender_Team": "1. FC K\u00f6ln",
+      "Games": 1,
+      "Attacker_Rating": 7.3,
+      "Defender_Rating": 6.3,
+      "Weighted_Difficulty": 7.53
+    },
+    "jannikschuster": {
+      "Defender": "Jannik Schuster",
+      "Defender_Team": "Red Bull Salzburg",
+      "Games": 1,
+      "Attacker_Rating": 6.3,
+      "Defender_Rating": 6.4,
+      "Weighted_Difficulty": 7.28
+    },
+    "jarellquansah": {
+      "Defender": "Jarell Quansah",
+      "Defender_Team": "Bayer 04 Leverkusen",
+      "Games": 2,
+      "Attacker_Rating": 7.4,
+      "Defender_Rating": 6.2,
+      "Weighted_Difficulty": 7.53
+    },
+    "jeffchabot": {
+      "Defender": "Jeff Chabot",
+      "Defender_Team": "VfB Stuttgart",
+      "Games": 1,
+      "Attacker_Rating": 7.2,
+      "Defender_Rating": 7.5,
+      "Weighted_Difficulty": 7.51
+    },
+    "jerdyschouten": {
+      "Defender": "Jerdy Schouten",
+      "Defender_Team": "PSV Eindhoven",
+      "Games": 1,
+      "Attacker_Rating": 8.3,
+      "Defender_Rating": 6.6,
+      "Weighted_Difficulty": 7.78
+    },
+    "joanegadou": {
+      "Defender": "Joane Gadou",
+      "Defender_Team": "Red Bull Salzburg",
+      "Games": 1,
+      "Attacker_Rating": 6.3,
+      "Defender_Rating": 6.6,
+      "Weighted_Difficulty": 7.28
+    },
+    "jonasfohrenbach": {
+      "Defender": "Jonas Fohrenbach",
+      "Defender_Team": "1. FC Heidenheim",
+      "Games": 1,
+      "Attacker_Rating": 8.0,
+      "Defender_Rating": 5.8,
+      "Weighted_Difficulty": 7.71
+    },
+    "jordymakengo": {
+      "Defender": "Jordy Makengo",
+      "Defender_Team": "SC Freiburg",
+      "Games": 1,
+      "Attacker_Rating": 8.0,
+      "Defender_Rating": 5.5,
+      "Weighted_Difficulty": 7.71
+    },
+    "joshavagnoman": {
+      "Defender": "Josha Vagnoman",
+      "Defender_Team": "VfB Stuttgart",
+      "Games": 2,
+      "Attacker_Rating": 8.2,
+      "Defender_Rating": 5.9,
+      "Weighted_Difficulty": 7.85
+    },
+    "josipjuranovi": {
+      "Defender": "Josip Juranovi\u0107",
+      "Defender_Team": "1. FC Union Berlin",
+      "Games": 1,
+      "Attacker_Rating": 7.8,
+      "Defender_Rating": 6.9,
+      "Weighted_Difficulty": 7.66
+    },
+    "julinmalatini": {
+      "Defender": "Juli\u00e1n Malatini",
+      "Defender_Team": "SV Werder Bremen",
+      "Games": 1,
+      "Attacker_Rating": 8.3,
+      "Defender_Rating": 6.3,
+      "Weighted_Difficulty": 7.78
+    },
+    "jurrintimber": {
+      "Defender": "Jurri\u00ebn Timber",
+      "Defender_Team": "Arsenal",
+      "Games": 1,
+      "Attacker_Rating": 6.8,
+      "Defender_Rating": 7.8,
+      "Weighted_Difficulty": 7.41
+    },
+    "kacperpotulski": {
+      "Defender": "Kacper Potulski",
+      "Defender_Team": "1. FSV Mainz 05",
+      "Games": 1,
+      "Attacker_Rating": 7.2,
+      "Defender_Rating": 7.7,
+      "Weighted_Difficulty": 7.51
+    },
+    "karimcoulibaly": {
+      "Defender": "Karim Coulibaly",
+      "Defender_Team": "SV Werder Bremen",
+      "Games": 1,
+      "Attacker_Rating": 8.3,
+      "Defender_Rating": 6.5,
+      "Weighted_Difficulty": 7.78
+    },
+    "karolmets": {
+      "Defender": "Karol Mets",
+      "Defender_Team": "FC St. Pauli",
+      "Games": 1,
+      "Attacker_Rating": 6.1,
+      "Defender_Rating": 5.9,
+      "Weighted_Difficulty": 7.23
+    },
+    "kevenschlotterbeck": {
+      "Defender": "Keven Schlotterbeck",
+      "Defender_Team": "FC Augsburg",
+      "Games": 1,
+      "Attacker_Rating": 6.4,
+      "Defender_Rating": 7.0,
+      "Weighted_Difficulty": 7.31
+    },
+    "kevinakpoguma": {
+      "Defender": "Kevin Akpoguma",
+      "Defender_Team": "TSG Hoffenheim",
+      "Games": 1,
+      "Attacker_Rating": 8.5,
+      "Defender_Rating": 3.0,
+      "Weighted_Difficulty": 7.83
+    },
+    "kevinmacallister": {
+      "Defender": "Kevin Mac Allister",
+      "Defender_Team": "Royale Union Saint-Gilloise",
+      "Games": 1,
+      "Attacker_Rating": 7.9,
+      "Defender_Rating": 6.6,
+      "Weighted_Difficulty": 7.68
+    },
+    "kilianfischer": {
+      "Defender": "Kilian Fischer",
+      "Defender_Team": "VfL Wolfsburg",
+      "Games": 1,
+      "Attacker_Rating": 8.8,
+      "Defender_Rating": 4.1,
+      "Weighted_Difficulty": 7.91
+    },
+    "konstantinoskoulierakis": {
+      "Defender": "Konstantinos Koulierakis",
+      "Defender_Team": "VfL Wolfsburg",
+      "Games": 1,
+      "Attacker_Rating": 8.8,
+      "Defender_Rating": 5.4,
+      "Weighted_Difficulty": 7.91
+    },
+    "larsritzka": {
+      "Defender": "Lars Ritzka",
+      "Defender_Team": "FC St. Pauli",
+      "Games": 1,
+      "Attacker_Rating": 6.1,
+      "Defender_Rating": 6.4,
+      "Weighted_Difficulty": 7.23
+    },
+    "leopoldquerfeld": {
+      "Defender": "Leopold Querfeld",
+      "Defender_Team": "1. FC Union Berlin",
+      "Games": 2,
+      "Attacker_Rating": 7.35,
+      "Defender_Rating": 6.6,
+      "Weighted_Difficulty": 7.51
+    },
+    "lorenzassignon": {
+      "Defender": "Lorenz Assignon",
+      "Defender_Team": "VfB Stuttgart",
+      "Games": 1,
+      "Attacker_Rating": 9.2,
+      "Defender_Rating": 4.4,
+      "Weighted_Difficulty": 8.01
+    },
+    "louisoppie": {
+      "Defender": "Louis Oppie",
+      "Defender_Team": "FC St. Pauli",
+      "Games": 1,
+      "Attacker_Rating": 6.1,
+      "Defender_Rating": 6.0,
+      "Weighted_Difficulty": 7.23
+    },
+    "louispatris": {
+      "Defender": "Louis Patris",
+      "Defender_Team": "Royale Union Saint-Gilloise",
+      "Games": 1,
+      "Attacker_Rating": 7.9,
+      "Defender_Rating": 6.6,
+      "Weighted_Difficulty": 7.68
+    },
+    "lucajaquez": {
+      "Defender": "Luca Jaquez",
+      "Defender_Team": "VfB Stuttgart",
+      "Games": 1,
+      "Attacker_Rating": 7.2,
+      "Defender_Rating": 6.6,
+      "Weighted_Difficulty": 7.51
+    },
+    "lukavukovi": {
+      "Defender": "Luka Vu\u0161kovi\u0107",
+      "Defender_Team": "Hamburger SV",
+      "Games": 1,
+      "Attacker_Rating": 7.0,
+      "Defender_Rating": 7.5,
+      "Weighted_Difficulty": 7.46
+    },
+    "marcofriedl": {
+      "Defender": "Marco Friedl",
+      "Defender_Team": "SV Werder Bremen",
+      "Games": 1,
+      "Attacker_Rating": 8.3,
+      "Defender_Rating": 6.8,
+      "Weighted_Difficulty": 7.78
+    },
+    "marnonbusch": {
+      "Defender": "Marnon Busch",
+      "Defender_Team": "1. FC Heidenheim",
+      "Games": 1,
+      "Attacker_Rating": 8.0,
+      "Defender_Rating": 6.6,
+      "Weighted_Difficulty": 7.71
+    },
+    "matheusreis": {
+      "Defender": "Matheus Reis",
+      "Defender_Team": "Sporting CP",
+      "Games": 1,
+      "Attacker_Rating": 6.7,
+      "Defender_Rating": 6.6,
+      "Weighted_Difficulty": 7.38
+    },
+    "matthiasginter": {
+      "Defender": "Matthias Ginter",
+      "Defender_Team": "SC Freiburg",
+      "Games": 1,
+      "Attacker_Rating": 8.0,
+      "Defender_Rating": 5.1,
+      "Weighted_Difficulty": 7.71
+    },
+    "maurojnior": {
+      "Defender": "Mauro J\u00fanior",
+      "Defender_Team": "PSV Eindhoven",
+      "Games": 1,
+      "Attacker_Rating": 8.3,
+      "Defender_Rating": 7.5,
+      "Weighted_Difficulty": 7.78
+    },
+    "maxrosenfelder": {
+      "Defender": "Max Rosenfelder",
+      "Defender_Team": "SC Freiburg",
+      "Games": 1,
+      "Attacker_Rating": 8.0,
+      "Defender_Rating": 5.8,
+      "Weighted_Difficulty": 7.71
+    },
+    "maximilianmittelstdt": {
+      "Defender": "Maximilian Mittelst\u00e4dt",
+      "Defender_Team": "VfB Stuttgart",
+      "Games": 2,
+      "Attacker_Rating": 8.2,
+      "Defender_Rating": 6.8,
+      "Weighted_Difficulty": 7.85
+    },
+    "maximilianoarajo": {
+      "Defender": "Maximiliano Ara\u00fajo",
+      "Defender_Team": "Sporting CP",
+      "Games": 1,
+      "Attacker_Rating": 6.7,
+      "Defender_Rating": 5.7,
+      "Weighted_Difficulty": 7.38
+    },
+    "moritzjenz": {
+      "Defender": "Moritz Jenz",
+      "Defender_Team": "VfL Wolfsburg",
+      "Games": 1,
+      "Attacker_Rating": 8.8,
+      "Defender_Rating": 4.7,
+      "Weighted_Difficulty": 7.91
+    },
+    "myleslewisskelly": {
+      "Defender": "Myles Lewis-Skelly",
+      "Defender_Team": "Arsenal",
+      "Games": 1,
+      "Attacker_Rating": 6.8,
+      "Defender_Rating": 6.0,
+      "Weighted_Difficulty": 7.41
+    },
+    "nicoschlotterbeck": {
+      "Defender": "Nico Schlotterbeck",
+      "Defender_Team": "Borussia Dortmund",
+      "Games": 1,
+      "Attacker_Rating": 8.7,
+      "Defender_Rating": 7.0,
+      "Weighted_Difficulty": 7.88
+    },
+    "nicolscapaldo": {
+      "Defender": "Nicol\u00e1s Capaldo",
+      "Defender_Team": "Hamburger SV",
+      "Games": 1,
+      "Attacker_Rating": 7.0,
+      "Defender_Rating": 6.5,
+      "Weighted_Difficulty": 7.46
+    },
+    "niklasstark": {
+      "Defender": "Niklas Stark",
+      "Defender_Team": "SV Werder Bremen",
+      "Games": 1,
+      "Attacker_Rating": 8.3,
+      "Defender_Rating": 5.9,
+      "Weighted_Difficulty": 7.78
+    },
+    "nikolasveratschnig": {
+      "Defender": "Nikolas Veratschnig",
+      "Defender_Team": "1. FSV Mainz 05",
+      "Games": 1,
+      "Attacker_Rating": 7.2,
+      "Defender_Rating": 6.1,
+      "Weighted_Difficulty": 7.51
+    },
+    "nnamdicollins": {
+      "Defender": "Nnamdi Collins",
+      "Defender_Team": "Eintracht Frankfurt",
+      "Games": 1,
+      "Attacker_Rating": 8.2,
+      "Defender_Rating": 6.3,
+      "Weighted_Difficulty": 7.76
+    },
+    "odilonkossounou": {
+      "Defender": "Odilon Kossounou",
+      "Defender_Team": "Atalanta",
+      "Games": 1,
+      "Attacker_Rating": 9.1,
+      "Defender_Rating": 5.9,
+      "Weighted_Difficulty": 7.98
+    },
+    "ousmanediomande": {
+      "Defender": "Ousmane Diomande",
+      "Defender_Team": "Sporting CP",
+      "Games": 1,
+      "Attacker_Rating": 6.7,
+      "Defender_Rating": 6.7,
+      "Weighted_Difficulty": 7.38
+    },
+    "ozankabak": {
+      "Defender": "Ozan Kabak",
+      "Defender_Team": "TSG Hoffenheim",
+      "Games": 1,
+      "Attacker_Rating": 8.5,
+      "Defender_Rating": 5.7,
+      "Weighted_Difficulty": 7.83
+    },
+    "patrickmainka": {
+      "Defender": "Patrick Mainka",
+      "Defender_Team": "1. FC Heidenheim",
+      "Games": 1,
+      "Attacker_Rating": 8.0,
+      "Defender_Rating": 6.5,
+      "Weighted_Difficulty": 7.71
+    },
+    "philipplienhart": {
+      "Defender": "Philipp Lienhart",
+      "Defender_Team": "SC Freiburg",
+      "Games": 1,
+      "Attacker_Rating": 8.0,
+      "Defender_Rating": 6.1,
+      "Weighted_Difficulty": 7.71
+    },
+    "philipptreu": {
+      "Defender": "Philipp Treu",
+      "Defender_Team": "SC Freiburg",
+      "Games": 1,
+      "Attacker_Rating": 8.0,
+      "Defender_Rating": 5.3,
+      "Weighted_Difficulty": 7.71
+    },
+    "ramonhendriks": {
+      "Defender": "Ramon Hendriks",
+      "Defender_Team": "VfB Stuttgart",
+      "Games": 2,
+      "Attacker_Rating": 8.2,
+      "Defender_Rating": 5.85,
+      "Weighted_Difficulty": 7.85
+    },
+    "ramybensebaini": {
+      "Defender": "Ramy Bensebaini",
+      "Defender_Team": "Borussia Dortmund",
+      "Games": 1,
+      "Attacker_Rating": 8.7,
+      "Defender_Rating": 5.8,
+      "Weighted_Difficulty": 7.88
+    },
+    "ricardomangas": {
+      "Defender": "Ricardo Mangas",
+      "Defender_Team": "Sporting CP",
+      "Games": 1,
+      "Attacker_Rating": 6.7,
+      "Defender_Rating": 6.0,
+      "Weighted_Difficulty": 7.38
+    },
+    "riccardocalafiori": {
+      "Defender": "Riccardo Calafiori",
+      "Defender_Team": "Arsenal",
+      "Games": 1,
+      "Attacker_Rating": 6.8,
+      "Defender_Rating": 7.4,
+      "Weighted_Difficulty": 7.41
+    },
+    "ridlebaku": {
+      "Defender": "Ridle Baku",
+      "Defender_Team": "RB Leipzig",
+      "Games": 2,
+      "Attacker_Rating": 7.4,
+      "Defender_Rating": 5.9,
+      "Weighted_Difficulty": 7.53
+    },
+    "robertandrich": {
+      "Defender": "Robert Andrich",
+      "Defender_Team": "Bayer 04 Leverkusen",
+      "Games": 2,
+      "Attacker_Rating": 7.4,
+      "Defender_Rating": 7.2,
+      "Weighted_Difficulty": 7.53
+    },
+    "rosssykes": {
+      "Defender": "Ross Sykes",
+      "Defender_Team": "Royale Union Saint-Gilloise",
+      "Games": 1,
+      "Attacker_Rating": 7.9,
+      "Defender_Rating": 6.8,
+      "Weighted_Difficulty": 7.68
+    },
+    "salkumbedi": {
+      "Defender": "Sa\u00ebl Kumbedi",
+      "Defender_Team": "VfL Wolfsburg",
+      "Games": 1,
+      "Attacker_Rating": 8.8,
+      "Defender_Rating": 4.6,
+      "Weighted_Difficulty": 7.91
+    },
+    "sebastiansebulonsen": {
+      "Defender": "Sebastian Sebulonsen",
+      "Defender_Team": "1. FC K\u00f6ln",
+      "Games": 1,
+      "Attacker_Rating": 7.3,
+      "Defender_Rating": 5.8,
+      "Weighted_Difficulty": 7.53
+    },
+    "sergiodest": {
+      "Defender": "Sergi\u00f1o Dest",
+      "Defender_Team": "PSV Eindhoven",
+      "Games": 1,
+      "Attacker_Rating": 8.3,
+      "Defender_Rating": 7.0,
+      "Weighted_Difficulty": 7.78
+    },
+    "sotakawasaki": {
+      "Defender": "Sota Kawasaki",
+      "Defender_Team": "1. FSV Mainz 05",
+      "Games": 1,
+      "Attacker_Rating": 7.2,
+      "Defender_Rating": 7.0,
+      "Weighted_Difficulty": 7.51
+    },
+    "stanleynsoki": {
+      "Defender": "Stanley N'Soki",
+      "Defender_Team": "1. FC Union Berlin",
+      "Games": 2,
+      "Attacker_Rating": 7.35,
+      "Defender_Rating": 6.6,
+      "Weighted_Difficulty": 7.51
+    },
+    "stefanbell": {
+      "Defender": "Stefan Bell",
+      "Defender_Team": "1. FSV Mainz 05",
+      "Games": 1,
+      "Attacker_Rating": 7.2,
+      "Defender_Rating": 6.6,
+      "Weighted_Difficulty": 7.51
+    },
+    "stefanlainer": {
+      "Defender": "Stefan Lainer",
+      "Defender_Team": "Red Bull Salzburg",
+      "Games": 1,
+      "Attacker_Rating": 6.3,
+      "Defender_Rating": 5.3,
+      "Weighted_Difficulty": 7.28
+    },
+    "timtrummer": {
+      "Defender": "Tim Trummer",
+      "Defender_Team": "Red Bull Salzburg",
+      "Games": 1,
+      "Attacker_Rating": 6.3,
+      "Defender_Rating": 6.9,
+      "Weighted_Difficulty": 7.28
+    },
+    "tomrothe": {
+      "Defender": "Tom Rothe",
+      "Defender_Team": "1. FC Union Berlin",
+      "Games": 1,
+      "Attacker_Rating": 7.8,
+      "Defender_Rating": 6.6,
+      "Weighted_Difficulty": 7.66
+    },
+    "trentalexanderarnold": {
+      "Defender": "Trent Alexander-Arnold",
+      "Defender_Team": "Real Madrid",
+      "Games": 2,
+      "Attacker_Rating": 7.9,
+      "Defender_Rating": 7.15,
+      "Weighted_Difficulty": 7.73
+    },
+    "valentingendrey": {
+      "Defender": "Valentin Gendrey",
+      "Defender_Team": "TSG Hoffenheim",
+      "Games": 1,
+      "Attacker_Rating": 8.5,
+      "Defender_Rating": 6.3,
+      "Weighted_Difficulty": 7.83
+    },
+    "vladimircoufal": {
+      "Defender": "Vladimir Coufal",
+      "Defender_Team": "TSG Hoffenheim",
+      "Games": 1,
+      "Attacker_Rating": 8.5,
+      "Defender_Rating": 5.5,
+      "Weighted_Difficulty": 7.83
+    },
+    "waldemaranton": {
+      "Defender": "Waldemar Anton",
+      "Defender_Team": "Borussia Dortmund",
+      "Games": 1,
+      "Attacker_Rating": 8.7,
+      "Defender_Rating": 5.9,
+      "Weighted_Difficulty": 7.88
+    },
+    "warmedomari": {
+      "Defender": "Warmed Omari",
+      "Defender_Team": "Hamburger SV",
+      "Games": 1,
+      "Attacker_Rating": 7.0,
+      "Defender_Rating": 6.8,
+      "Weighted_Difficulty": 7.46
+    },
+    "williorban": {
+      "Defender": "Willi Orban",
+      "Defender_Team": "RB Leipzig",
+      "Games": 2,
+      "Attacker_Rating": 7.4,
+      "Defender_Rating": 6.2,
+      "Weighted_Difficulty": 7.53
+    },
+    "williamsaliba": {
+      "Defender": "William Saliba",
+      "Defender_Team": "Arsenal",
+      "Games": 1,
+      "Attacker_Rating": 6.8,
+      "Defender_Rating": 6.3,
+      "Weighted_Difficulty": 7.41
+    },
+    "yukinarisugawara": {
+      "Defender": "Yukinari Sugawara",
+      "Defender_Team": "SV Werder Bremen",
+      "Games": 1,
+      "Attacker_Rating": 8.3,
+      "Defender_Rating": 6.4,
+      "Weighted_Difficulty": 7.78
+    },
+    "lvarocarreras": {
+      "Defender": "\u00c1lvaro Carreras",
+      "Defender_Team": "Real Madrid",
+      "Games": 1,
+      "Attacker_Rating": 7.8,
+      "Defender_Rating": 7.3,
+      "Weighted_Difficulty": 7.66
+    },
+    "dermilito": {
+      "Defender": "\u00c9der Milit\u00e3o",
+      "Defender_Team": "Real Madrid",
+      "Games": 2,
+      "Attacker_Rating": 7.9,
+      "Defender_Rating": 6.5,
+      "Weighted_Difficulty": 7.73
+    }
+  }
+}
