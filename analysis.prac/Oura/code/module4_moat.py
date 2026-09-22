@@ -28,3 +28,8 @@ def plot_moat_radar():
     ax.set_xticklabels(categories)
     plt.title('Moat Radar')
     
+    os.makedirs('../charts', exist_ok=True)
+    plt.savefig('../charts/moat_radar.png')
+
+if __name__ == '__main__':
+    plot_moat_radar()
