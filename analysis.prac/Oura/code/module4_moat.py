@@ -13,3 +13,8 @@ def b2b_moat_scoring():
     enterprise = 70
     return (clinical + defense + enterprise) / 3
 
+def plot_moat_radar():
+    categories = ['Clinical', 'Defense', 'Enterprise', 'Hardware', 'Software']
+    scores = [85, 90, 70, 80, 85]
+    
+    angles = np.linspace(0, 2 * np.pi, len(categories), endpoint=False).tolist()
