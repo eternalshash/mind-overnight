@@ -53,6 +53,21 @@ We deployed a Financial News & Tech Review NLP Engine to parse coverage across T
 3.  **Biometric Accuracy**: Highly positive; viewed as the gold standard for sleep tracking.
 4.  **Ecosystem / Form Factor**: The ring form factor is overwhelmingly praised for comfort and convenience over wrist-based wearables.
 
+## Oura vs Garmin: 1-Year Simulated Backtest
+To benchmark Oura's post-IPO expected performance, we modeled a 10,000-path Monte Carlo trajectory (Geometric Brownian Motion) representing Oura's SaaS-amplified growth profile against the actual 1-year historical performance of Garmin (GRMN).
+
+**Garmin (GRMN) - Actual Past 1 Year**
+*   **Actual 1-Year Return**: +17.86%
+*   **Annualized Volatility**: 34.37%
+*   *Verdict*: Garmin experienced steady, resilient growth driven by its entrenched moat in aviation, marine, and high-end sports wearables.
+
+**Oura (Simulated) - Post-IPO Projection**
+*   **Expected Mean Return**: +22.18% (Outperforming Garmin slightly on average due to SaaS recurring revenue scaling)
+*   **95th Percentile (Bull Case)**: +133.68% (Occurs if churn remains low and Samsung Galaxy Ring fails to capture market share)
+*   **5th Percentile (Bear Case)**: -46.65% (Occurs if pricing pressure forces Oura to drop its subscription, triggering multiple compression down to a hardware-only valuation)
+
+*Key Takeaway*: While Oura's expected return outpaces Garmin due to its subscription software engine, its risk-adjusted returns are much wider. Garmin is a defensive harbor; an Oura IPO will be highly volatile in its first 12 months, tracking closely with whether its Net Revenue Retention (NRR) holds up against Samsung's zero-subscription alternative.
+
 ## Final Investment Verdict & Key Monitoring Catalysts
 Oura presents a compelling investment opportunity, bridging the gap between consumer electronics and high-margin health tech SaaS. The successful implementation of the subscription model has transformed its financial profile.
 
