@@ -38,3 +38,13 @@ Oura's multiples (EV/Sales, EV/ARR) must be contextualized against a bespoke com
 Oura commands a premium over traditional hardware peers, reflecting its SaaS transition, but trades at a discount to pure-play software given the capital intensity of physical manufacturing.
 
 ## Strategic Moat & Big Tech Risk Assessment
+The primary threat vector is the Samsung Galaxy Ring. Our pricing stress-test quantifies the impact if Oura is forced to reduce or eliminate its subscription fee to match Samsung's bundled approach. While a complete elimination of the fee would severely impact ARR and valuation, Oura's strategic moat provides significant defense.
+
+**Moat Resilience:**
+1.  **Clinical & Defense Enterprise Contracts (B2B)**: Oura has secured substantial B2B contracts, providing a diversified revenue stream less susceptible to consumer whims.
+2.  **Historical Lifecycle Comps**: Unlike Fitbit, Oura has positioned itself as a premium, science-backed tool. It more closely resembles Garmin's successful defense strategy than GoPro's hardware peak.
+
+## NLP Sentiment & Tech Review Matrix
+We deployed a Financial News & Tech Review NLP Engine to parse coverage across The Verge, Wired, DC Rainmaker, and Bloomberg.
+
+**Aspect-Based Classification Outcomes:**
