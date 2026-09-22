@@ -8,3 +8,8 @@ def galaxy_ring_stress_test(base_arr, fee_reduction_pct):
     return stressed_arr, valuation_impact
 
 def b2b_moat_scoring():
+    clinical = 85
+    defense = 90
+    enterprise = 70
+    return (clinical + defense + enterprise) / 3
+
