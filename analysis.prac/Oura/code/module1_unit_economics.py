@@ -8,3 +8,8 @@ def calculate_hardware_economics(asp=399, bom_margin=0.40):
     return bom_cost, gross_profit
 
 def calculate_saas_economics(monthly_fee=5.99, margin=0.85, months=36):
+    arr = monthly_fee * 12
+    ltv = arr * margin * (months / 12)
+    return arr, ltv
+
+def cohort_retention(initial_users, monthly_churn=0.03, months=36):
