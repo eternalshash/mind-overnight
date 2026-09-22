@@ -18,3 +18,8 @@ def plot_moat_radar():
     scores = [85, 90, 70, 80, 85]
     
     angles = np.linspace(0, 2 * np.pi, len(categories), endpoint=False).tolist()
+    scores += scores[:1]
+    angles += angles[:1]
+    
+    fig, ax = plt.subplots(figsize=(6,6), subplot_kw=dict(polar=True))
+    ax.fill(angles, scores, color='blue', alpha=0.25)
