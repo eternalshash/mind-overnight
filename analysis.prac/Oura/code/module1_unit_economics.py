@@ -18,3 +18,8 @@ def cohort_retention(initial_users, monthly_churn=0.03, months=36):
         retention.append(retention[-1] * (1 - monthly_churn))
     return retention
 
+def unit_economics_waterfall():
+    # Placeholder for chart generation
+    plt.figure(figsize=(10,6))
+    plt.bar(['Hardware ASP', 'BOM Cost', 'Hardware Profit', 'SaaS LTV'], 
+            [399, -239, 160, 183])
