@@ -28,3 +28,7 @@ def public_comps():
     }
     return comps
 
+if __name__ == '__main__':
+    vals = monte_carlo_dcf()
+    plot_valuation(vals)
+
