@@ -23,3 +23,8 @@ def plot_moat_radar():
     
     fig, ax = plt.subplots(figsize=(6,6), subplot_kw=dict(polar=True))
     ax.fill(angles, scores, color='blue', alpha=0.25)
+    ax.plot(angles, scores, color='blue', linewidth=2)
+    ax.set_xticks(angles[:-1])
+    ax.set_xticklabels(categories)
+    plt.title('Moat Radar')
+    
