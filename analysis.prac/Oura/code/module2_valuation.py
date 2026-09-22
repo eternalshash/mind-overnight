@@ -23,3 +23,8 @@ def plot_valuation(valuations):
 def public_comps():
     comps = {
         'GRMN': {'EV/Sales': 5.2, 'Gross Margin': 0.58},
+        'AAPL': {'EV/Sales': 7.1, 'Gross Margin': 0.43},
+        'DXCM': {'EV/Sales': 12.4, 'Gross Margin': 0.65}
+    }
+    return comps
+
