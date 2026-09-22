@@ -18,3 +18,8 @@ def plot_valuation(valuations):
     plt.ylabel('Frequency')
     
     os.makedirs('../charts', exist_ok=True)
+    plt.savefig('../charts/valuation_distribution.png')
+    
+def public_comps():
+    comps = {
+        'GRMN': {'EV/Sales': 5.2, 'Gross Margin': 0.58},
