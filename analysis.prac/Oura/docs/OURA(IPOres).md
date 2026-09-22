@@ -58,3 +58,8 @@ Oura presents a compelling investment opportunity, bridging the gap between cons
 
 **Investment Verdict**: Bullish.
 
+**Key Monitoring Catalysts:**
+1.  **Samsung Galaxy Ring Market Share**: The most immediate threat to pricing power.
+2.  **Churn Rate Metrics**: Any uptick in churn will directly impact LTV and justify a lower multiple.
+3.  **B2B Contract Announcements**: Expansion into enterprise and clinical trials will validate the "more than a consumer device" thesis.
+
