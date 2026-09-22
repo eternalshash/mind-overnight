@@ -23,3 +23,8 @@ def strict_entity_matching(text):
     keywords = ["Oura", "Oura Ring", "Gen 3", "Gen 4", "Horizon", "Heritage"]
     found = [k for k in keywords if k in text]
     return found
+
+if __name__ == '__main__':
+    src, asp, scr = scrape_and_parse_reviews()
+    plot_sentiment_matrix(src, asp, scr)
+
