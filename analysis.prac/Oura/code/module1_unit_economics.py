@@ -28,3 +28,6 @@ def unit_economics_waterfall():
     os.makedirs('../charts', exist_ok=True)
     plt.savefig('../charts/unit_economics_waterfall.png')
 
+if __name__ == '__main__':
+    unit_economics_waterfall()
+
