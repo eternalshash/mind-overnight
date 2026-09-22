@@ -13,3 +13,8 @@ def scrape_and_parse_reviews():
 
 def plot_sentiment_matrix(sources, aspects, scores):
     plt.figure(figsize=(8,6))
+    sns.heatmap(scores, xticklabels=aspects, yticklabels=sources, cmap='RdYlGn')
+    plt.title('Tech Review Sentiment Matrix')
+    
+    os.makedirs('../charts', exist_ok=True)
+    plt.savefig('../charts/tech_review_sentiment_matrix.png')
