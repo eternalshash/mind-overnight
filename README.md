@@ -59,7 +59,7 @@ This repo is a collection of a caffeinated mind. It includes various investment 
 ---
 
 ## About Me
-I am an engineer and researcher focused on solving complex problems across embedded systems, hardware-software integration, and defense technologies. My academic background spans data driven modeling of complex systems and engineering at the University of Illinois Urbana-Champaign. Beginning next year, I will be stepping into the aerospace and defense sector to work on mission critical systems and advanced engineering solutions.
+I am an engineer and researcher focused on solving complex problems across embedded systems, hardware-software integration, and defense technologies. My academic background spans data driven modeling of complex systems and engineering at the Illinois Institute of Technology. Next year, I will be stepping into the aerospace and defense sector to work on mission critical systems and advanced engineering solutions.
 
 Outside the lab and classroom, you will catch me in the gym or out on a hike.
 
