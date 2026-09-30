@@ -5,3 +5,14 @@ target/
 **/target/
 .DS_Store
 **/.DS_Store
+*.dSYM/
+__pycache__/
+*.pyc
+*.so
+ece449/hw1_q6
+ece449/q1_a
+ece449/q2
+ece449/q3
+ece449/q4
+ece449/q5
+ece449/project2/easynn_test
