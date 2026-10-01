@@ -668,3 +668,372 @@ def simulate_trajectory(profile: ThreatProfile, dt: float = 1.0) -> Trajectory:
 # ==============================================================================
 # 7. INTERNAL SIMULATOR IMPLEMENTATIONS FOR EACH THREAT CLASS
 # ==============================================================================
+def _simulate_ballistic(
+    profile: ThreatProfile, total_range_m: float, init_bearing: float, dt: float
+) -> Trajectory:
+    """
+    Ballistic trajectory:
+      1. BOOST: Rocket propulsion through atmosphere to burnout altitude & velocity.
+      2. MIDCOURSE: Exo-atmospheric Keplerian coast under central gravity and rarefied drag.
+         - High apogee: z > 100 km for ICBM/IRBM, 30-50 km for SRBMs.
+      3. TERMINAL: Atmospheric reentry with high aerodynamic drag and dive to target.
+    """
+    target_apogee = profile.target_apogee_m
+    if target_apogee is None:
+        if total_range_m > 3000e3:
+            target_apogee = 1200e3  # Standard ICBM apogee (~1200 km)
+        elif total_range_m > 1000e3:
+            target_apogee = 350e3   # IRBM apogee (~350 km)
+        else:
+            target_apogee = 42e3    # SRBM quasi-ballistic apogee (~42 km)
+
+    t_boost = profile.boost_duration_s
+
+    if target_apogee > 100e3:
+        # Exo-atmospheric ICBM / IRBM Kepler suborbital mechanics
+        z_bo = profile.burnout_alt_m
+        dtheta = total_range_m / R_EARTH
+        r0 = R_EARTH + z_bo
+        ra = R_EARTH + target_apogee
+        e = (ra - r0) / (ra - r0 * math.cos(dtheta / 2.0))
+        p = ra * (1.0 - e)
+        a_orbit = p / (1.0 - e**2)
+
+        # Burnout vertical velocity to reach target exo-atmospheric apogee
+        vz_bo = math.sqrt(2.0 * EARTH_MU * (1.0 / r0 - 1.0 / ra))
+
+        # Kepler flight time
+        nu0 = math.pi - dtheta / 2.0
+        tan_half_e0 = math.sqrt((1.0 - e) / (1.0 + e)) * math.tan(nu0 / 2.0)
+        e0 = 2.0 * math.atan(tan_half_e0)
+        m0 = e0 - e * math.sin(e0)
+        n_mean = math.sqrt(EARTH_MU / a_orbit**3)
+        t_coast_est = 2.0 * (math.pi - m0) / n_mean
+
+        vs_bo = total_range_m / (0.5 * t_boost + t_coast_est)
+        v_bo = math.sqrt(vs_bo**2 + vz_bo**2)
+        gamma_bo = math.atan2(vz_bo, vs_bo)
+
+        t_reentry_est = 70.0
+        reentry_alt_threshold = 100e3
+    else:
+        # SRBM (Iskander-M quasi-ballistic) exact kinematic solution in 30-50 km window
+        b_quad = G0 * t_boost
+        vz_bo = (-b_quad + math.sqrt(b_quad**2 + 8.0 * G0 * target_apogee)) / 2.0
+        z_bo = 0.5 * vz_bo * t_boost
+        t_rise = vz_bo / G0
+        t_fall = math.sqrt(2.0 * target_apogee / G0)
+        t_coast_est = t_rise + t_fall
+        vs_bo = total_range_m / (0.5 * t_boost + t_coast_est)
+        v_bo = math.sqrt(vs_bo**2 + vz_bo**2)
+        gamma_bo = math.atan2(vz_bo, vs_bo)
+        t_reentry_est = 30.0
+        reentry_alt_threshold = 25e3
+
+    total_etof = t_boost + t_coast_est + t_reentry_est
+
+    # State: [s (downrange m), z (alt m), vs (downrange vel m/s), vz (vert vel m/s)]
+    state = np.array([0.0, profile.launch_alt, 0.0, 0.0], dtype=np.float64)
+    t = 0.0
+    telemetry_list: List[Telemetry] = []
+    has_reached_apogee = False
+
+    def derivatives(t_curr: float, st: np.ndarray, phase: FlightPhase) -> np.ndarray:
+        s, z, vs, vz = st
+        v = math.sqrt(vs**2 + vz**2)
+        r = R_EARTH + max(0.0, z)
+        gz = gravity(z)
+
+        # Spherical horizon curvature
+        curv_s = -(vs * vz) / r
+        curv_z = (vs**2) / r
+        # Ground track downrange rate
+        s_rate = vs * (R_EARTH / r)
+
+        # Drag
+        rho = atmospheric_density(z)
+        mach = mach_number(v, z)
+        cd = drag_coefficient(mach, profile.cd_subsonic)
+        f_drag = 0.5 * rho * (v**2) * cd * profile.reference_area_m2
+        a_drag_s = -(f_drag / profile.mass_kg) * (vs / max(1e-4, v))
+        a_drag_z = -(f_drag / profile.mass_kg) * (vz / max(1e-4, v))
+
+        if phase == FlightPhase.BOOST:
+            # Rocket motor thrust accelerates vehicle to burnout velocity vector
+            tau = min(1.0, t_curr / t_boost)
+            vs_ref = vs_bo * tau
+            vz_ref = vz_bo * tau
+            as_cmd = (vs_bo / t_boost) + 0.5 * (vs_ref - vs)
+            az_cmd = (vz_bo / t_boost) + 0.5 * (vz_ref - vz)
+            return np.array([s_rate, vz, as_cmd, az_cmd])
+        elif phase == FlightPhase.MIDCOURSE:
+            # Freefall Keplerian coast under central gravity and vacuum/rarefied drag
+            return np.array([s_rate, vz, a_drag_s + curv_s, -gz + a_drag_z + curv_z])
+        else: # TERMINAL reentry
+            # Guided aerodynamic reentry diving onto target coordinates
+            rem_dist = max(100.0, total_range_m - s)
+            target_vz = -max(400.0, min(v * 0.7, 2500.0)) * (z / rem_dist)
+            az_ctrl = 0.3 * (target_vz - vz)
+            return np.array([s_rate, vz, a_drag_s + curv_s, -gz + a_drag_z + curv_z + az_ctrl])
+
+    max_steps = 25000
+    step_count = 0
+    while step_count < max_steps:
+        s, z, vs, vz = state
+        v = math.sqrt(vs**2 + vz**2)
+        mach = mach_number(v, z)
+
+        # Detect apogee
+        if vz < 0.0 and s > (total_range_m * 0.05):
+            has_reached_apogee = True
+
+        # Phase determination
+        if t < t_boost:
+            current_phase = FlightPhase.BOOST
+        elif not has_reached_apogee or z > reentry_alt_threshold:
+            current_phase = FlightPhase.MIDCOURSE
+        else:
+            current_phase = FlightPhase.TERMINAL
+
+        # Calculate ground track coordinates
+        frac = min(1.0, max(0.0, s / total_range_m))
+        cur_lat, cur_lon = great_circle_waypoint(
+            profile.launch_lat, profile.launch_lon,
+            profile.target_lat, profile.target_lon,
+            frac
+        )
+        dist_to_target = great_circle_distance(
+            cur_lat, cur_lon,
+            profile.target_lat, profile.target_lon
+        )
+
+        progress = min(100.0, max(0.0, (t / max(1.0, total_etof)) * 100.0))
+        time_remaining = max(0.0, total_etof - t)
+
+        rho = atmospheric_density(z)
+        q = 0.5 * rho * (v**2)
+        cd = drag_coefficient(mach, profile.cd_subsonic)
+        f_drag = q * cd * profile.reference_area_m2
+        x, y, z_ecef = geodetic_to_ecef(cur_lat, cur_lon, z)
+
+        gamma_deg = math.degrees(math.atan2(vz, max(1e-4, vs)))
+
+        telemetry_list.append(Telemetry(
+            timestamp=t,
+            lat=cur_lat,
+            lon=cur_lon,
+            altitude=z,
+            mach=mach,
+            velocity_ms=v,
+            velocity_kmh=v * 3.6,
+            phase=current_phase,
+            downrange_distance_m=s,
+            distance_to_target_m=dist_to_target,
+            etof_s=total_etof,
+            time_remaining_s=time_remaining,
+            progress_percent=progress,
+            x_ecef=x, y_ecef=y, z_ecef=z_ecef,
+            heading_deg=init_bearing,
+            flight_path_angle_deg=gamma_deg,
+            crossrange_m=0.0,
+            dynamic_pressure_pa=q,
+            drag_force_n=f_drag
+        ))
+
+        # Termination: target impact at ground or proximity
+        if current_phase == FlightPhase.TERMINAL and (z <= 0.0 or dist_to_target < 2000.0):
+            break
+
+        f_deriv = lambda _t, _st: derivatives(_t, _st, current_phase)
+        state = rk4_step(f_deriv, t, state, dt)
+        t += dt
+        step_count += 1
+
+    last = telemetry_list[-1]
+    last.altitude = 0.0
+    last.progress_percent = 100.0
+    last.time_remaining_s = 0.0
+    last.distance_to_target_m = 0.0
+    last.lat = profile.target_lat
+    last.lon = profile.target_lon
+    last.etof_s = t
+
+    for tel in telemetry_list:
+        tel.etof_s = t
+        tel.time_remaining_s = max(0.0, t - tel.timestamp)
+        tel.progress_percent = min(100.0, (tel.timestamp / t) * 100.0)
+
+    return Trajectory(profile, telemetry_list)
+
+
+def _simulate_hypersonic(
+    profile: ThreatProfile, total_range_m: float, init_bearing: float, dt: float
+) -> Trajectory:
+    """
+    Hypersonic Glide Vehicle (HGV / Kinzhal):
+      1. BOOST: Accelerated to Mach 8-10 and boosted into upper atmosphere (~30 km).
+      2. GLIDE: Depressed glide in upper stratosphere (25-40 km).
+         - Atmospheric skipping: sinusoidal altitude phugoid oscillation (amplitude 3-5 km).
+         - Periodic lateral weave: crossrange S-turns (amplitude 8-15 km) to defeat radar tracking.
+      3. TERMINAL: Steep hypersonic terminal dive onto target coordinates.
+    """
+    t_boost = profile.boost_duration_s
+    glide_alt = profile.glide_altitude_m
+    cruise_mach = profile.cruise_mach if profile.cruise_mach is not None else 9.2
+    c_s_glide = speed_of_sound(glide_alt)
+    cruise_speed = cruise_mach * c_s_glide  # ~2800 m/s
+
+    s_boost = 0.5 * cruise_speed * t_boost
+    s_terminal_start = max(s_boost + 10e3, total_range_m - 60e3)
+    t_glide_est = (s_terminal_start - s_boost) / cruise_speed
+    t_terminal_est = 60e3 / (0.7 * cruise_speed)
+    total_etof = t_boost + t_glide_est + t_terminal_est
+
+    # State: [s (downrange m), y (crossrange m), z (altitude m), vs, vy, vz]
+    state = np.array([0.0, 0.0, profile.launch_alt, 0.0, 0.0, 0.0], dtype=np.float64)
+    t = 0.0
+    telemetry_list: List[Telemetry] = []
+
+    def derivatives(t_curr: float, st: np.ndarray, phase: FlightPhase) -> np.ndarray:
+        s, y, z, vs, vy, vz = st
+        v = math.sqrt(vs**2 + vy**2 + vz**2)
+        r = R_EARTH + max(0.0, z)
+        gz = gravity(z)
+
+        curv_s = -(vs * vz) / r
+        curv_y = -(vy * vz) / r
+        curv_z = (vs**2 + vy**2) / r
+        s_rate = vs * (R_EARTH / r)
+
+        rho = atmospheric_density(z)
+        mach = mach_number(v, z)
+        cd = drag_coefficient(mach, profile.cd_subsonic)
+        f_drag = 0.5 * rho * (v**2) * cd * profile.reference_area_m2
+        a_drag_s = -(f_drag / profile.mass_kg) * (vs / max(1e-4, v))
+        a_drag_y = -(f_drag / profile.mass_kg) * (vy / max(1e-4, v))
+        a_drag_z = -(f_drag / profile.mass_kg) * (vz / max(1e-4, v))
+
+        if phase == FlightPhase.BOOST:
+            # Smooth Hermite polynomial transition to glide altitude and cruise velocity
+            tau = min(1.0, t_curr / t_boost)
+            z_ref = glide_alt * (3.0 * tau**2 - 2.0 * tau**3)
+            vz_ref = (glide_alt / t_boost) * (6.0 * tau - 6.0 * tau**2)
+            az_ref = (glide_alt / (t_boost**2)) * (6.0 - 12.0 * tau)
+            vs_ref = cruise_speed * (3.0 * tau**2 - 2.0 * tau**3)
+            as_ref = (cruise_speed / t_boost) * (6.0 * tau - 6.0 * tau**2)
+
+            as_cmd = as_ref + 0.8 * (vs_ref - vs)
+            az_cmd = az_ref + 0.8 * (vz_ref - vz) + 0.2 * (z_ref - z)
+            return np.array([s_rate, vy, vz, as_cmd, 0.0, az_cmd])
+
+        elif phase == FlightPhase.GLIDE:
+            omega_skip = 2.0 * math.pi / profile.skip_period_s
+            t_glide = t_curr - t_boost
+            z_ref = glide_alt + profile.skip_amplitude_m * math.sin(omega_skip * t_glide)
+            vz_ref = profile.skip_amplitude_m * omega_skip * math.cos(omega_skip * t_glide)
+            a_lift_z = gz - curv_z - a_drag_z + 0.6 * (vz_ref - vz) + 0.1 * (z_ref - z)
+
+            omega_weave = 2.0 * math.pi / profile.weave_period_s
+            y_ref = profile.weave_amplitude_m * math.sin(omega_weave * t_glide)
+            vy_ref = profile.weave_amplitude_m * omega_weave * math.cos(omega_weave * t_glide)
+            a_lat_ctrl = 0.6 * (vy_ref - vy) + 0.1 * (y_ref - y)
+
+            # Sustainer balances drag and maintains constant cruise speed
+            a_thrust_s = -a_drag_s + 0.3 * (cruise_speed - vs)
+
+            return np.array([s_rate, vy, vz, a_thrust_s + a_drag_s + curv_s, a_lat_ctrl + a_drag_y + curv_y, a_lift_z - gz + curv_z + a_drag_z])
+
+        else: # TERMINAL
+            # Pitch down into terminal hypersonic dive without adding artificial kinetic energy
+            rem_dist = max(100.0, total_range_m - s)
+            target_vz = -max(400.0, min(vs * 0.5, 1500.0)) * (z / rem_dist)
+            az_ctrl = 0.2 * (target_vz - vz)
+            as_ctrl = a_drag_s - 0.02 * vs
+            ay_ctrl = -0.4 * vy - 0.1 * y
+            return np.array([s_rate, vy, vz, as_ctrl + curv_s, ay_ctrl + curv_y, az_ctrl - gz + curv_z + a_drag_z])
+
+    step_count = 0
+    while step_count < 15000:
+        s, y, z, vs, vy, vz = state
+        v = math.sqrt(vs**2 + vy**2 + vz**2)
+        mach = mach_number(v, z)
+
+        if t < t_boost:
+            current_phase = FlightPhase.BOOST
+        elif s < s_terminal_start:
+            current_phase = FlightPhase.GLIDE
+        else:
+            current_phase = FlightPhase.TERMINAL
+
+        frac = min(1.0, max(0.0, s / total_range_m))
+        gc_lat, gc_lon = great_circle_waypoint(
+            profile.launch_lat, profile.launch_lon,
+            profile.target_lat, profile.target_lon,
+            frac
+        )
+        cur_track_bearing = initial_bearing(gc_lat, gc_lon, profile.target_lat, profile.target_lon)
+        perp_bearing = (cur_track_bearing + 90.0) % 360.0
+        cur_lat, cur_lon = destination_point(gc_lat, gc_lon, perp_bearing, y)
+
+        dist_to_target = great_circle_distance(
+            cur_lat, cur_lon,
+            profile.target_lat, profile.target_lon
+        )
+        progress = min(100.0, max(0.0, (t / max(1.0, total_etof)) * 100.0))
+        time_remaining = max(0.0, total_etof - t)
+
+        rho = atmospheric_density(z)
+        q = 0.5 * rho * (v**2)
+        cd = drag_coefficient(mach, profile.cd_subsonic)
+        f_drag = q * cd * profile.reference_area_m2
+        x, y_ecef, z_ecef = geodetic_to_ecef(cur_lat, cur_lon, z)
+
+        heading = (cur_track_bearing + math.degrees(math.atan2(vy, max(1e-4, vs)))) % 360.0
+        gamma_deg = math.degrees(math.atan2(vz, max(1e-4, math.sqrt(vs**2 + vy**2))))
+
+        telemetry_list.append(Telemetry(
+            timestamp=t,
+            lat=cur_lat,
+            lon=cur_lon,
+            altitude=z,
+            mach=mach,
+            velocity_ms=v,
+            velocity_kmh=v * 3.6,
+            phase=current_phase,
+            downrange_distance_m=s,
+            distance_to_target_m=dist_to_target,
+            etof_s=total_etof,
+            time_remaining_s=time_remaining,
+            progress_percent=progress,
+            x_ecef=x, y_ecef=y_ecef, z_ecef=z_ecef,
+            heading_deg=heading,
+            flight_path_angle_deg=gamma_deg,
+            crossrange_m=y,
+            dynamic_pressure_pa=q,
+            drag_force_n=f_drag
+        ))
+
+        if current_phase == FlightPhase.TERMINAL and (z <= 0.0 or dist_to_target < 2000.0):
+            break
+
+        f_deriv = lambda _t, _st: derivatives(_t, _st, current_phase)
+        state = rk4_step(f_deriv, t, state, dt)
+        t += dt
+        step_count += 1
+
+    last = telemetry_list[-1]
+    last.altitude = 0.0
+    last.progress_percent = 100.0
+    last.time_remaining_s = 0.0
+    last.distance_to_target_m = 0.0
+    last.lat = profile.target_lat
+    last.lon = profile.target_lon
+    last.etof_s = t
+
+    for tel in telemetry_list:
+        tel.etof_s = t
+        tel.time_remaining_s = max(0.0, t - tel.timestamp)
+        tel.progress_percent = min(100.0, (tel.timestamp / t) * 100.0)
+
+    return Trajectory(profile, telemetry_list)
+
