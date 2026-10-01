@@ -813,3 +813,37 @@ class Interceptor:
 # ==============================================================================
 
 @dataclass
+class DefenderBattery:
+    """Represents a deployed surface-to-air defense battery or CIWS mount."""
+    battery_id: str
+    name: str
+    tier: DefenseTier
+    config: InterceptorConfig
+    pos: np.ndarray
+    magazine_capacity: int = 16
+    missiles_remaining: int = 16
+    missiles_fired: int = 0
+
+    def can_engage(self, threat: Threat) -> bool:
+        """Evaluates whether threat satisfies battery tier kinematic and range constraints."""
+        if self.missiles_remaining <= 0:
+            return False
+
+        r_vec = threat.pos - self.pos
+        range_m = float(np.linalg.norm(r_vec[:2])) # Horizontal range
+        alt_m = threat.pos[2]
+
+        # Range check
+        if range_m > self.config.max_range:
+            return False
+
+        # Altitude check
+        if alt_m < self.config.min_altitude or alt_m > self.config.max_altitude:
+            # Special case: Tier 2 can engage high diving threats passing down through Tier 2 ceiling
+            if self.tier == DefenseTier.TIER_2_ENDO and alt_m <= 42000.0:
+                pass
+            else:
+                return False
+
+        return True
+
