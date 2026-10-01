@@ -1641,3 +1641,346 @@ CONTINENTAL_COASTLINES: Dict[str, List[Tuple[float, float]]] = {
     ]
 }
 
+
+def build_3d_globe_figure(
+    theater_key: str = "eastern_europe",
+    show_earth_mesh: bool = True,
+    show_continents: bool = True,
+    show_wez_domes: bool = True,
+    show_bursts: bool = True,
+    altitude_scale: float = 3.5,
+    height: int = 660
+) -> go.Figure:
+    """
+    Construct an interactive 3D Digital Globe using Plotly 3D scatter and surface:
+    - Renders spherical Earth with latitude/longitude grid and continental coastlines
+    - Deep space background with subtle starfield points
+    - Attacker Launch Sites, Defender Batteries, and Defended Target HVAs positioned on Earth sphere
+    - 3D Suborbital Parabolic Arcs rising off the surface into space
+    - 3D Radar Engagement Domes (wireframe rings / arches) over defender batteries
+    - 3D Kinetic Intercept Detonation Bursts and Interceptor climb arcs
+    - Dynamic theater-centric camera orientation aligned with selected theater center
+    """
+    theater = THEATER_PRESETS.get(theater_key, THEATER_PRESETS["eastern_europe"])
+    center_lat, center_lon = theater["center"]
+
+    fig = go.Figure()
+    R = EARTH_RADIUS_KM
+
+    # 1. Distant Starfield Background (Deep Space Ambience)
+    np.random.seed(42)
+    n_stars = 140
+    theta_stars = np.random.uniform(0, 2.0 * np.pi, n_stars)
+    phi_stars = np.random.uniform(0, np.pi, n_stars)
+    r_stars = R * 2.8
+
+    fig.add_trace(go.Scatter3d(
+        x=r_stars * np.sin(phi_stars) * np.cos(theta_stars),
+        y=r_stars * np.sin(phi_stars) * np.sin(theta_stars),
+        z=r_stars * np.cos(phi_stars),
+        mode="markers",
+        marker=dict(size=1.6, color="#ffffff", opacity=0.65),
+        hoverinfo="none",
+        showlegend=False
+    ))
+
+    # 2. Spherical Earth Surface (Military Dark Slate Mesh)
+    if show_earth_mesh:
+        u_surf = np.linspace(0, 2 * np.pi, 45)
+        v_surf = np.linspace(0, np.pi, 25)
+        xs = R * np.outer(np.cos(u_surf), np.sin(v_surf))
+        ys = R * np.outer(np.sin(u_surf), np.sin(v_surf))
+        zs = R * np.outer(np.ones(np.size(u_surf)), np.cos(v_surf))
+        surf_color = np.zeros_like(xs)
+
+        fig.add_trace(go.Surface(
+            x=xs, y=ys, z=zs,
+            surfacecolor=surf_color,
+            colorscale=[[0, "#08111a"], [1, "#0f1c29"]],
+            showscale=False,
+            opacity=0.88,
+            hoverinfo="none",
+            name="Earth Sphere"
+        ))
+
+    # 3. Latitude & Longitude Reference Grid Lines
+    for lat_deg in [-60, -30, 0, 30, 60]:
+        lons = np.linspace(-180, 180, 72)
+        xl, yl, zl = [], [], []
+        for lon_deg in lons:
+            cx, cy, cz = lat_lon_to_cartesian(lat_deg, lon_deg, alt_km=2.0, radius=R)
+            xl.append(cx)
+            yl.append(cy)
+            zl.append(cz)
+        fig.add_trace(go.Scatter3d(
+            x=xl, y=yl, z=zl,
+            mode="lines",
+            line=dict(color="#152b3c", width=1.4, dash="dot"),
+            hoverinfo="none",
+            showlegend=False
+        ))
+
+    for lon_deg in range(-180, 180, 45):
+        lats = np.linspace(-85, 85, 40)
+        xl, yl, zl = [], [], []
+        for lat_deg in lats:
+            cx, cy, cz = lat_lon_to_cartesian(lat_deg, lon_deg, alt_km=2.0, radius=R)
+            xl.append(cx)
+            yl.append(cy)
+            zl.append(cz)
+        fig.add_trace(go.Scatter3d(
+            x=xl, y=yl, z=zl,
+            mode="lines",
+            line=dict(color="#152b3c", width=1.4, dash="dot"),
+            hoverinfo="none",
+            showlegend=False
+        ))
+
+    # 4. Continental Coastlines in Tactical Teal
+    if show_continents:
+        for c_name, coords in CONTINENTAL_COASTLINES.items():
+            cx_list, cy_list, cz_list = [], [], []
+            for lat, lon in coords:
+                cx, cy, cz = lat_lon_to_cartesian(lat, lon, alt_km=4.0, radius=R)
+                cx_list.append(cx)
+                cy_list.append(cy)
+                cz_list.append(cz)
+            fig.add_trace(go.Scatter3d(
+                x=cx_list, y=cy_list, z=cz_list,
+                mode="lines",
+                line=dict(color="#1d4863", width=2.0),
+                hoverinfo="none",
+                showlegend=False
+            ))
+
+    # 5. Attacker Launch Sites (Red Markers on Earth Surface)
+    launch_sites = theater["attacker_launch_sites"]
+    lx, ly, lz, lnames = [], [], [], []
+    for s in launch_sites:
+        cx, cy, cz = lat_lon_to_cartesian(s["lat"], s["lon"], alt_km=15.0, radius=R)
+        lx.append(cx)
+        ly.append(cy)
+        lz.append(cz)
+        lnames.append(f"🔴 Launch Site: {s['name']}")
+
+    fig.add_trace(go.Scatter3d(
+        x=lx, y=ly, z=lz,
+        mode="markers+text",
+        name="Aggressor Launch Complexes",
+        marker=dict(size=7, color="#ff2244", symbol="square", line=dict(color="#ffffff", width=1.2)),
+        text=[s["name"][:18] for s in launch_sites],
+        textposition="top center",
+        textfont=dict(color="#ff6677", size=9.5),
+        hovertext=lnames,
+        hoverinfo="text"
+    ))
+
+    # 6. Defended Target HVAs (Gold Markers on Earth Surface)
+    target_assets = theater["target_assets"]
+    tx, ty, tz, tnames = [], [], [], []
+    for t in target_assets:
+        cx, cy, cz = lat_lon_to_cartesian(t["lat"], t["lon"], alt_km=15.0, radius=R)
+        tx.append(cx)
+        ty.append(cy)
+        tz.append(cz)
+        tnames.append(f"⭐ Target HVA: {t['name']} (Value: {t.get('strategic_value', 100):.0f})")
+
+    fig.add_trace(go.Scatter3d(
+        x=tx, y=ty, z=tz,
+        mode="markers+text",
+        name="Defended Strategic HVAs",
+        marker=dict(size=8, color="#ffb700", symbol="circle", line=dict(color="#ffffff", width=1.5)),
+        text=[t["name"][:18] for t in target_assets],
+        textposition="bottom center",
+        textfont=dict(color="#ffd700", size=9.5),
+        hovertext=tnames,
+        hoverinfo="text"
+    ))
+
+    # 7. Defender Batteries (Emerald Markers on Earth Surface)
+    defender_batteries = theater["defender_batteries"]
+    bx, by, bz, bnames = [], [], [], []
+    for b in defender_batteries:
+        cx, cy, cz = lat_lon_to_cartesian(b["lat"], b["lon"], alt_km=15.0, radius=R)
+        bx.append(cx)
+        by.append(cy)
+        bz.append(cz)
+        bnames.append(f"🛡️ Battery: {b['name']} ({b.get('system', 'IAMD')})")
+
+    fig.add_trace(go.Scatter3d(
+        x=bx, y=by, z=bz,
+        mode="markers+text",
+        name="Defender IAMD Batteries",
+        marker=dict(size=8, color="#00ff88", symbol="diamond", line=dict(color="#003322", width=1.5)),
+        text=[b["name"][:18] for b in defender_batteries],
+        textposition="top center",
+        textfont=dict(color="#00ff88", size=9.5),
+        hovertext=bnames,
+        hoverinfo="text"
+    ))
+
+    # 8. 3D Radar Engagement Domes over Defender Batteries
+    if show_wez_domes:
+        for b in defender_batteries:
+            b_lat, b_lon = b["lat"], b["lon"]
+            wez_km = b.get("wez_radius_km", 70.0) * altitude_scale
+            # Construct wireframe concentric dome rings
+            for ring_frac in [0.4, 0.7, 1.0]:
+                ring_rad_km = wez_km * ring_frac
+                ang_deg = (ring_rad_km / EARTH_RADIUS_KM) * (180.0 / math.pi)
+                ring_alt = (wez_km * math.sqrt(max(0.0, 1.0 - ring_frac ** 2))) * 0.4
+                ring_x, ring_y, ring_z = [], [], []
+
+                for azimuth in np.linspace(0, 2 * np.pi, 24):
+                    d_lat = ang_deg * math.cos(azimuth)
+                    d_lon = (ang_deg * math.sin(azimuth)) / max(0.2, math.cos(math.radians(b_lat)))
+                    rx, ry, rz = lat_lon_to_cartesian(b_lat + d_lat, b_lon + d_lon, alt_km=ring_alt, radius=R)
+                    ring_x.append(rx)
+                    ring_y.append(ry)
+                    ring_z.append(rz)
+
+                fig.add_trace(go.Scatter3d(
+                    x=ring_x, y=ring_y, z=ring_z,
+                    mode="lines",
+                    line=dict(color="#00ff88", width=1.5),
+                    opacity=0.35,
+                    hoverinfo="none",
+                    showlegend=False
+                ))
+
+    # 9. 3D Suborbital Parabolic Arcs Rising Off Earth Surface
+    launch_dict = {s["id"]: s for s in launch_sites}
+    target_dict = {t["id"]: t for t in target_assets}
+    battery_dict = {b["id"]: b for b in defender_batteries}
+    trajectories = theater.get("threat_trajectories", [])
+
+    color_threat_3d = {
+        "ballistic": "#ff3344",
+        "quasi-ballistic": "#ff3344",
+        "mrbm": "#ff2244",
+        "icbm": "#ff0033",
+        "hypersonic": "#ff00cc",
+        "cruise": "#ff9900",
+        "drone": "#ffea00"
+    }
+
+    for threat in trajectories:
+        t_id = threat["threat_id"]
+        t_type = threat.get("threat_type", "ballistic").lower()
+        l_site = launch_dict.get(threat["launch_site_id"])
+        tgt = target_dict.get(threat["target_id"])
+        bat = battery_dict.get(threat["assigned_battery_id"])
+
+        if not l_site or not tgt:
+            continue
+
+        waypoints = generate_trajectory_waypoints(
+            l_site["lat"], l_site["lon"], tgt["lat"], tgt["lon"],
+            threat_type=t_type,
+            apogee_km=threat.get("apogee_km", 75.0),
+            n_points=50
+        )
+
+        arc_x, arc_y, arc_z = [], [], []
+        for wp in waypoints:
+            scaled_alt = wp["alt_km"] * altitude_scale
+            cx, cy, cz = lat_lon_to_cartesian(wp["lat"], wp["lon"], alt_km=scaled_alt, radius=R)
+            arc_x.append(cx)
+            arc_y.append(cy)
+            arc_z.append(cz)
+
+        line_col = color_threat_3d.get(t_type, "#ff4444")
+        fig.add_trace(go.Scatter3d(
+            x=arc_x, y=arc_y, z=arc_z,
+            mode="lines",
+            name=f"3D Arc: {threat.get('threat_name', t_id)}",
+            line=dict(color=line_col, width=4.0),
+            hoverinfo="name"
+        ))
+
+        # 10. 3D Intercept Detonation Burst & Interceptor Arc
+        if show_bursts and threat.get("status") == "INTERCEPTED":
+            int_frac = threat.get("intercept_fraction", 0.75)
+            int_lat, int_lon = great_circle_intermediate_point(
+                l_site["lat"], l_site["lon"], tgt["lat"], tgt["lon"], int_frac
+            )
+            int_alt_scaled = threat.get("intercept_alt_km", 30.0) * altitude_scale
+            bx_int, by_int, bz_int = lat_lon_to_cartesian(int_lat, int_lon, alt_km=int_alt_scaled, radius=R)
+
+            # 3D Burst Marker
+            cpa_m = threat.get("intercept_cpa_m", 0.5)
+            fig.add_trace(go.Scatter3d(
+                x=[bx_int], y=[by_int], z=[bz_int],
+                mode="markers+text",
+                name="3D Kinetic Intercept Burst",
+                marker=dict(size=11, color="#ffff00", symbol="diamond", line=dict(color="#ff3300", width=2)),
+                text=[f"💥 INTERCEPT: {threat.get('threat_name', t_id)[:16]}"],
+                textposition="top center",
+                textfont=dict(color="#ffff00", size=10, family="monospace"),
+                hovertext=f"💥 Kinetic Intercept Point<br>Threat: {threat.get('threat_name', t_id)}<br>CPA Miss: {cpa_m:.2f} m",
+                hoverinfo="text"
+            ))
+
+            # Interceptor Vector from Battery to Intercept Point
+            if bat:
+                bat_x, bat_y, bat_z = lat_lon_to_cartesian(bat["lat"], bat["lon"], alt_km=10.0, radius=R)
+                fig.add_trace(go.Scatter3d(
+                    x=[bat_x, bx_int],
+                    y=[bat_y, by_int],
+                    z=[bat_z, bz_int],
+                    mode="lines",
+                    line=dict(color="#00e5ff", width=2.8, dash="dash"),
+                    hoverinfo="none",
+                    showlegend=False
+                ))
+
+    # Calculate Camera Orientation Centered on Theater
+    rad_lat = math.radians(center_lat)
+    rad_lon = math.radians(center_lon)
+    cam_dist = 1.95 if theater_key != "conus_homeland" else 2.3
+    eye_x = cam_dist * math.cos(rad_lat) * math.cos(rad_lon)
+    eye_y = cam_dist * math.cos(rad_lat) * math.sin(rad_lon)
+    eye_z = cam_dist * math.sin(rad_lat)
+
+    fig.update_layout(
+        template="plotly_dark",
+        title=dict(
+            text=f"<b>3D Digital Globe Command HUD: {theater['name']}</b><br>"
+                 f"<sup>Exo-Atmospheric Suborbital Arcs, Radar WEZ Domes & Kinetic Interceptions (Altitude Scale: {altitude_scale:.1f}x)</sup>",
+            font=dict(size=14, color="#ffffff")
+        ),
+        scene=dict(
+            xaxis=dict(visible=False, showgrid=False, zeroline=False),
+            yaxis=dict(visible=False, showgrid=False, zeroline=False),
+            zaxis=dict(visible=False, showgrid=False, zeroline=False),
+            bgcolor="#050811",
+            camera=dict(
+                eye=dict(x=eye_x, y=eye_y, z=eye_z),
+                center=dict(x=0, y=0, z=0),
+                up=dict(x=0, y=0, z=1)
+            ),
+            aspectmode="cube"
+        ),
+        paper_bgcolor="#050811",
+        plot_bgcolor="#050811",
+        legend=dict(
+            font=dict(color="#ffffff", size=10),
+            bgcolor="#0d1117",
+            bordercolor="#30363d",
+            borderwidth=1,
+            orientation="h",
+            yanchor="bottom",
+            y=0.01,
+            xanchor="center",
+            x=0.5
+        ),
+        margin=dict(l=0, r=0, t=65, b=10),
+        height=height
+    )
+
+    return fig
+
+
+# ==============================================================================
+# 8. HIGH-LEVEL UNIFIED DASH VIEW CONTAINER & MODE TOGGLE
+# ==============================================================================
