@@ -1342,3 +1342,302 @@ def build_tactical_leaflet_map(
 # ==============================================================================
 # 6. ALTITUDE PROFILE CHART BUILDER (MISSILEMAP STYLE)
 # ==============================================================================
+
+def build_altitude_profile_figure(
+    theater_key: str = "eastern_europe",
+    threat_index: int = 0,
+    custom_threat: Optional[Dict[str, Any]] = None,
+    height: int = 440
+) -> go.Figure:
+    """
+    Construct a high-fidelity Plotly 2D Altitude Profile Chart (Missilemap style):
+    - Downrange Distance (km) on X-axis vs. Altitude (km) on Y-axis
+    - Stratified atmospheric zones (Troposphere, Stratosphere, Mesosphere, Karman Line)
+    - Simultaneous curves for:
+      * Multi-phase Threat Trajectory (Boost burnout, Midcourse flight, Terminal dive)
+      * Apogee Marker with ballistic altitude and range annotation
+      * Interceptor Climb Curve originating from defender battery downrange position
+      * Kinetic Intercept Point with detonation burst marker and CPA callout
+      * Defended Target Asset marker at ground level
+    """
+    theater = THEATER_PRESETS.get(theater_key, THEATER_PRESETS["eastern_europe"])
+    trajectories = theater.get("threat_trajectories", [])
+
+    if custom_threat is not None:
+        th = custom_threat
+    elif trajectories and 0 <= threat_index < len(trajectories):
+        th = trajectories[threat_index]
+    else:
+        th = {
+            "threat_id": "DEFAULT-001",
+            "threat_name": "Generic Ballistic Trajectory",
+            "threat_type": "ballistic",
+            "launch_site_id": "launch-rostov",
+            "target_id": "target-kyiv-c2",
+            "assigned_battery_id": "bat-kyiv-patriot",
+            "speed_mach": 6.2,
+            "apogee_km": 115.0,
+            "progress": 0.75,
+            "intercept_fraction": 0.77,
+            "status": "INTERCEPTED",
+            "intercept_cpa_m": 0.52,
+            "intercept_alt_km": 32.5,
+            "p_kill": 0.96
+        }
+
+    # Retrieve associated sites
+    launch_sites = {s["id"]: s for s in theater["attacker_launch_sites"]}
+    target_assets = {t["id"]: t for t in theater["target_assets"]}
+    defender_bats = {b["id"]: b for b in theater["defender_batteries"]}
+
+    ls = launch_sites.get(th.get("launch_site_id", ""), {"name": "Aggressor Launch Site", "lat": 47.0, "lon": 39.0})
+    tgt = target_assets.get(th.get("target_id", ""), {"name": "Defended HVA Target", "lat": 50.0, "lon": 30.0})
+    bat = defender_bats.get(th.get("assigned_battery_id", ""), {"name": "Defender Battery", "lat": 50.4, "lon": 30.5})
+
+    total_range_km = haversine_distance_km(ls["lat"], ls["lon"], tgt["lat"], tgt["lon"])
+    if total_range_km < 10.0:
+        total_range_km = 800.0
+
+    # Downrange position of defender battery relative to launch site
+    bat_dist_from_launch = haversine_distance_km(ls["lat"], ls["lon"], bat["lat"], bat["lon"])
+    # Cap battery distance inside downrange plot
+    bat_downrange_km = min(total_range_km * 0.95, max(total_range_km * 0.5, bat_dist_from_launch))
+
+    apogee_km = float(th.get("apogee_km", 115.0))
+    t_type = th.get("threat_type", "ballistic").lower()
+
+    # Generate Altitude Profile Curves
+    n_pts = 120
+    x_threat = np.linspace(0.0, total_range_km, n_pts)
+    z_threat = np.zeros(n_pts)
+
+    for i, x in enumerate(x_threat):
+        u = x / total_range_km
+        if t_type in ["ballistic", "quasi-ballistic", "srbm", "mrbm", "icbm"]:
+            # Parabolic trajectory
+            z_threat[i] = 4.0 * apogee_km * u * (1.0 - u)
+        elif t_type in ["hypersonic", "hgv"]:
+            # Pull-up into skip-glide
+            if u < 0.12:
+                z_threat[i] = 36.0 * math.sin((u / 0.12) * math.pi / 2.0)
+            elif u > 0.88:
+                z_threat[i] = 36.0 * math.cos(((u - 0.88) / 0.12) * math.pi / 2.0)
+            else:
+                z_threat[i] = 36.0 + 2.5 * math.sin(6.0 * math.pi * u)
+        elif t_type in ["cruise", "supersonic cruise", "ashm"]:
+            z_threat[i] = 0.9 + 0.3 * math.sin(3.0 * math.pi * u)
+        else: # drone
+            z_threat[i] = 0.35 + 0.1 * math.sin(5.0 * math.pi * u)
+
+    z_max_plot = max(120.0, apogee_km * 1.25)
+    fig = go.Figure()
+
+    # Atmospheric Strata Background Shading
+    fig.add_hrect(
+        y0=0, y1=12, fillcolor="#0b1b2b", opacity=0.45, line_width=0, layer="below",
+        annotation_text="Troposphere (0-12 km) | Commercial Aviation & Dense Weather",
+        annotation_position="top left", annotation_font=dict(color="#4a7090", size=10)
+    )
+    fig.add_hrect(
+        y0=12, y1=50, fillcolor="#0e1724", opacity=0.45, line_width=0, layer="below",
+        annotation_text="Stratosphere (12-50 km) | Hypersonic Glide & Terminal SAM Intercept Window",
+        annotation_position="top left", annotation_font=dict(color="#4a7090", size=10)
+    )
+    fig.add_hrect(
+        y0=50, y1=85, fillcolor="#09101a", opacity=0.45, line_width=0, layer="below",
+        annotation_text="Mesosphere (50-85 km) | Upper Tier Engagement Corridor",
+        annotation_position="top left", annotation_font=dict(color="#4a7090", size=10)
+    )
+    if z_max_plot >= 100.0:
+        fig.add_hline(
+            y=100.0, line_dash="dash", line_color="#ff0055", line_width=1.5,
+            annotation_text="Karman Line (100 km) — Boundary of Space / Exo-Atmospheric Tier",
+            annotation_position="top left", annotation_font=dict(color="#ff3377", size=10.5, family="monospace")
+        )
+
+    # 1. Threat Trajectory Curve
+    threat_line_color = "#ff3344" if t_type != "hypersonic" else "#ff00bb"
+    fig.add_trace(go.Scatter(
+        x=x_threat,
+        y=z_threat,
+        mode="lines",
+        name=f"Threat: {th.get('threat_name', 'Aggressor Missile')}",
+        line=dict(color=threat_line_color, width=3.5),
+        hovertemplate="<b>Downrange:</b> %{x:.1f} km<br><b>Altitude:</b> %{y:.1f} km<extra></extra>"
+    ))
+
+    # Boost Phase Burnout Marker
+    boost_x = total_range_km * 0.10
+    boost_z = np.interp(boost_x, x_threat, z_threat)
+    fig.add_trace(go.Scatter(
+        x=[boost_x],
+        y=[boost_z],
+        mode="markers+text",
+        name="Booster Burnout / Stage Separation",
+        marker=dict(size=8, color="#ff8800", symbol="triangle-up", line=dict(color="#ffffff", width=1)),
+        text=["Booster Burnout"],
+        textposition="top left",
+        textfont=dict(color="#ff8800", size=10),
+        hovertemplate="<b>Booster Burnout:</b> Downrange %{x:.1f} km, Alt %{y:.1f} km<extra></extra>"
+    ))
+
+    # 2. Apogee Marker
+    apogee_idx = int(np.argmax(z_threat))
+    x_apogee = x_threat[apogee_idx]
+    z_apogee = z_threat[apogee_idx]
+
+    fig.add_trace(go.Scatter(
+        x=[x_apogee],
+        y=[z_apogee],
+        mode="markers+text",
+        name="Ballistic Apogee Peak",
+        marker=dict(size=14, color="#ffea00", symbol="star", line=dict(color="#ff3300", width=1.5)),
+        text=[f"APOGEE: {z_apogee:.1f} km (Range {x_apogee:.0f} km)"],
+        textposition="top center",
+        textfont=dict(color="#ffea00", size=11, family="monospace"),
+        hovertemplate=f"<b>Peak Apogee:</b> {z_apogee:.1f} km<br><b>Downrange:</b> {x_apogee:.1f} km<br><b>Velocity:</b> Mach {th.get('speed_mach', 6.0):.1f}<extra></extra>"
+    ))
+
+    # 3. Defender Battery Launch Point & Radar Sector
+    fig.add_trace(go.Scatter(
+        x=[bat_downrange_km],
+        y=[0.0],
+        mode="markers+text",
+        name=f"Defender: {bat.get('name', 'Battery')}",
+        marker=dict(size=13, color="#00ff88", symbol="square", line=dict(color="#ffffff", width=1.5)),
+        text=[f"BATTERY: {bat.get('name', 'IAMD Unit')[:24]}"],
+        textposition="bottom center",
+        textfont=dict(color="#00ff88", size=10.5),
+        hovertemplate=f"<b>Defender Battery:</b> {bat.get('name', 'IAMD')}<br><b>Downrange:</b> {bat_downrange_km:.1f} km<extra></extra>"
+    ))
+
+    # 4. Kinetic Intercept Point & Interceptor Climb Curve
+    int_frac = float(th.get("intercept_fraction", 0.76))
+    x_int = total_range_km * int_frac
+    z_int = float(np.interp(x_int, x_threat, z_threat))
+
+    # Realistic Interceptor Climb Arc (from battery ground position to intercept point)
+    n_climb = 40
+    x_climb = np.linspace(bat_downrange_km, x_int, n_climb)
+    u_climb = np.linspace(0.0, 1.0, n_climb)
+    z_climb = z_int * (np.sin(u_climb * np.pi / 2.0) ** 1.3)
+
+    fig.add_trace(go.Scatter(
+        x=x_climb,
+        y=z_climb,
+        mode="lines",
+        name=f"Interceptor Climb Curve ({bat.get('system', 'PAC-3 CRI')})",
+        line=dict(color="#00e5ff", width=2.8, dash="dash"),
+        hovertemplate="<b>Interceptor Downrange:</b> %{x:.1f} km<br><b>Altitude:</b> %{y:.1f} km<extra></extra>"
+    ))
+
+    # Kinetic Intercept Burst Marker
+    cpa_m = float(th.get("intercept_cpa_m", 0.48))
+    p_kill = float(th.get("p_kill", 0.97)) * 100.0
+
+    fig.add_trace(go.Scatter(
+        x=[x_int],
+        y=[z_int],
+        mode="markers+text",
+        name="Kinetic Intercept Point (HIT)",
+        marker=dict(size=18, color="#ffee00", symbol="diamond-wide", line=dict(color="#ff2200", width=2.5)),
+        text=[f"💥 KINETIC HIT (CPA: {cpa_m:.2f} m | P_kill: {p_kill:.0f}%)"],
+        textposition="top center",
+        textfont=dict(color="#ffea00", size=11, family="monospace"),
+        hovertemplate=(
+            f"<b>💥 KINETIC KILL POINT</b><br>"
+            f"Downrange Distance: {x_int:.1f} km<br>"
+            f"Intercept Altitude: {z_int:.1f} km MSL<br>"
+            f"Miss Distance (CPA): {cpa_m:.2f} meters<br>"
+            f"Probability of Kill: {p_kill:.1f}%<extra></extra>"
+        )
+    ))
+
+    # 5. Defended Target Asset Ground Marker
+    fig.add_trace(go.Scatter(
+        x=[total_range_km],
+        y=[0.0],
+        mode="markers+text",
+        name=f"Target: {tgt.get('name', 'Defended Asset')}",
+        marker=dict(size=14, color="#ffb700", symbol="star-diamond", line=dict(color="#ffffff", width=1.5)),
+        text=[f"TARGET: {tgt.get('name', 'Defended HVA')[:24]}"],
+        textposition="bottom center",
+        textfont=dict(color="#ffb700", size=10.5),
+        hovertemplate=f"<b>Defended HVA:</b> {tgt.get('name', 'HVA')}<br><b>Downrange:</b> {total_range_km:.1f} km<extra></extra>"
+    ))
+
+    # Layout & Military Styling
+    fig.update_layout(
+        template="plotly_dark",
+        title=dict(
+            text=f"<b>Missilemap Tactical Altitude Profile: {th.get('threat_name', 'Threat Track')}</b><br>"
+                 f"<sup>Engagement Downrange Range: {total_range_km:.0f} km | Peak Apogee: {z_apogee:.1f} km | Intercept Alt: {z_int:.1f} km</sup>",
+            font=dict(size=14, color="#ffffff")
+        ),
+        xaxis=dict(
+            title="Downrange Ground Distance (km)",
+            gridcolor="#21262d",
+            zerolinecolor="#30363d",
+            range=[-20, total_range_km + 40],
+            color="#c9d1d9"
+        ),
+        yaxis=dict(
+            title="Altitude Above Mean Sea Level (km)",
+            gridcolor="#21262d",
+            zerolinecolor="#30363d",
+            range=[-5, z_max_plot],
+            color="#c9d1d9"
+        ),
+        paper_bgcolor="#0d1117",
+        plot_bgcolor="#090d14",
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1.0,
+            bgcolor="#161b22",
+            bordercolor="#30363d",
+            borderwidth=1,
+            font=dict(size=10, color="#ffffff")
+        ),
+        margin=dict(l=55, r=30, t=85, b=45),
+        height=height
+    )
+
+    return fig
+
+
+# ==============================================================================
+# 7. 3D DIGITAL GLOBE MODE BUILDER (PLOTLY 3D SCATTER & SURFACE)
+# ==============================================================================
+
+# Simplified Continental Outlines for 3D Earth Realism
+CONTINENTAL_COASTLINES: Dict[str, List[Tuple[float, float]]] = {
+    "eurasia_north": [
+        (36, -5), (44, -8), (48, -4), (54, 8), (58, 5), (62, 5), (71, 28), (68, 44),
+        (70, 75), (75, 100), (77, 104), (73, 140), (66, 170), (60, 163), (53, 142),
+        (43, 132), (38, 128), (35, 120), (22, 114), (10, 107), (1, 104), (16, 96),
+        (22, 89), (13, 80), (8, 77), (25, 62), (25, 57), (12, 44), (12, 43), (22, 38),
+        (31, 35), (36, 36), (41, 29), (42, 28), (44, 15), (41, 12), (43, 7), (36, -5)
+    ],
+    "africa": [
+        (36, -5), (37, 11), (32, 25), (31, 32), (28, 34), (12, 44), (12, 51), (2, 45),
+        (-12, 40), (-25, 33), (-34, 18), (-34, 25), (-23, 14), (-16, 12), (-5, 12),
+        (4, 7), (6, 3), (4, -7), (10, -14), (15, -17), (21, -17), (28, -13), (36, -5)
+    ],
+    "north_america": [
+        (71, -156), (70, -135), (60, -85), (55, -55), (45, -60), (35, -75), (25, -80),
+        (30, -85), (25, -97), (20, -105), (15, -92), (9, -79), (15, -90), (23, -110),
+        (32, -117), (38, -123), (48, -125), (58, -136), (60, -145), (60, -165), (71, -156)
+    ],
+    "south_america": [
+        (12, -72), (7, -58), (-2, -44), (-8, -35), (-23, -42), (-35, -53), (-55, -67),
+        (-46, -75), (-33, -72), (-18, -70), (-5, -81), (1, -79), (9, -79), (12, -72)
+    ],
+    "australia": [
+        (-12, 131), (-12, 136), (-18, 140), (-25, 153), (-38, 145), (-35, 115), (-22, 114),
+        (-15, 124), (-12, 131)
+    ]
+}
+
