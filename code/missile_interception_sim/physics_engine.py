@@ -414,3 +414,97 @@ def cross_track_distance(
 # ==============================================================================
 # 5. ATMOSPHERE, GRAVITY, SPEED OF SOUND & AERODYNAMICS
 # ==============================================================================
+def atmospheric_density(altitude_m: float) -> float:
+    """
+    Exponential barometric atmospheric density model:
+      rho(z) = rho_0 * exp(-z / H)
+    where rho_0 = 1.225 kg/m^3, H = 7500.0 m.
+    For z > 150 km, returns near-vacuum (1e-15 kg/m^3).
+    """
+    if altitude_m < 0.0:
+        return RHO_0
+    if altitude_m > 150000.0:
+        return 0.0
+    return RHO_0 * math.exp(-altitude_m / SCALE_HEIGHT_H)
+
+
+def temperature_at_altitude(altitude_m: float) -> float:
+    """Standard atmospheric temperature model (Kelvin) across troposphere and stratosphere."""
+    z = max(0.0, altitude_m)
+    if z <= H_TROPOPAUSE:
+        return T0_AIR - LAPSE_RATE_L * z
+    elif z <= 25000.0:
+        return T_TROPOPAUSE
+    elif z <= 47000.0:
+        return T_TROPOPAUSE + 0.0028 * (z - 25000.0)
+    else:
+        return 278.35
+
+
+def speed_of_sound(altitude_m: float) -> float:
+    """
+    Compute local speed of sound c_s = sqrt(gamma * R * T(z)) in m/s.
+    Standard sea-level speed of sound is ~340.3 m/s, dropping to ~295.1 m/s at 11 km.
+    """
+    temp_k = temperature_at_altitude(altitude_m)
+    return math.sqrt(GAMMA_AIR * R_SPECIFIC_AIR * temp_k)
+
+
+def mach_number(velocity_ms: float, altitude_m: float) -> float:
+    """Calculate Mach number from velocity (m/s) and altitude (m)."""
+    c_s = speed_of_sound(altitude_m)
+    return velocity_ms / max(1.0, c_s)
+
+
+def gravity(altitude_m: float) -> float:
+    """
+    Altitude-dependent gravitational acceleration:
+      g(z) = g_0 * (R_E / (R_E + z))^2
+    where g_0 = 9.80665 m/s^2, R_E = 6371000.0 m.
+    """
+    z = max(0.0, altitude_m)
+    ratio = R_EARTH / (R_EARTH + z)
+    return G0 * (ratio**2)
+
+
+def drag_coefficient(mach: float, cd_subsonic: float = 0.20) -> float:
+    """
+    Mach-dependent aerodynamic drag coefficient C_d(M).
+    Models subsonic drag, steep transonic wave drag peak around Mach 1.05 - 1.2,
+    supersonic wave decay (1/sqrt(M^2 - 1)), and hypersonic modified Newtonian asymptote.
+    """
+    m = max(0.0, mach)
+    if m <= 0.8:
+        # Subsonic laminar / turbulent drag
+        return cd_subsonic
+    elif m <= 1.2:
+        # Transonic drag rise (wave drag divergence)
+        tau = (m - 0.8) / 0.4
+        transonic_multiplier = 1.0 + 1.8 * (math.sin(0.5 * math.pi * tau)**2)
+        return cd_subsonic * transonic_multiplier
+    elif m <= 5.0:
+        # Supersonic decay of wave drag
+        decay = 1.0 + 1.8 * math.sqrt(1.2**2 - 1.0) / math.sqrt(m**2 - 1.0 + 0.05)
+        return cd_subsonic * decay
+    else:
+        # Hypersonic modified Newtonian flow asymptotic level
+        return cd_subsonic * 1.35
+
+
+def aerodynamic_drag_force(
+    velocity_ms: float, altitude_m: float,
+    area_m2: float, cd_subsonic: float = 0.20
+) -> float:
+    """
+    Compute total aerodynamic drag force F_d (Newtons):
+      F_d = 0.5 * rho(z) * v^2 * C_d(M) * A
+    """
+    rho = atmospheric_density(altitude_m)
+    mach = mach_number(velocity_ms, altitude_m)
+    cd = drag_coefficient(mach, cd_subsonic)
+    return 0.5 * rho * (velocity_ms**2) * cd * area_m2
+
+
+# ==============================================================================
+# 6. 3-DOF RK4 NUMERICAL INTEGRATION & TRAJECTORY SIMULATOR
+# ==============================================================================
