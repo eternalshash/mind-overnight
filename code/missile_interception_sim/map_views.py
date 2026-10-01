@@ -40,6 +40,7 @@ Components included:
 """
 
 import math
+import os
 import urllib.parse
 from typing import Dict, List, Optional, Tuple, Any
 
@@ -53,8 +54,29 @@ import dash_leaflet as dl
 # 1. TACTICAL TILE LAYERS & STYLING CONSTANTS
 # ==============================================================================
 
+def _get_carto_api_key() -> str:
+    """Safely load CARTO API key from environment variable or git-ignored .env file."""
+    key = os.environ.get("CARTO_API_KEY", "").strip()
+    if not key:
+        env_file = os.path.join(os.path.dirname(__file__), ".env")
+        if os.path.exists(env_file):
+            try:
+                with open(env_file) as f:
+                    for line in f:
+                        line = line.strip()
+                        if line.startswith("CARTO_API_KEY="):
+                            key = line.split("=", 1)[1].strip().strip('"').strip("'")
+                            break
+            except Exception:
+                pass
+    return key
+
+
+_carto_key = _get_carto_api_key()
+_carto_param = f"?key={_carto_key}" if _carto_key else ""
+
 TILE_CARTO_DARK_MATTER = {
-    "url": "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    "url": f"https://{{s}}.basemaps.cartocdn.com/rastertiles/dark_all/{{z}}/{{x}}/{{y}}{{r}}.png{_carto_param}" if _carto_key else "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
     "attribution": '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
     "subdomains": ["a", "b", "c", "d"],
     "maxZoom": 19
@@ -183,6 +205,34 @@ _SVG_LEAKER_IMPACT = """
 </svg>
 """
 LEAKER_IMPACT_ICON_URI = _encode_svg_uri(_SVG_LEAKER_IMPACT)
+
+# Defending Interceptor Missile Icon: Cyan supersonic dart with flame tail
+_SVG_INTERCEPTOR_MISSILE = """
+<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28">
+  <defs>
+    <filter id="glow-cyan" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="0" stdDeviation="2.5" flood-color="#00f0ff" flood-opacity="1"/>
+    </filter>
+  </defs>
+  <polygon points="14,2 20,20 14,16 8,20" fill="#00f0ff" stroke="#ffffff" stroke-width="1.8" filter="url(#glow-cyan)"/>
+  <polygon points="14,16 17,26 14,22 11,26" fill="#ffaa00"/>
+  <circle cx="14" cy="12" r="2.5" fill="#ffffff"/>
+</svg>
+"""
+INTERCEPTOR_MISSILE_ICON_URI = _encode_svg_uri(_SVG_INTERCEPTOR_MISSILE)
+
+# Launch Flash Flare Icon: Radial explosive burst
+_SVG_LAUNCH_FLASH = """
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <circle cx="16" cy="16" r="14" fill="#ffb700" opacity="0.35"/>
+  <circle cx="16" cy="16" r="8" fill="#ff4400" opacity="0.75"/>
+  <circle cx="16" cy="16" r="4" fill="#ffffff"/>
+  <line x1="16" y1="2" x2="16" y2="30" stroke="#ffea00" stroke-width="2"/>
+  <line x1="2" y1="16" x2="30" y2="16" stroke="#ffea00" stroke-width="2"/>
+</svg>
+"""
+LAUNCH_FLASH_ICON_URI = _encode_svg_uri(_SVG_LAUNCH_FLASH)
+
 
 
 # ==============================================================================
@@ -1254,22 +1304,65 @@ def build_tactical_leaflet_map(
                 int_alt = threat.get("intercept_alt_km", 25.0)
                 p_kill = threat.get("p_kill", 0.96) * 100.0
 
-                # Interceptor Vector from Battery to Intercept Point
+                # Interceptor Vector from Battery to Intercept Point & Live Interceptor Missile
                 if show_interceptors and bat:
-                    int_track = [[bat["lat"], bat["lon"]], [int_lat, int_lon]]
-                    children.append(
-                        dl.Polyline(
-                            id={"type": "interceptor-vector", "id": f"{t_id}-int-vector"},
-                            positions=int_track,
-                            color="#00e5ff",
-                            weight=2.4,
-                            dashArray="4, 4",
-                            opacity=0.85,
-                            children=[
-                                dl.Tooltip(f"Interceptor Vector: {bat['name']} -> Kinetic Intercept Point")
-                            ]
+                    if progress < int_frac:
+                        int_u = max(0.0, min(1.0, (progress - 0.15) / max(0.01, (int_frac - 0.15)))) if progress >= 0.15 else 0.0
+                        if int_u > 0.0:
+                            cur_int_lat, cur_int_lon = great_circle_intermediate_point(bat["lat"], bat["lon"], int_lat, int_lon, int_u)
+                            children.append(
+                                dl.Polyline(
+                                    id={"type": "interceptor-vector", "id": f"{t_id}-int-vector"},
+                                    positions=[[bat["lat"], bat["lon"]], [cur_int_lat, cur_int_lon]],
+                                    color="#00f0ff",
+                                    weight=3.2,
+                                    opacity=0.95,
+                                    children=[
+                                        dl.Tooltip(f"Interceptor Vector: {bat['name']} -> Ascending at Mach 4.5")
+                                    ]
+                                )
+                            )
+                            children.append(
+                                dl.Marker(
+                                    id={"type": "interceptor-active-marker", "id": f"{t_id}-int-marker"},
+                                    position=[cur_int_lat, cur_int_lon],
+                                    icon=dict(
+                                        iconUrl=INTERCEPTOR_MISSILE_ICON_URI,
+                                        iconSize=[28, 28],
+                                        iconAnchor=[14, 14]
+                                    ),
+                                    children=[
+                                        dl.Tooltip(f"⚡ {bat['name']} Interceptor (PAC-3 MSE) | Mach 4.5 | Climbing to Intercept | TPN Locked")
+                                    ]
+                                )
+                            )
+                        else:
+                            # Pre-launch standby vector
+                            children.append(
+                                dl.Polyline(
+                                    id={"type": "interceptor-vector", "id": f"{t_id}-int-vector"},
+                                    positions=[[bat["lat"], bat["lon"]], [int_lat, int_lon]],
+                                    color="#00f0ff",
+                                    weight=1.5,
+                                    dashArray="4, 4",
+                                    opacity=0.45
+                                )
+                            )
+                    else:
+                        int_track = [[bat["lat"], bat["lon"]], [int_lat, int_lon]]
+                        children.append(
+                            dl.Polyline(
+                                id={"type": "interceptor-vector", "id": f"{t_id}-int-vector"},
+                                positions=int_track,
+                                color="#00e5ff",
+                                weight=2.4,
+                                dashArray="4, 4",
+                                opacity=0.85,
+                                children=[
+                                    dl.Tooltip(f"Interceptor Vector: {bat['name']} -> Kinetic Intercept Point")
+                                ]
+                            )
                         )
-                    )
 
                 burst_tooltip = f"💥 KINETIC INTERCEPT CONFIRMED | CPA: {cpa_m:.2f} m | Alt: {int_alt:.1f} km | P_kill: {p_kill:.1f}%"
                 burst_popup = html.Div([

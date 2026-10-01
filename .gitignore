@@ -16,3 +16,10 @@ ece449/q3
 ece449/q4
 ece449/q5
 ece449/project2/easynn_test
+
+# Secrets and API Keys
+.env
+*.env
+*.key
+config_keys.py
+

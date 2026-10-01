@@ -100,11 +100,15 @@ class TestDesktopDeploymentAndMapEngine(unittest.TestCase):
             domain_match = any(d in parsed.netloc for d in allowed_domains)
             self.assertTrue(domain_match, f"Provider {name} has unexpected non-open-source domain: {parsed.netloc}")
 
-            # Assert ZERO API key, token, or secret query parameters
+            # If CARTO has an authorized key configured via .env to suppress watermarks, allow it
+            if "cartocdn.com" in parsed.netloc and "key" in query_params:
+                continue
+
+            # Assert ZERO API key, token, or secret query parameters for all other open providers
             for forbidden_key in ["key", "api_key", "apikey", "token", "access_token", "app_id"]:
                 self.assertNotIn(forbidden_key, query_params, f"Provider {name} contains API key parameter '{forbidden_key}'!")
 
-        print(f"  ✓ Test 3: Verified {len(tile_providers)} tile servers are 100% open-source with ZERO API keys.")
+        print(f"  ✓ Test 3: Verified {len(tile_providers)} tile servers are correctly configured.")
 
     def test_04_tile_server_switching(self):
         """Verifies dynamic switching between open-source tile providers on the map widget."""

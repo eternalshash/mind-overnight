@@ -14,8 +14,11 @@ Verifies:
 ================================================================================
 """
 
-import math
 import os
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("NUMBA_THREADING_LAYER", "workqueue")
+os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
+import math
 import sys
 import time
 import numpy as np

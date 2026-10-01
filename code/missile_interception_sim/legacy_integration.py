@@ -25,9 +25,13 @@ Unifies core algorithms, datasets, and machine learning models from legacy sim p
 
 from __future__ import annotations
 
+import os
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("NUMBA_THREADING_LAYER", "workqueue")
+os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
+
 import argparse
 import math
-import os
 import sys
 import time
 from dataclasses import dataclass, field

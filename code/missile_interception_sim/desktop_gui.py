@@ -75,9 +75,30 @@ except ImportError:
 # 1. OPEN-SOURCE ZERO-API-KEY TILE SERVERS
 # ==============================================================================
 
+def _get_carto_api_key() -> str:
+    """Safely load CARTO API key from environment variable or git-ignored .env file."""
+    key = os.environ.get("CARTO_API_KEY", "").strip()
+    if not key:
+        env_file = os.path.join(os.path.dirname(__file__), ".env")
+        if os.path.exists(env_file):
+            try:
+                with open(env_file) as f:
+                    for line in f:
+                        line = line.strip()
+                        if line.startswith("CARTO_API_KEY="):
+                            key = line.split("=", 1)[1].strip().strip('"').strip("'")
+                            break
+            except Exception:
+                pass
+    return key
+
+
+_carto_key = _get_carto_api_key()
+_carto_param = f"?key={_carto_key}" if _carto_key else ""
+
 OPEN_SOURCE_TILE_SERVERS = {
     "CartoDB Dark Matter (Tactical)": {
-        "url": "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+        "url": f"https://a.basemaps.cartocdn.com/rastertiles/dark_all/{{z}}/{{x}}/{{y}}.png{_carto_param}" if _carto_key else "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
         "tile_size": 256,
         "max_zoom": 19,
         "attribution": "CARTO / OpenStreetMap",
@@ -333,6 +354,7 @@ class TacticalDesktopApp:
         self.map_threat_markers: Dict[str, Any] = {}
         self.map_trajectory_paths: Dict[str, Any] = {}
         self.map_interceptor_paths: Dict[str, Any] = {}
+        self.map_interceptor_markers: Dict[str, Any] = {}
         self.map_wez_polygons: Dict[str, Any] = {}
         self.map_detonation_markers: Dict[str, Any] = {}
         self.map_stealth_path: Optional[Any] = None
@@ -835,6 +857,7 @@ class TacticalDesktopApp:
         self.map_threat_markers.clear()
         self.map_trajectory_paths.clear()
         self.map_interceptor_paths.clear()
+        self.map_interceptor_markers.clear()
         self.map_wez_polygons.clear()
         self.map_detonation_markers.clear()
         self.map_stealth_path = None
@@ -1172,7 +1195,7 @@ class TacticalDesktopApp:
 
             # Position marker for threat
             if status in ["IN FLIGHT", "STANDBY"]:
-                label = f"⚡ {trk_id}: M{mach:.1f} | {alt_km:.1f}km"
+                label = f"🚀 {trk_id}: M{mach:.1f} | {alt_km:.1f}km"
                 if trk_id not in self.map_threat_markers:
                     m = self.map_widget.set_marker(
                         lat, lon, text=label,
@@ -1185,11 +1208,42 @@ class TacticalDesktopApp:
                     self.map_threat_markers[trk_id].set_position(lat, lon)
                     self.map_threat_markers[trk_id].set_text(label)
 
+                # Defending interceptor active flight
+                progress = data.get("progress_pct", 0.0) / 100.0
+                if progress >= 0.15 and self.sim_engine.defender_batteries:
+                    bat = self.sim_engine.defender_batteries[0]
+                    target_dict = self.sim_engine.get_track_by_id(trk_id) or {}
+                    l_lat = target_dict.get("launch_lat", lat)
+                    l_lon = target_dict.get("launch_lon", lon)
+                    t_lat = target_dict.get("target_lat", lat)
+                    t_lon = target_dict.get("target_lon", lon)
+                    int_lat = (l_lat + t_lat) * 0.5
+                    int_lon = (l_lon + t_lon) * 0.5
+                    int_u = min(1.0, (progress - 0.15) / 0.50)
+                    cur_int_lat = bat["lat"] + (int_lat - bat["lat"]) * int_u
+                    cur_int_lon = bat["lon"] + (int_lon - bat["lon"]) * int_u
+                    int_label = f"⚡ INT: PAC-3 MSE (Mach 4.5)"
+
+                    if trk_id not in self.map_interceptor_markers:
+                        int_m = self.map_widget.set_marker(
+                            cur_int_lat, cur_int_lon, text=int_label,
+                            marker_color_circle="#00f0ff",
+                            marker_color_outside="#0284c7",
+                            text_color="#e0f2fe"
+                        )
+                        self.map_interceptor_markers[trk_id] = int_m
+                    else:
+                        self.map_interceptor_markers[trk_id].set_position(cur_int_lat, cur_int_lon)
+                        self.map_interceptor_markers[trk_id].set_text(int_label)
+
             elif status in ["INTERCEPTED", "DIRECT HIT"]:
-                # Intercepted! Spawn or position gold detonation starburst
+                # Intercepted! Clean up threat & interceptor, spawn gold detonation starburst
                 if trk_id in self.map_threat_markers:
                     self.map_threat_markers[trk_id].delete()
                     del self.map_threat_markers[trk_id]
+                if trk_id in self.map_interceptor_markers:
+                    self.map_interceptor_markers[trk_id].delete()
+                    del self.map_interceptor_markers[trk_id]
 
                 if trk_id not in self.map_detonation_markers:
                     m = self.map_widget.set_marker(
@@ -1206,6 +1260,9 @@ class TacticalDesktopApp:
                 if trk_id in self.map_threat_markers:
                     self.map_threat_markers[trk_id].delete()
                     del self.map_threat_markers[trk_id]
+                if trk_id in self.map_interceptor_markers:
+                    self.map_interceptor_markers[trk_id].delete()
+                    del self.map_interceptor_markers[trk_id]
 
                 if trk_id not in self.map_detonation_markers:
                     m = self.map_widget.set_marker(
