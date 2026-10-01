@@ -1086,3 +1086,334 @@ class IAMDFireControlSystem:
 # ==============================================================================
 
 @dataclass
+class DefenseScenario:
+    """Configures a complete theater defense simulation run."""
+    name: str
+    target_asset_pos: np.ndarray
+    batteries: List[DefenderBattery]
+    threats: List[Threat]
+    firing_doctrine: FiringDoctrine = FiringDoctrine.SHOOT_LOOK_SHOOT
+    auth_mode: FireAuthorizationMode = FireAuthorizationMode.AUTOMATIC
+    dt: float = 0.02
+    max_time: float = 120.0
+    seeker_noise_std: float = 0.0
+    wind_vector: Optional[np.ndarray] = None
+
+
+@dataclass
+class SimulationResult:
+    """Outcome metrics of a single simulation scenario."""
+    scenario_name: str
+    firing_doctrine: str
+    auth_mode: str
+    total_threats: int
+    threats_killed: int
+    pk: float
+    total_interceptors_fired: int
+    engagement_records: List[dict]
+    duration: float
+    all_threats_neutralized: bool
+
+
+def run_single_simulation(scenario: DefenseScenario, verbose: bool = False) -> SimulationResult:
+    """Executes a full time-stepped simulation of the given scenario."""
+    fcs = IAMDFireControlSystem(
+        batteries=scenario.batteries,
+        firing_doctrine=scenario.firing_doctrine,
+        auth_mode=scenario.auth_mode,
+        seeker_noise_std=scenario.seeker_noise_std,
+        wind_vector=scenario.wind_vector,
+    )
+
+    for threat in scenario.threats:
+        fcs.register_threat(threat)
+
+    t = 0.0
+    dt = scenario.dt
+    max_t = scenario.max_time
+    start_wall = time.time()
+
+    while t < max_t:
+        # Check termination: all threats dead or impacted
+        all_resolved = all(
+            (not th.is_alive) or th.is_intercepted
+            for th in scenario.threats
+        )
+        if all_resolved and len(fcs.active_interceptors) == 0:
+            break
+
+        # Step threats
+        for th in scenario.threats:
+            th.step(t, dt)
+
+        # Step Fire Control & Interceptors
+        fcs.step(t, dt)
+
+        t += dt
+
+    duration = time.time() - start_wall
+    total_th = len(scenario.threats)
+    killed = sum(1 for th in scenario.threats if th.is_intercepted)
+    pk = killed / max(total_th, 1)
+    total_fired = sum(b.missiles_fired for b in fcs.batteries.values())
+
+    if verbose:
+        print(f"[{scenario.name}] Pk: {pk:.1%} ({killed}/{total_th} killed) | Interceptors Fired: {total_fired}")
+
+    return SimulationResult(
+        scenario_name=scenario.name,
+        firing_doctrine=scenario.firing_doctrine.value,
+        auth_mode=scenario.auth_mode.value,
+        total_threats=total_th,
+        threats_killed=killed,
+        pk=pk,
+        total_interceptors_fired=total_fired,
+        engagement_records=fcs.engagement_records,
+        duration=duration,
+        all_threats_neutralized=(killed == total_th),
+    )
+
+
+@dataclass
+class MonteCarloSummary:
+    """Statistical summary across multiple Monte Carlo runs."""
+    num_runs: int
+    total_threats_simulated: int
+    overall_pk: float
+    pk_by_threat_type: Dict[str, float]
+    pk_by_tier: Dict[int, float]
+    mean_miss_distance: float
+    median_miss_distance: float
+    std_miss_distance: float
+    mean_intercept_time: float
+    mean_ammo_expended: float
+    df_runs: pd.DataFrame
+    df_engagements: pd.DataFrame
+
+
+def run_monte_carlo(
+    scenario_generator: Union[DefenseScenario, Callable[[int], DefenseScenario]],
+    num_runs: int = 100,
+    seed: int = 42,
+    verbose: bool = False,
+) -> MonteCarloSummary:
+    """
+    Executes a high-density Monte Carlo batch evaluation.
+
+    Randomizes:
+    - Threat launch heading variations (+/- 10 deg)
+    - Cruise speed perturbations (+/- 5%)
+    - Atmospheric wind vectors (Gaussian gusting)
+    - Seeker LOS angular rate estimation noise (0.1 - 0.4 mrad)
+    - Evasive maneuver start times and weaving phases
+
+    Returns:
+        MonteCarloSummary containing aggregate Pk, miss distance distributions,
+        and flight time statistics.
+    """
+    np.random.seed(seed)
+    run_records = []
+    all_engagements = []
+
+    for run_idx in range(num_runs):
+        # Generate or clone scenario with stochastic parameters
+        if callable(scenario_generator):
+            scenario = scenario_generator(run_idx)
+        else:
+            # Recreate fresh instance from base template
+            base = scenario_generator
+            # Randomized wind vector: ~N(0, 12 m/s) in x, y
+            wind = np.array([
+                np.random.normal(0.0, 10.0),
+                np.random.normal(0.0, 10.0),
+                np.random.normal(0.0, 2.0),
+            ])
+            # Randomized seeker noise: 0.15 - 0.35 mrad
+            seeker_noise = np.random.uniform(0.00015, 0.00035)
+
+            # Clone batteries
+            fresh_batteries = [
+                DefenderBattery(
+                    battery_id=b.battery_id,
+                    name=b.name,
+                    tier=b.tier,
+                    config=b.config,
+                    pos=b.pos.copy(),
+                    magazine_capacity=b.magazine_capacity,
+                    missiles_remaining=b.magazine_capacity,
+                )
+                for b in base.batteries
+            ]
+
+            # Clone and perturb threats
+            fresh_threats = []
+            for th in base.threats:
+                head_noise = float(np.random.uniform(-8.0, 8.0))
+                speed_scale = float(np.random.uniform(0.95, 1.05))
+                fresh_th = create_threat(
+                    threat_type=th.threat_type,
+                    threat_id=th.threat_id,
+                    launch_x=th.launch_pos[0],
+                    launch_y=th.launch_pos[1],
+                    launch_z=th.launch_pos[2],
+                    target_pos=base.target_asset_pos,
+                    launch_time=th.launch_time,
+                    heading_noise_deg=head_noise,
+                    speed_factor=speed_scale,
+                )
+                fresh_threats.append(fresh_th)
+
+            scenario = DefenseScenario(
+                name=f"{base.name}_run_{run_idx+1}",
+                target_asset_pos=base.target_asset_pos.copy(),
+                batteries=fresh_batteries,
+                threats=fresh_threats,
+                firing_doctrine=base.firing_doctrine,
+                auth_mode=base.auth_mode,
+                dt=base.dt,
+                max_time=base.max_time,
+                seeker_noise_std=seeker_noise,
+                wind_vector=wind,
+            )
+
+        sim_res = run_single_simulation(scenario, verbose=False)
+
+        run_records.append({
+            "run_id": run_idx + 1,
+            "pk": sim_res.pk,
+            "threats_killed": sim_res.threats_killed,
+            "total_threats": sim_res.total_threats,
+            "ammo_fired": sim_res.total_interceptors_fired,
+            "duration_s": sim_res.duration,
+        })
+
+        for eng in sim_res.engagement_records:
+            eng_copy = dict(eng)
+            eng_copy["run_id"] = run_idx + 1
+            all_engagements.append(eng_copy)
+
+        if verbose and (run_idx + 1) % 20 == 0:
+            print(f"Monte Carlo: Completed {run_idx+1}/{num_runs} runs...")
+
+    df_runs = pd.DataFrame(run_records)
+    df_engagements = pd.DataFrame(all_engagements)
+
+    # Calculate statistics
+    total_threats = int(df_runs["total_threats"].sum())
+    total_kills = int(df_runs["threats_killed"].sum())
+    overall_pk = total_kills / max(total_threats, 1)
+
+    pk_by_type = {}
+    if not df_engagements.empty and "threat_type" in df_engagements.columns:
+        for t_type, grp in df_engagements.groupby("threat_type"):
+            pk_by_type[t_type] = float(grp["kill"].mean())
+
+    pk_by_tier = {}
+    if not df_engagements.empty and "tier" in df_engagements.columns:
+        for tier_val, grp in df_engagements.groupby("tier"):
+            pk_by_tier[tier_val] = float(grp["kill"].mean())
+
+    miss_dists = df_engagements["miss_distance"].dropna() if not df_engagements.empty else pd.Series([0.0])
+    intercept_times = df_engagements["intercept_time"].dropna() if not df_engagements.empty else pd.Series([0.0])
+
+    return MonteCarloSummary(
+        num_runs=num_runs,
+        total_threats_simulated=total_threats,
+        overall_pk=overall_pk,
+        pk_by_threat_type=pk_by_type,
+        pk_by_tier=pk_by_tier,
+        mean_miss_distance=float(miss_dists.mean()),
+        median_miss_distance=float(miss_dists.median()),
+        std_miss_distance=float(miss_dists.std()),
+        mean_intercept_time=float(intercept_times.mean()),
+        mean_ammo_expended=float(df_runs["ammo_fired"].mean()),
+        df_runs=df_runs,
+        df_engagements=df_engagements,
+    )
+
+
+# ==============================================================================
+# 9. LEGACY INTEGRATION HOOKS
+# ==============================================================================
+def create_legacy_defense_scenario(
+    target_hva_id: int = 1,
+    firing_doctrine: FiringDoctrine = FiringDoctrine.SHOOT_LOOK_SHOOT,
+    auth_mode: FireAuthorizationMode = FireAuthorizationMode.AUTOMATIC,
+) -> DefenseScenario:
+    """
+    Constructs a 3D DefenseScenario configured with the legacy 10 Defender Batteries
+    and defended High-Value Assets from legacy_integration.py.
+
+    Args:
+        target_hva_id: ID of the primary defended HVA (1 to 10).
+        firing_doctrine: SHOOT_LOOK_SHOOT or SALVO_OF_2.
+        auth_mode: AUTOMATIC (Weapons Free) or MANUAL.
+
+    Returns:
+        DefenseScenario ready for simulation.
+    """
+    from legacy_integration import get_legacy_theater_setup
+
+    setup = get_legacy_theater_setup()
+    hvas = setup["hvas"]
+    def_sites = setup["defender_sites"]
+
+    # Target asset position
+    selected_hva = next((h for h in hvas if h["hva_id"] == target_hva_id), hvas[0])
+    target_pos = selected_hva["pos"].copy()
+
+    # Create 10 Defender Batteries with standard PAC-3 / SM-3 configurations
+    batteries = []
+    for i, site in enumerate(def_sites):
+        # Configure tier based on position
+        if site[1] > 40e3:
+            tier = DefenseTier.TIER_1_EXO
+            cfg = DEFAULT_INTERCEPTOR_CONFIGS[InterceptorType.SM3_BLOCK_IIA]
+        elif site[1] < -40e3:
+            tier = DefenseTier.TIER_3_SHORAD
+            cfg = DEFAULT_INTERCEPTOR_CONFIGS[InterceptorType.ROADRUNNER_M]
+        else:
+            tier = DefenseTier.TIER_2_ENDO
+            cfg = DEFAULT_INTERCEPTOR_CONFIGS[InterceptorType.PAC3_MSE]
+
+        bat = DefenderBattery(
+            battery_id=f"D{i}",
+            name=f"Legacy Battery D{i}",
+            tier=tier,
+            config=cfg,
+            pos=site.copy(),
+            magazine_capacity=120,
+            missiles_remaining=120,
+        )
+        batteries.append(bat)
+
+    return DefenseScenario(
+        name=f"Legacy_Theater_HVA_{selected_hva['hva_id']}_{selected_hva['name']}",
+        target_asset_pos=target_pos,
+        batteries=batteries,
+        threats=[],
+        firing_doctrine=firing_doctrine,
+        auth_mode=auth_mode,
+        dt=0.05,
+        max_time=180.0,
+    )
+
+
+def run_legacy_monte_carlo(
+    n_runs: int = 1000,
+    mode: str = "comparative",
+) -> Any:
+    """
+    Convenience interface delegating directly to the Numba JIT accelerated
+    Monte Carlo engine in legacy_integration.py.
+
+    Args:
+        n_runs: Number of threat engagements to simulate (1,000 to 100,000).
+        mode: 'theater', 'turret', or 'comparative'.
+
+    Returns:
+        NumbaSimulationResult object.
+    """
+    from legacy_integration import run_numba_monte_carlo
+    return run_numba_monte_carlo(n_runs=n_runs, mode=mode)
+
