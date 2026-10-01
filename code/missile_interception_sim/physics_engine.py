@@ -508,3 +508,163 @@ def aerodynamic_drag_force(
 # ==============================================================================
 # 6. 3-DOF RK4 NUMERICAL INTEGRATION & TRAJECTORY SIMULATOR
 # ==============================================================================
+class Trajectory:
+    """
+    Encapsulates the simulated 3-DoF trajectory, providing full telemetry lookup
+    at any arbitrary continuous time or discrete timestep index.
+    """
+    def __init__(self, profile: ThreatProfile, telemetry_history: List[Telemetry]):
+        self.profile = profile
+        self.telemetry_history = telemetry_history
+        self._timestamps = np.array([t.timestamp for t in telemetry_history])
+        self._dataframe: Optional[pd.DataFrame] = None
+
+    def __len__(self) -> int:
+        return len(self.telemetry_history)
+
+    @property
+    def total_flight_time_s(self) -> float:
+        return self._timestamps[-1] if len(self._timestamps) > 0 else 0.0
+
+    @property
+    def apogee_m(self) -> float:
+        return max(t.altitude for t in self.telemetry_history)
+
+    @property
+    def max_velocity_ms(self) -> float:
+        return max(t.velocity_ms for t in self.telemetry_history)
+
+    @property
+    def max_mach(self) -> float:
+        return max(t.mach for t in self.telemetry_history)
+
+    @property
+    def impact_distance_m(self) -> float:
+        return self.telemetry_history[-1].distance_to_target_m
+
+    @property
+    def phases_traversed(self) -> List[FlightPhase]:
+        seen = []
+        for t in self.telemetry_history:
+            if t.phase not in seen:
+                seen.append(t.phase)
+        return seen
+
+    def get_telemetry_at_index(self, index: int) -> Telemetry:
+        """Retrieve telemetry record at specific discrete timestep index."""
+        idx = max(0, min(len(self.telemetry_history) - 1, index))
+        return self.telemetry_history[idx]
+
+    def get_telemetry_at_time(self, time_s: float) -> Telemetry:
+        """
+        Interpolate and retrieve exact telemetry at any continuous timestamp t.
+        Uses high-order spherical and linear interpolation across the trajectory.
+        """
+        if len(self.telemetry_history) == 0:
+            raise ValueError("Trajectory has no telemetry records.")
+        if time_s <= self._timestamps[0]:
+            return self.telemetry_history[0]
+        if time_s >= self._timestamps[-1]:
+            return self.telemetry_history[-1]
+
+        # Binary search for interval
+        idx = int(np.searchsorted(self._timestamps, time_s))
+        i0 = max(0, idx - 1)
+        i1 = idx
+        t0, t1 = self._timestamps[i0], self._timestamps[i1]
+        dt = t1 - t0
+        alpha = 0.0 if math.isclose(dt, 0.0) else (time_s - t0) / dt
+
+        m0 = self.telemetry_history[i0]
+        m1 = self.telemetry_history[i1]
+
+        # Great-circle interpolation for coordinates
+        interp_lat, interp_lon = great_circle_waypoint(m0.lat, m0.lon, m1.lat, m1.lon, alpha)
+        interp_alt = (1.0 - alpha) * m0.altitude + alpha * m1.altitude
+        interp_v = (1.0 - alpha) * m0.velocity_ms + alpha * m1.velocity_ms
+        interp_mach = (1.0 - alpha) * m0.mach + alpha * m1.mach
+        interp_downrange = (1.0 - alpha) * m0.downrange_distance_m + alpha * m1.downrange_distance_m
+        interp_dist_tgt = (1.0 - alpha) * m0.distance_to_target_m + alpha * m1.distance_to_target_m
+        interp_prog = (1.0 - alpha) * m0.progress_percent + alpha * m1.progress_percent
+        interp_time_rem = max(0.0, (1.0 - alpha) * m0.time_remaining_s + alpha * m1.time_remaining_s)
+        phase = m1.phase if alpha >= 0.5 else m0.phase
+
+        x, y, z = geodetic_to_ecef(interp_lat, interp_lon, interp_alt)
+        return Telemetry(
+            timestamp=time_s,
+            lat=interp_lat,
+            lon=interp_lon,
+            altitude=interp_alt,
+            mach=interp_mach,
+            velocity_ms=interp_v,
+            velocity_kmh=interp_v * 3.6,
+            phase=phase,
+            downrange_distance_m=interp_downrange,
+            distance_to_target_m=interp_dist_tgt,
+            etof_s=m0.etof_s,
+            time_remaining_s=interp_time_rem,
+            progress_percent=interp_prog,
+            x_ecef=x, y_ecef=y, z_ecef=z,
+            heading_deg=(1.0 - alpha) * m0.heading_deg + alpha * m1.heading_deg,
+            flight_path_angle_deg=(1.0 - alpha) * m0.flight_path_angle_deg + alpha * m1.flight_path_angle_deg,
+            crossrange_m=(1.0 - alpha) * m0.crossrange_m + alpha * m1.crossrange_m,
+            dynamic_pressure_pa=(1.0 - alpha) * m0.dynamic_pressure_pa + alpha * m1.dynamic_pressure_pa,
+            drag_force_n=(1.0 - alpha) * m0.drag_force_n + alpha * m1.drag_force_n
+        )
+
+    def to_dataframe(self) -> pd.DataFrame:
+        """Convert trajectory telemetry history into a Pandas DataFrame."""
+        if self._dataframe is None:
+            self._dataframe = pd.DataFrame([t.to_dict() for t in self.telemetry_history])
+        return self._dataframe
+
+
+def rk4_step(f, t: float, y: np.ndarray, dt: float) -> np.ndarray:
+    """
+    Standard classical Runge-Kutta 4th Order numerical integrator step:
+      k1 = f(t, y)
+      k2 = f(t + dt/2, y + dt/2 * k1)
+      k3 = f(t + dt/2, y + dt/2 * k2)
+      k4 = f(t + dt, y + dt * k3)
+      y_{n+1} = y_n + dt/6 * (k1 + 2*k2 + 2*k3 + k4)
+    """
+    k1 = f(t, y)
+    k2 = f(t + 0.5 * dt, y + 0.5 * dt * k1)
+    k3 = f(t + 0.5 * dt, y + 0.5 * dt * k2)
+    k4 = f(t + dt, y + dt * k3)
+    return y + (dt / 6.0) * (k1 + 2.0 * k2 + 2.0 * k3 + k4)
+
+
+def simulate_trajectory(profile: ThreatProfile, dt: float = 1.0) -> Trajectory:
+    """
+    Simulate full 3-DoF trajectory using Runge-Kutta 4th Order numerical integration
+    for any of the 4 offensive threat classes:
+      - Ballistic: suborbital boost, Keplerian coast (z > 100km ICBM, 30-50km SRBM), reentry
+      - Hypersonic: boost, depressed glide (25-40km) with skipping and periodic lateral weave
+      - Cruise Missile: low-altitude contour (50-300m AGL) at constant Mach
+      - Drone / Loitering Munition: subsonic cruise (100-1000m AGL) with circular loitering
+    """
+    total_range_m = great_circle_distance(
+        profile.launch_lat, profile.launch_lon,
+        profile.target_lat, profile.target_lon
+    )
+    init_bearing = initial_bearing(
+        profile.launch_lat, profile.launch_lon,
+        profile.target_lat, profile.target_lon
+    )
+
+    if profile.threat_class == ThreatClass.BALLISTIC:
+        return _simulate_ballistic(profile, total_range_m, init_bearing, dt)
+    elif profile.threat_class == ThreatClass.HYPERSONIC:
+        return _simulate_hypersonic(profile, total_range_m, init_bearing, dt)
+    elif profile.threat_class == ThreatClass.CRUISE:
+        return _simulate_cruise(profile, total_range_m, init_bearing, dt)
+    elif profile.threat_class == ThreatClass.DRONE:
+        return _simulate_drone(profile, total_range_m, init_bearing, dt)
+    else:
+        raise ValueError(f"Unknown threat class: {profile.threat_class}")
+
+
+# ==============================================================================
+# 7. INTERNAL SIMULATOR IMPLEMENTATIONS FOR EACH THREAT CLASS
+# ==============================================================================
