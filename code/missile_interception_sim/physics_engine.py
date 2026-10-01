@@ -1037,3 +1037,309 @@ def _simulate_hypersonic(
 
     return Trajectory(profile, telemetry_list)
 
+
+def _simulate_cruise(
+    profile: ThreatProfile, total_range_m: float, init_bearing: float, dt: float
+) -> Trajectory:
+    """
+    Subsonic Cruise Missile (Tomahawk / TLAM):
+      1. BOOST: Short solid rocket booster phase to achieve cruise airspeed.
+      2. MIDCOURSE: Low-altitude contour / sea-skimming flight (50-300 m AGL) at constant Mach.
+      3. TERMINAL: Terminal pop-up / dive onto target coordinates.
+    """
+    t_boost = profile.boost_duration_s
+    cruise_alt = profile.cruise_altitude_m if profile.cruise_altitude_m is not None else 100.0
+    cruise_mach = profile.cruise_mach if profile.cruise_mach is not None else 0.74
+    cruise_speed = cruise_mach * speed_of_sound(cruise_alt)  # ~250 m/s
+
+    s_boost = 0.5 * (cruise_speed / t_boost) * (t_boost**2)
+    s_terminal_start = total_range_m - 8000.0
+    t_cruise_est = (s_terminal_start - s_boost) / cruise_speed
+    t_terminal_est = 8000.0 / (0.8 * cruise_speed)
+    total_etof = t_boost + t_cruise_est + t_terminal_est
+
+    # State: [s, z, vs, vz]
+    state = np.array([0.0, profile.launch_alt, 0.0, 0.0], dtype=np.float64)
+    t = 0.0
+    telemetry_list: List[Telemetry] = []
+
+    def derivatives(t_curr: float, st: np.ndarray, phase: FlightPhase) -> np.ndarray:
+        s, z, vs, vz = st
+        v = math.sqrt(vs**2 + vz**2)
+        gz = gravity(z)
+
+        rho = atmospheric_density(z)
+        mach = mach_number(v, z)
+        cd = drag_coefficient(mach, profile.cd_subsonic)
+        f_drag = 0.5 * rho * (v**2) * cd * profile.reference_area_m2
+        a_drag_s = -(f_drag / profile.mass_kg) * (vs / max(1e-4, v))
+        a_drag_z = -(f_drag / profile.mass_kg) * (vz / max(1e-4, v))
+
+        if phase == FlightPhase.BOOST:
+            a_boost_s = (cruise_speed / t_boost)
+            target_z = cruise_alt * (t_curr / t_boost)
+            az_ctrl = 0.5 * (target_z - z) - 0.8 * vz
+            return np.array([vs, vz, a_boost_s + a_drag_s, az_ctrl - gz + a_drag_z])
+
+        elif phase == FlightPhase.MIDCOURSE:
+            # Cruise thrust precisely balances drag to maintain constant Mach
+            thrust_accel = f_drag / profile.mass_kg
+            # Aerodynamic lift balances gravity and stabilizes cruise altitude
+            az_ctrl = gz - a_drag_z + 0.4 * (cruise_alt - z) - 0.8 * vz
+            as_ctrl = thrust_accel + a_drag_s + 0.2 * (cruise_speed - vs)
+            return np.array([vs, vz, as_ctrl, az_ctrl - gz + a_drag_z])
+
+        else: # TERMINAL
+            target_vz = -max(50.0, vs * 0.4)
+            az_ctrl = 0.5 * (target_vz - vz)
+            return np.array([vs, vz, a_drag_s, az_ctrl - gz + a_drag_z])
+
+    step_count = 0
+    while step_count < 25000:
+        s, z, vs, vz = state
+        v = math.sqrt(vs**2 + vz**2)
+        mach = mach_number(v, z)
+
+        if t < t_boost:
+            current_phase = FlightPhase.BOOST
+        elif s < s_terminal_start:
+            current_phase = FlightPhase.MIDCOURSE
+        else:
+            current_phase = FlightPhase.TERMINAL
+
+        frac = min(1.0, max(0.0, s / total_range_m))
+        cur_lat, cur_lon = great_circle_waypoint(
+            profile.launch_lat, profile.launch_lon,
+            profile.target_lat, profile.target_lon,
+            frac
+        )
+        dist_to_target = great_circle_distance(
+            cur_lat, cur_lon,
+            profile.target_lat, profile.target_lon
+        )
+        progress = min(100.0, max(0.0, (t / max(1.0, total_etof)) * 100.0))
+        time_remaining = max(0.0, total_etof - t)
+
+        rho = atmospheric_density(z)
+        q = 0.5 * rho * (v**2)
+        cd = drag_coefficient(mach, profile.cd_subsonic)
+        f_drag = q * cd * profile.reference_area_m2
+        x, y, z_ecef = geodetic_to_ecef(cur_lat, cur_lon, z)
+
+        gamma_deg = math.degrees(math.atan2(vz, max(1e-4, vs)))
+
+        telemetry_list.append(Telemetry(
+            timestamp=t,
+            lat=cur_lat,
+            lon=cur_lon,
+            altitude=z,
+            mach=mach,
+            velocity_ms=v,
+            velocity_kmh=v * 3.6,
+            phase=current_phase,
+            downrange_distance_m=s,
+            distance_to_target_m=dist_to_target,
+            etof_s=total_etof,
+            time_remaining_s=time_remaining,
+            progress_percent=progress,
+            x_ecef=x, y_ecef=y, z_ecef=z_ecef,
+            heading_deg=init_bearing,
+            flight_path_angle_deg=gamma_deg,
+            crossrange_m=0.0,
+            dynamic_pressure_pa=q,
+            drag_force_n=f_drag
+        ))
+
+        if current_phase == FlightPhase.TERMINAL and (z <= 0.0 or dist_to_target < 500.0):
+            break
+
+        f_deriv = lambda _t, _st: derivatives(_t, _st, current_phase)
+        state = rk4_step(f_deriv, t, state, dt)
+        t += dt
+        step_count += 1
+
+    last = telemetry_list[-1]
+    last.altitude = 0.0
+    last.progress_percent = 100.0
+    last.time_remaining_s = 0.0
+    last.distance_to_target_m = 0.0
+    last.lat = profile.target_lat
+    last.lon = profile.target_lon
+    last.etof_s = t
+
+    for tel in telemetry_list:
+        tel.etof_s = t
+        tel.time_remaining_s = max(0.0, t - tel.timestamp)
+        tel.progress_percent = min(100.0, (tel.timestamp / t) * 100.0)
+
+    return Trajectory(profile, telemetry_list)
+
+
+def _simulate_drone(
+    profile: ThreatProfile, total_range_m: float, init_bearing: float, dt: float
+) -> Trajectory:
+    """
+    Subsonic Loitering Munition / Drone (Anduril ALTIUS / Barracuda):
+      1. BOOST: Short launch / motor spinup.
+      2. MIDCOURSE: Low-altitude subsonic cruise (100-1000 m AGL) along great circle.
+      3. LOITER: Circular orbit around target coordinates at specified radius and duration.
+      4. TERMINAL: Terminal attack dive into target center.
+    """
+    t_boost = profile.boost_duration_s
+    cruise_alt = profile.cruise_altitude_m if profile.cruise_altitude_m is not None else profile.loiter_altitude_m
+    cruise_mach = profile.cruise_mach if profile.cruise_mach is not None else 0.28
+    cruise_speed = cruise_mach * speed_of_sound(cruise_alt)  # ~90 - 100 m/s
+
+    loiter_radius = profile.loiter_radius_m
+    loiter_duration = profile.loiter_duration_s if profile.has_loiter else 0.0
+
+    s_cruise_end = max(0.0, total_range_m - loiter_radius)
+    t_cruise_est = (s_cruise_end) / cruise_speed
+    t_terminal_est = loiter_radius / (cruise_speed * 0.8)
+    total_etof = t_boost + t_cruise_est + loiter_duration + t_terminal_est
+
+    state = np.array([0.0, cruise_alt, cruise_speed, 0.0], dtype=np.float64)
+    t = 0.0
+    t_loiter_start: Optional[float] = None
+    telemetry_list: List[Telemetry] = []
+
+    step_count = 0
+    while step_count < 25000:
+        s, z, vs, vz = state
+        v = math.sqrt(vs**2 + vz**2)
+        mach = mach_number(v, z)
+
+        # Determine phase
+        if t < t_boost:
+            current_phase = FlightPhase.BOOST
+        elif profile.has_loiter and s >= s_cruise_end and (t_loiter_start is None or (t - t_loiter_start) < loiter_duration):
+            if t_loiter_start is None:
+                t_loiter_start = t
+            current_phase = FlightPhase.LOITER
+        elif profile.has_loiter and t_loiter_start is not None and (t - t_loiter_start) >= loiter_duration:
+            current_phase = FlightPhase.TERMINAL
+        elif not profile.has_loiter and s >= (total_range_m - 3000.0):
+            current_phase = FlightPhase.TERMINAL
+        else:
+            current_phase = FlightPhase.MIDCOURSE
+
+        # Coordinates computation
+        if current_phase == FlightPhase.LOITER:
+            # Circular orbit around target coordinates
+            elapsed_loiter = t - t_loiter_start
+            omega_loiter = cruise_speed / loiter_radius
+            current_angle = omega_loiter * elapsed_loiter
+            # ENU displacement relative to target
+            e_offset = loiter_radius * math.cos(current_angle)
+            n_offset = loiter_radius * math.sin(current_angle)
+            cur_lat, cur_lon, _ = enu_to_geodetic(
+                e_offset, n_offset, z,
+                profile.target_lat, profile.target_lon, profile.target_alt
+            )
+            dist_to_target = loiter_radius
+            heading = (math.degrees(current_angle + 0.5 * math.pi) + 360.0) % 360.0
+            crossrange = loiter_radius
+        elif current_phase == FlightPhase.TERMINAL:
+            # Diving into target
+            rem_ratio = max(0.0, min(1.0, (z / max(10.0, cruise_alt))))
+            cur_dist = loiter_radius * rem_ratio
+            cur_lat, cur_lon = destination_point(
+                profile.target_lat, profile.target_lon,
+                (init_bearing + 180.0) % 360.0,
+                cur_dist
+            )
+            dist_to_target = cur_dist
+            heading = init_bearing
+            crossrange = 0.0
+        else: # BOOST or MIDCOURSE
+            frac = min(1.0, max(0.0, s / total_range_m))
+            cur_lat, cur_lon = great_circle_waypoint(
+                profile.launch_lat, profile.launch_lon,
+                profile.target_lat, profile.target_lon,
+                frac
+            )
+            dist_to_target = great_circle_distance(
+                cur_lat, cur_lon,
+                profile.target_lat, profile.target_lon
+            )
+            heading = init_bearing
+            crossrange = 0.0
+
+        progress = min(100.0, max(0.0, (t / max(1.0, total_etof)) * 100.0))
+        time_remaining = max(0.0, total_etof - t)
+
+        rho = atmospheric_density(z)
+        q = 0.5 * rho * (v**2)
+        cd = drag_coefficient(mach, profile.cd_subsonic)
+        f_drag = q * cd * profile.reference_area_m2
+        x, y, z_ecef = geodetic_to_ecef(cur_lat, cur_lon, z)
+
+        gamma_deg = math.degrees(math.atan2(vz, max(1e-4, vs)))
+
+        telemetry_list.append(Telemetry(
+            timestamp=t,
+            lat=cur_lat,
+            lon=cur_lon,
+            altitude=z,
+            mach=mach,
+            velocity_ms=v,
+            velocity_kmh=v * 3.6,
+            phase=current_phase,
+            downrange_distance_m=s,
+            distance_to_target_m=dist_to_target,
+            etof_s=total_etof,
+            time_remaining_s=time_remaining,
+            progress_percent=progress,
+            x_ecef=x, y_ecef=y, z_ecef=z_ecef,
+            heading_deg=heading,
+            flight_path_angle_deg=gamma_deg,
+            crossrange_m=crossrange,
+            dynamic_pressure_pa=q,
+            drag_force_n=f_drag
+        ))
+
+        if current_phase == FlightPhase.TERMINAL and (z <= 0.0 or dist_to_target < 50.0):
+            break
+
+        # Derivative for RK4 integration
+        def drone_deriv(t_curr: float, st: np.ndarray) -> np.ndarray:
+            _s, _z, _vs, _vz = st
+            gz = gravity(_z)
+            if current_phase == FlightPhase.TERMINAL:
+                # Terminal dive
+                vz_cmd = -max(25.0, cruise_speed * 0.4)
+                az_c = 0.8 * (vz_cmd - _vz)
+                return np.array([cruise_speed, _vz, 0.0, az_c])
+            elif current_phase == FlightPhase.LOITER:
+                # Constant speed and altitude orbit
+                az_c = 0.5 * (profile.loiter_altitude_m - _z) - 0.8 * _vz
+                return np.array([0.0, _vz, 0.0, az_c])
+            else:
+                az_c = 0.5 * (cruise_alt - _z) - 0.8 * _vz
+                as_c = 0.2 * (cruise_speed - _vs)
+                return np.array([_vs, _vz, as_c, az_c])
+
+        state = rk4_step(lambda _t, _st: drone_deriv(_t, _st), t, state, dt)
+        t += dt
+        step_count += 1
+
+    last = telemetry_list[-1]
+    last.altitude = 0.0
+    last.progress_percent = 100.0
+    last.time_remaining_s = 0.0
+    last.distance_to_target_m = 0.0
+    last.lat = profile.target_lat
+    last.lon = profile.target_lon
+    last.etof_s = t
+
+    for tel in telemetry_list:
+        tel.etof_s = t
+        tel.time_remaining_s = max(0.0, t - tel.timestamp)
+        tel.progress_percent = min(100.0, (tel.timestamp / t) * 100.0)
+
+    return Trajectory(profile, telemetry_list)
+
+
+# ==============================================================================
+# 8. THREAT SYSTEM FACTORY GENERATORS
+# ==============================================================================
