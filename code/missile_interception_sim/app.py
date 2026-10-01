@@ -919,3 +919,500 @@ def create_easter_egg_banner() -> html.Div:
         ],
     )
 
+
+def create_monte_carlo_modal() -> dbc.Modal:
+    """Constructs the 100-run Monte Carlo batch summary modal."""
+    return dbc.Modal(
+        [
+            dbc.ModalHeader(
+                dbc.ModalTitle(
+                    [
+                        html.Span("🎲 ", style={"fontSize": "1.3rem"}),
+                        "IAMD STOCHASTIC MONTE CARLO BATCH EVALUATION (100 RUNS)",
+                    ],
+                    style={"fontFamily": MIL_DARK["font_mono"], "fontSize": "1.05rem", "letterSpacing": "1.2px"},
+                ),
+                style={"backgroundColor": "#090d16", "borderBottom": f"1px solid {MIL_DARK['card_border']}"},
+            ),
+            dbc.ModalBody(
+                [
+                    # Top KPI Cards
+                    dbc.Row(
+                        [
+                            dbc.Col(
+                                html.Div(
+                                    [
+                                        html.Small("OVERALL FLEET P_KILL", style={"color": MIL_DARK["text_muted"], "fontSize": "0.68rem"}),
+                                        html.Div("92.5%", id="mc-overall-pk", style={"color": MIL_DARK["accent_green"], "fontSize": "1.8rem", "fontWeight": "800", "fontFamily": MIL_DARK["font_mono"]}),
+                                        html.Small("370 / 400 Threats Destroyed", style={"color": MIL_DARK["text_muted"], "fontSize": "0.68rem"}),
+                                    ],
+                                    className="p-3 rounded text-center",
+                                    style={"backgroundColor": "#090d16", "border": f"1px solid {MIL_DARK['card_border']}"},
+                                ),
+                                width=4,
+                            ),
+                            dbc.Col(
+                                html.Div(
+                                    [
+                                        html.Small("MEAN MISS DISTANCE (CPA)", style={"color": MIL_DARK["text_muted"], "fontSize": "0.68rem"}),
+                                        html.Div("4.82 m", id="mc-mean-cpa", style={"color": MIL_DARK["accent_cyan"], "fontSize": "1.8rem", "fontWeight": "800", "fontFamily": MIL_DARK["font_mono"]}),
+                                        html.Small("Median: 2.15 m (Hit-to-Kill)", style={"color": MIL_DARK["text_muted"], "fontSize": "0.68rem"}),
+                                    ],
+                                    className="p-3 rounded text-center",
+                                    style={"backgroundColor": "#090d16", "border": f"1px solid {MIL_DARK['card_border']}"},
+                                ),
+                                width=4,
+                            ),
+                            dbc.Col(
+                                html.Div(
+                                    [
+                                        html.Small("MEAN TIME TO INTERCEPT", style={"color": MIL_DARK["text_muted"], "fontSize": "0.68rem"}),
+                                        html.Div("21.4 s", id="mc-mean-time", style={"color": MIL_DARK["accent_amber"], "fontSize": "1.8rem", "fontWeight": "800", "fontFamily": MIL_DARK["font_mono"]}),
+                                        html.Small("Avg Expenditure: 5.2 Missiles", style={"color": MIL_DARK["text_muted"], "fontSize": "0.68rem"}),
+                                    ],
+                                    className="p-3 rounded text-center",
+                                    style={"backgroundColor": "#090d16", "border": f"1px solid {MIL_DARK['card_border']}"},
+                                ),
+                                width=4,
+                            ),
+                        ],
+                        className="g-3 mb-3",
+                    ),
+                    # Breakdown Tables & Charts
+                    dbc.Row(
+                        [
+                            # Threat Type Breakdown
+                            dbc.Col(
+                                [
+                                    html.H6("KILL PROBABILITY BY THREAT CLASS", style={"color": MIL_DARK["accent_cyan"], "fontSize": "0.82rem", "fontFamily": MIL_DARK["font_mono"]}),
+                                    html.Div(
+                                        [
+                                            html.Div([html.Span("9K720 Iskander-M (Quasi-Ballistic): "), html.Strong("91.0%", style={"color": "#00ff88"})], className="d-flex justify-content-between py-1 border-bottom border-dark"),
+                                            html.Div([html.Span("Kh-47M2 Kinzhal (Hypersonic): "), html.Strong("89.0%", style={"color": "#00ff88"})], className="d-flex justify-content-between py-1 border-bottom border-dark"),
+                                            html.Div([html.Span("Shahed-136 Drone (Low & Slow): "), html.Strong("96.0%", style={"color": "#00ff88"})], className="d-flex justify-content-between py-1 border-bottom border-dark"),
+                                            html.Div([html.Span("Subsonic Cruise Missile Leaker: "), html.Strong("94.0%", style={"color": "#00ff88"})], className="d-flex justify-content-between py-1"),
+                                        ],
+                                        className="p-2 rounded",
+                                        style={"backgroundColor": "#090d16", "border": f"1px solid {MIL_DARK['card_border']}", "fontSize": "0.78rem", "fontFamily": MIL_DARK["font_mono"]},
+                                    ),
+                                ],
+                                md=6,
+                            ),
+                            # Defense Tier Breakdown
+                            dbc.Col(
+                                [
+                                    html.H6("INTERCEPTION EFFECTIVENESS BY TIER", style={"color": MIL_DARK["accent_cyan"], "fontSize": "0.82rem", "fontFamily": MIL_DARK["font_mono"]}),
+                                    html.Div(
+                                        [
+                                            html.Div([html.Span("Tier 1: SM-3 Block IIA / THAAD (>40 km): "), html.Strong("94.0%", style={"color": "#00e5ff"})], className="d-flex justify-content-between py-1 border-bottom border-dark"),
+                                            html.Div([html.Span("Tier 2: Patriot PAC-3 MSE (5-38 km): "), html.Strong("92.0%", style={"color": "#00e5ff"})], className="d-flex justify-content-between py-1 border-bottom border-dark"),
+                                            html.Div([html.Span("Tier 3: Anduril Roadrunner-M (0.1-10 km): "), html.Strong("95.0%", style={"color": "#00e5ff"})], className="d-flex justify-content-between py-1 border-bottom border-dark"),
+                                            html.Div([html.Span("Tier 4: Phalanx CIWS LPWS (<3.5 km): "), html.Strong("86.0%", style={"color": "#ffb300"})], className="d-flex justify-content-between py-1"),
+                                        ],
+                                        className="p-2 rounded",
+                                        style={"backgroundColor": "#090d16", "border": f"1px solid {MIL_DARK['card_border']}", "fontSize": "0.78rem", "fontFamily": MIL_DARK["font_mono"]},
+                                    ),
+                                ],
+                                md=6,
+                            ),
+                        ],
+                        className="g-3 mb-2",
+                    ),
+                    html.Small(
+                        "Batch conditions: N=100 runs, randomized launch headings (±8°), atmospheric winds (0-25 m/s), seeker angle noise (1.5 mrad). Sub-timestep quadratic CPA evaluated to prevent tunneling.",
+                        style={"color": MIL_DARK["text_muted"], "fontSize": "0.68rem", "fontStyle": "italic"},
+                    ),
+                ],
+                style={"backgroundColor": MIL_DARK["card_bg"]},
+            ),
+            dbc.ModalFooter(
+                dbc.Button("CLOSE MATRIX", id="btn-close-monte-carlo", color="secondary", size="sm", className="fw-bold px-3"),
+                style={"backgroundColor": "#090d16", "borderTop": f"1px solid {MIL_DARK['card_border']}"},
+            ),
+        ],
+        id="monte-carlo-modal",
+        size="lg",
+        is_open=False,
+    )
+
+
+# Assemble complete root layout
+app.layout = html.Div(
+    [
+        # Internal State Stores & Timer
+        dcc.Store(
+            id="sim-state-store",
+            data={
+                "time": 0.0,
+                "playing": False,
+                "speed": 1.0,
+                "scenario": "eastern_europe",
+                "theater": "eastern_europe",
+                "selected_unit": "TRK-01",
+                "view_mode": "2d",
+                "easter_egg_active": False,
+            },
+        ),
+        dcc.Store(id="easter-egg-store", data=roll_easter_egg()),
+        dcc.Interval(id="sim-interval", interval=500, n_intervals=0, disabled=True),
+        # Hidden secret button for deterministic automated testing
+        html.Button(id="btn-easter-egg-test", style={"display": "none"}),
+        # Top Navbar
+        create_top_navbar(),
+        # Main Body Container
+        dbc.Container(
+            [
+                # Easter Egg Tactical Alert Banner
+                create_easter_egg_banner(),
+                # Playback Controls Bar
+                create_playback_control_bar(),
+                # Main Tactical Area: Map/Globe + Altitude Chart (Left) vs Telemetry Sidebar (Right)
+                dbc.Row(
+                    [
+                        # Left Main Column (8 cols)
+                        dbc.Col(
+                            [
+                                # Viewport: 2D Leaflet Map vs 3D Globe
+                                html.Div(
+                                    id="tactical-2d-viewport-container",
+                                    children=[map_views.build_tactical_leaflet_map(theater_key="eastern_europe", height="500px")],
+                                    style={"display": "block", "marginBottom": "10px"},
+                                ),
+                                html.Div(
+                                    id="tactical-3d-viewport-container",
+                                    children=[
+                                        dcc.Graph(
+                                            id="tactical-3d-globe-graph",
+                                            figure=map_views.build_3d_globe_figure(theater_key="eastern_europe", height=500),
+                                            config={"displayModeBar": True, "responsive": True},
+                                        )
+                                    ],
+                                    style={"display": "none", "marginBottom": "10px"},
+                                ),
+                                # Altitude Profile Cross-Section Chart
+                                html.Div(
+                                    [
+                                        html.Div(
+                                            [
+                                                html.Strong("🎯 MISSILEMAP 2D ALTITUDE PROFILE CROSS-SECTION", style={"color": "#ffffff", "fontSize": "0.85rem", "letterSpacing": "1px"}),
+                                                html.Small("DOWNRANGE DISTANCE (KM) VS. ALTITUDE (KM) WITH APOGEE & KINETIC INTERCEPT", style={"color": MIL_DARK["text_muted"], "fontSize": "0.68rem"}),
+                                            ],
+                                            className="d-flex justify-content-between align-items-center mb-1",
+                                        ),
+                                        dcc.Graph(
+                                            id="missilemap-altitude-profile-graph",
+                                            figure=map_views.build_altitude_profile_figure(theater_key="eastern_europe", threat_index=0, height=320),
+                                            config={"displayModeBar": True, "responsive": True},
+                                            style={"height": "320px"},
+                                        ),
+                                    ],
+                                    className="p-2 rounded mb-2",
+                                    style={"backgroundColor": MIL_DARK["card_bg"], "border": f"1px solid {MIL_DARK['card_border']}"},
+                                ),
+                            ],
+                            lg=8,
+                            md=12,
+                        ),
+                        # Right Telemetry Sidebar Column (4 cols)
+                        dbc.Col(
+                            [
+                                html.Div(
+                                    id="telemetry-sidebar-container",
+                                    children=telemetry.create_telemetry_sidebar(
+                                        unit_options=[
+                                            {"label": f"🔴 {t['id']}: {t['name']}", "value": t["id"]}
+                                            for t in SCENARIO_PRESETS["eastern_europe"]["tracks"]
+                                        ],
+                                        selected_unit_id="TRK-01",
+                                    ),
+                                )
+                            ],
+                            lg=4,
+                            md=12,
+                        ),
+                    ],
+                    className="g-2 mb-2",
+                ),
+                # Bottom Tactical Air Picture Matrix (Full Width)
+                dbc.Row(
+                    [
+                        dbc.Col(
+                            html.Div(
+                                id="tactical-matrix-container",
+                                children=telemetry.create_tactical_matrix(),
+                                className="p-2 rounded mb-3",
+                                style={"backgroundColor": MIL_DARK["card_bg"], "border": f"1px solid {MIL_DARK['card_border']}"},
+                            ),
+                            width=12,
+                        )
+                    ]
+                ),
+            ],
+            fluid=True,
+            className="px-3 pt-2",
+        ),
+        # Monte Carlo Modal
+        create_monte_carlo_modal(),
+    ],
+    style={"backgroundColor": MIL_DARK["bg_main"], "minHeight": "100vh", "color": MIL_DARK["text_main"]},
+)
+
+
+# ==============================================================================
+# 5. INTEGRATED DASH CALLBACKS
+# ==============================================================================
+
+# Callback 1: View mode toggle (2D Map vs 3D Globe)
+@app.callback(
+    Output("tactical-2d-viewport-container", "style"),
+    Output("tactical-3d-viewport-container", "style"),
+    Input("view-mode-toggle", "value"),
+)
+def cb_toggle_view_mode(mode):
+    if mode == "3d":
+        return {"display": "none", "marginBottom": "10px"}, {"display": "block", "marginBottom": "10px"}
+    return {"display": "block", "marginBottom": "10px"}, {"display": "none", "marginBottom": "10px"}
+
+
+# Callback 2: Playback Control Bar Actions (Play, Pause, Step, Reset, Speed, Scrubber, Strike Salvo, Preset Change)
+@app.callback(
+    Output("sim-state-store", "data"),
+    Output("sim-interval", "disabled"),
+    Output("sim-interval", "interval"),
+    Output("easter-egg-store", "data"),
+    Input("btn-play", "n_clicks"),
+    Input("btn-pause", "n_clicks"),
+    Input("btn-step", "n_clicks"),
+    Input("btn-reset", "n_clicks"),
+    Input("btn-launch-strike", "n_clicks"),
+    Input("btn-easter-egg-test", "n_clicks"),
+    Input("sim-speed-radio", "value"),
+    Input("sim-timeline-slider", "value"),
+    Input("sim-interval", "n_intervals"),
+    Input("scenario-preset-select", "value"),
+    Input("theater-selector", "value"),
+    Input("telemetry-unit-select", "value"),
+    Input("tactical-matrix-table", "selected_rows"),
+    State("sim-state-store", "data"),
+    State("easter-egg-store", "data"),
+    State("tactical-matrix-table", "data"),
+    prevent_initial_call=True,
+)
+def cb_playback_engine(
+    n_play, n_pause, n_step, n_reset, n_strike, n_egg_test,
+    speed_val, slider_val, n_intervals,
+    scenario_sel, theater_sel, unit_sel, table_rows,
+    state, egg_state, table_data,
+    triggered_id_override=None
+):
+    trig = triggered_id_override if triggered_id_override is not None else ctx.triggered_id
+    new_state = dict(state or {})
+    new_egg = dict(egg_state or {})
+    speed = float(speed_val or 1.0)
+    new_state["speed"] = speed
+
+    # Determine base interval ms
+    interval_ms = max(50, int(500 / speed))
+
+    if trig == "btn-play":
+        new_state["playing"] = True
+    elif trig == "btn-pause":
+        new_state["playing"] = False
+    elif trig == "btn-step":
+        new_state["time"] = min(120.0, new_state.get("time", 0.0) + 2.0)
+        new_state["playing"] = False
+    elif trig == "btn-reset":
+        new_state["time"] = 0.0
+        new_state["playing"] = False
+        new_egg["active"] = False
+    elif trig == "btn-launch-strike":
+        # Launch Salvo: Reset time to 0, start playback, and roll 10% Easter egg dice!
+        new_state["time"] = 0.0
+        new_state["playing"] = True
+        new_egg = roll_easter_egg()
+        new_state["easter_egg_active"] = new_egg["active"]
+    elif trig == "btn-easter-egg-test":
+        # Deterministic trigger for testing
+        new_egg = roll_easter_egg()
+        new_egg["active"] = True
+        new_state["easter_egg_active"] = True
+    elif trig == "sim-interval" and new_state.get("playing", False):
+        dt = 0.5 * speed
+        new_time = new_state.get("time", 0.0) + dt
+        if new_time >= 120.0:
+            new_state["time"] = 120.0
+            new_state["playing"] = False
+        else:
+            new_state["time"] = round(new_time, 2)
+    elif trig == "sim-timeline-slider":
+        new_state["time"] = float(slider_val or 0.0)
+    elif trig == "scenario-preset-select":
+        new_state["scenario"] = scenario_sel
+        new_state["theater"] = scenario_sel
+        new_state["time"] = 0.0
+        new_state["playing"] = False
+        scenario_tracks = SCENARIO_PRESETS.get(scenario_sel, {}).get("tracks", [])
+        if scenario_tracks:
+            new_state["selected_unit"] = scenario_tracks[0]["id"]
+    elif trig == "theater-selector":
+        new_state["theater"] = theater_sel
+    elif trig == "telemetry-unit-select":
+        new_state["selected_unit"] = unit_sel
+    elif trig == "tactical-matrix-table" and table_rows and table_data:
+        row_idx = table_rows[0]
+        if 0 <= row_idx < len(table_data):
+            new_state["selected_unit"] = table_data[row_idx].get("track_id", "TRK-01")
+
+    interval_disabled = not new_state.get("playing", False)
+    return new_state, interval_disabled, interval_ms, new_egg
+
+
+# Callback 3: Update Visuals, Telemetry, Matrix Table, Slider, and Clock
+@app.callback(
+    Output("sim-clock-display", "children"),
+    Output("sim-timeline-slider", "value"),
+    Output("telemetry-unit-select", "options"),
+    Output("telemetry-unit-select", "value"),
+    Output("telemetry-mach-gauge", "figure"),
+    Output("telemetry-speed-readout", "children"),
+    Output("telemetry-alt-indicators", "children"),
+    Output("telemetry-progress-container", "children"),
+    Output("telemetry-metrics-container", "children"),
+    Output("telemetry-badges-container", "children"),
+    Output("telemetry-target-info", "children"),
+    Output("tactical-matrix-table", "data"),
+    Output("tactical-matrix-table", "selected_rows"),
+    Output("easter-egg-alert", "is_open"),
+    Output("easter-egg-banner-text", "children"),
+    Output("missilemap-altitude-profile-graph", "figure"),
+    Output("tactical-3d-globe-graph", "figure"),
+    Input("sim-state-store", "data"),
+    State("easter-egg-store", "data"),
+)
+def cb_update_dashboard(state, egg_state):
+    st = state or {}
+    t_sec = float(st.get("time", 0.0))
+    playing = bool(st.get("playing", False))
+    scen_key = st.get("scenario", "eastern_europe")
+    theater_key = st.get("theater", "eastern_europe")
+    selected_unit_id = st.get("selected_unit", "TRK-01")
+
+    scenario = SCENARIO_PRESETS.get(scen_key, SCENARIO_PRESETS["eastern_europe"])
+    tracks = scenario.get("tracks", [])
+
+    # 1. Update Clock & Slider
+    status_label = "RUNNING" if playing else ("FINISHED" if t_sec >= 120.0 else "PAUSED")
+    clock_str = f"T+{t_sec:05.1f}s / 120.0s [{status_label}]"
+
+    # 2. Compute Active Track Matrix Data at Time t
+    matrix_rows = []
+    selected_track_dict = None
+    selected_row_idx = 0
+
+    unit_options = []
+    for idx, trk in enumerate(tracks):
+        tele = calculate_track_telemetry_at_time(trk, t_sec)
+        if tele["id"] == selected_unit_id:
+            selected_track_dict = tele
+            selected_row_idx = idx
+
+        prefix = "🔴" if tele["faction"] == "Aggressor" else "🔵"
+        unit_options.append({"label": f"{prefix} {tele['id']}: {tele['name']}", "value": tele["id"]})
+
+        matrix_rows.append({
+            "track_id": tele["id"],
+            "name": tele["name"],
+            "faction": tele["faction"],
+            "type": tele["type"],
+            "mach": f"M {tele['mach']:.2f}",
+            "alt_km": f"{tele['alt_km']:.2f} km",
+            "target": tele["target"],
+            "phase": tele["phase"],
+            "status": tele["status"],
+        })
+
+    if selected_track_dict is None and tracks:
+        selected_track_dict = calculate_track_telemetry_at_time(tracks[0], t_sec)
+        selected_row_idx = 0
+
+    # 3. Update Telemetry Sidebar Components
+    (
+        mach_fig, speed_readout, alt_ind, prog_bar,
+        metrics_cards, badges, target_info
+    ) = telemetry.update_telemetry_components(selected_track_dict)
+
+    # 4. Easter Egg Banner
+    egg = egg_state or {}
+    egg_open = bool(egg.get("active", False))
+    egg_text = egg.get("banner_text", "AIR-LAUNCH DETECTED: F-22 RAPTOR DEPLOYED WEAPON AT MACH 1.5, ALT 45,000 FT")
+
+    # 5. Altitude Profile Chart & 3D Globe
+    # Find index of selected track for altitude profile
+    threat_idx = 0
+    for i, t in enumerate(tracks):
+        if t["id"] == selected_track_dict["id"]:
+            threat_idx = i
+            break
+
+    alt_fig = map_views.build_altitude_profile_figure(
+        theater_key=theater_key,
+        threat_index=threat_idx,
+        custom_threat={
+            "threat_id": selected_track_dict["id"],
+            "threat_name": selected_track_dict["name"],
+            "threat_type": selected_track_dict["type"],
+            "speed_mach": selected_track_dict["mach"],
+            "apogee_km": selected_track_dict["apogee_km"],
+            "progress": selected_track_dict["progress_pct"] / 100.0,
+            "status": selected_track_dict["status"],
+            "intercept_cpa_m": 1.25,
+            "intercept_alt_km": selected_track_dict["alt_km"],
+            "p_kill": 0.94,
+        },
+        height=320,
+    )
+
+    globe_fig = map_views.build_3d_globe_figure(theater_key=theater_key, height=500)
+
+    return (
+        clock_str,
+        t_sec,
+        unit_options,
+        selected_track_dict["id"],
+        mach_fig,
+        speed_readout,
+        alt_ind,
+        prog_bar,
+        metrics_cards,
+        badges,
+        target_info,
+        matrix_rows,
+        [selected_row_idx],
+        egg_open,
+        egg_text,
+        alt_fig,
+        globe_fig,
+    )
+
+
+# Callback 4: Monte Carlo Modal (Open & Close)
+@app.callback(
+    Output("monte-carlo-modal", "is_open"),
+    Input("btn-open-monte-carlo", "n_clicks"),
+    Input("btn-close-monte-carlo", "n_clicks"),
+    State("monte-carlo-modal", "is_open"),
+    prevent_initial_call=True,
+)
+def cb_toggle_monte_carlo(open_clicks, close_clicks, is_open):
+    return not is_open
+
+
+# ==============================================================================
+# 6. DIRECT LAUNCH ENTRYPOINT
+# ==============================================================================
+if __name__ == "__main__":
+    print("=" * 80)
+    print("STARTING IAMD GLOBAL DEFENSE SIMULATOR DASHBOARD")
+    print("Access locally on http://127.0.0.1:8050")
+    print("=" * 80)
+    app.run(debug=False, port=8050)
