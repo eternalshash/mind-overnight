@@ -300,3 +300,273 @@ def get_weapons_for_role(role: str = "attacker", catalog_path: Optional[Union[st
     else:
         raise ValueError(f"Unknown role '{role}'. Expected 'attacker', 'defender', or 'dual_role'.")
 
+
+def get_site_templates() -> Dict[str, SiteTemplate]:
+    """
+    Returns verified unit preset templates for theater air defense batteries,
+    ballistic launcher batteries, loitering drone swarms, and CIWS point defense stations.
+    
+    Returns:
+        Dict mapping template name to SiteTemplate dataclass.
+    """
+    templates = [
+        SiteTemplate(
+            name="Patriot PAC-3 Battery",
+            preset_id="patriot_pac3_battery",
+            role="defender",
+            category="air_defense",
+            primary_weapon_id="patriot_pac3_mse",
+            secondary_weapon_id="phalanx_lpws",
+            launcher_count=6,
+            ready_capacity=96,  # 6 launchers x 16 PAC-3 MSE missiles
+            radar_system="AN/MPQ-65A / LTAMDS 360-degree AESA Phased Array Radar",
+            c2_system="AN/MSQ-104 Engagement Control Station (ECS)",
+            footprint_radius_km=15.0,
+            description="U.S. Army theater lower-tier IAMD battery providing hit-to-kill terminal defense against ballistic missiles, cruise missiles, and combat aircraft.",
+            tactical_doctrine="Shoot-Look-Shoot or 2-interceptor salvo per inbound high-threat ballistic track with integrated Phalanx CIWS point-defense escort."
+        ),
+        SiteTemplate(
+            name="Iskander-M TEL",
+            preset_id="iskander_m_tel_division",
+            role="attacker",
+            category="ballistic",
+            primary_weapon_id="iskander_m",
+            secondary_weapon_id=None,
+            launcher_count=4,
+            ready_capacity=8,  # 4 TELs x 2 ready missiles each
+            radar_system=None,
+            c2_system="9S552 Command and Staff Vehicle with GLONASS datalink",
+            footprint_radius_km=8.0,
+            description="Road-mobile 9P78-1 Transporter-Erector-Launcher (TEL) battery firing 9M723 quasi-ballistic missiles with high-G terminal evasion and active decoys.",
+            tactical_doctrine="Rapid deploy-shoot-scoot maneuver: release dual-missile salvo within 4 minutes and relocate to concealed reload coordinates."
+        ),
+        SiteTemplate(
+            name="Anduril Roadrunner Nest",
+            preset_id="anduril_roadrunner_nest",
+            role="defender",
+            category="drone",
+            primary_weapon_id="anduril_roadrunner_m",
+            secondary_weapon_id="anduril_roadrunner",
+            launcher_count=12,
+            ready_capacity=12,
+            radar_system="Lattice Multi-Sensor Edge Fusion (integrated optical, RF, and 3D radar feed)",
+            c2_system="Anduril Lattice OS Autonomous Command & Control",
+            footprint_radius_km=5.0,
+            description="Automated Nest hangar complex housing high-G twin-turbojet VTOL Roadrunner-M interceptors for autonomous point and base defense against drone swarms and cruise missiles.",
+            tactical_doctrine="Autonomous rapid scramble on radar detection; high-speed intercept and engagement; autonomous return-to-base and vertical landing if target neutralized by other tiers."
+        ),
+        SiteTemplate(
+            name="Shahed-136 Swarm Unit",
+            preset_id="shahed_136_swarm_unit",
+            role="attacker",
+            category="drone",
+            primary_weapon_id="shahed_136",
+            secondary_weapon_id=None,
+            launcher_count=4,
+            ready_capacity=20,  # 4 concealed flatbed truck racks x 5-cell launch container
+            radar_system=None,
+            c2_system="Pre-programmed multi-waypoint GNSS mission computer with terrain masking",
+            footprint_radius_km=10.0,
+            description="Mobile containerized salvo launcher disguised on commercial flatbed trucks, firing coordinated saturation waves of low-cost delta-wing loitering drones.",
+            tactical_doctrine="Time-on-Target (TOT) simultaneous saturation salvos designed to deplete defender missile stocks and overwhelm radar tracking pipelines."
+        ),
+        SiteTemplate(
+            name="Phalanx CIWS Point Defense",
+            preset_id="phalanx_ciws_point_defense",
+            role="defender",
+            category="ciws_gun",
+            primary_weapon_id="phalanx_lpws",
+            secondary_weapon_id=None,
+            launcher_count=4,
+            ready_capacity=6000,  # 4 mounts x 1,500 rounds ready-to-fire 20mm HEIT-SD
+            radar_system="Integrated Ku-band Pulse Doppler Search & Track Radar per mount",
+            c2_system="Centurion Local Fire Control System with automatic FLIR target tracking",
+            footprint_radius_km=2.0,
+            description="Last-ditch inner ring perimeter defense consisting of four 20mm Gatling rotary cannons firing 4,500 rpm self-destructing ammunition to defeat penetrating munitions.",
+            tactical_doctrine="Autonomous engagement of low-altitude threats breaching missile envelopes with high-density 75-100 round bursts."
+        ),
+        SiteTemplate(
+            name="S-400 Triumf Battery",
+            preset_id="s400_triumf_battery",
+            role="defender",
+            category="air_defense",
+            primary_weapon_id="s400_48n6dm",
+            secondary_weapon_id="flakpanzer_gepard",
+            launcher_count=8,
+            ready_capacity=32,  # 8 TELs x 4 canisters
+            radar_system="91N6E Big Bird Panoramic Surveillance Radar + 92N6E Grave Stone Engagement Radar",
+            c2_system="54K6E Command Post Vehicle",
+            footprint_radius_km=25.0,
+            description="Russian long-range mobile surface-to-air missile division capable of simultaneous multi-target engagement up to 250 km downrange.",
+            tactical_doctrine="Multi-missile track-via-missile (TVM) engagement of high-altitude stealth and aerodynamic threats paired with close-in SPAAG escorts."
+        ),
+        SiteTemplate(
+            name="THAAD Battery",
+            preset_id="thaad_battery",
+            role="defender",
+            category="air_defense",
+            primary_weapon_id="thaad",
+            secondary_weapon_id=None,
+            launcher_count=6,
+            ready_capacity=48,  # 6 TELs x 8 missiles
+            radar_system="AN/TPY-2 Forward-Based / Terminal X-Band Phased Array Radar",
+            c2_system="THAAD Fire Control and Communications (TFCC) Tactical Operations Station",
+            footprint_radius_km=30.0,
+            description="Upper-tier theater missile defense battery providing wide-area exo- and endo-atmospheric terminal interception against ballistic threats.",
+            tactical_doctrine="Layered upper-tier handoff to Patriot PAC-3 lower-tier batteries; pure kinetic hit-to-kill interception above 40 km altitude."
+        ),
+        SiteTemplate(
+            name="Aegis Ashore / BMD Destroyer",
+            preset_id="aegis_ashore_bmd",
+            role="defender",
+            category="air_defense",
+            primary_weapon_id="sm3_block_iia",
+            secondary_weapon_id="patriot_pac3_mse",
+            launcher_count=24,
+            ready_capacity=24,  # 24 Mk 41 VLS cells allocated for SM-3
+            radar_system="AN/SPY-1D(V) / AN/SPY-6(V)1 Air and Missile Defense Radar (AMDR)",
+            c2_system="Aegis Weapon System Baseline 9/10 Command & Decision",
+            footprint_radius_km=50.0,
+            description="Land-based Aegis Ashore installation or Arleigh Burke Flight III guided-missile destroyer equipped with SM-3 Block IIA exo-atmospheric interceptors.",
+            tactical_doctrine="Exo-atmospheric midcourse ballistic missile interception against intermediate-range and ICBM threats before reentry."
+        ),
+        SiteTemplate(
+            name="Iron Dome Mobile Battery",
+            preset_id="iron_dome_battery",
+            role="defender",
+            category="air_defense",
+            primary_weapon_id="iron_dome_tamir",
+            secondary_weapon_id=None,
+            launcher_count=4,
+            ready_capacity=80,  # 4 launchers x 20 Tamir missiles
+            radar_system="EL/M-2084 Multi-Mission S-band Active Electronically Scanned Array (AESA)",
+            c2_system="Battle Management & Weapon Control (BMC) unit",
+            footprint_radius_km=12.0,
+            description="Highly mobile tactical defense system countering unguided artillery, mortar, drone swarms, and low-altitude cruise missiles with selective trajectory threat filtering.",
+            tactical_doctrine="Autonomous impact-point prediction: only threats calculated to impact within protected asset polygons are engaged, conserving interceptor stocks."
+        ),
+        SiteTemplate(
+            name="Skynex Air Defense Battery",
+            preset_id="skynex_air_defense_battery",
+            role="defender",
+            category="ciws_gun",
+            primary_weapon_id="skynex_35mm",
+            secondary_weapon_id=None,
+            launcher_count=4,
+            ready_capacity=1000,  # 4 Revolver Gun Mk3 mounts x 250 ready rounds
+            radar_system="Oerlikon X-TAR3D Tactical Acquisition 3D Radar",
+            c2_system="Oerlikon Skymaster Command & Control System",
+            footprint_radius_km=4.5,
+            description="Networked short-range air defense battery employing 35mm AHEAD programmable airburst ammunition to form lethal tungsten fragment clouds against swarms and cruise missiles.",
+            tactical_doctrine="Time-fused inductive muzzle programming ejecting 152 sub-projectiles per shell directly into threat flight path at 1,000 rpm."
+        ),
+        SiteTemplate(
+            name="Flakpanzer Gepard Air Defense Platoon",
+            preset_id="gepard_air_defense_platoon",
+            role="defender",
+            category="ciws_gun",
+            primary_weapon_id="flakpanzer_gepard",
+            secondary_weapon_id=None,
+            launcher_count=4,
+            ready_capacity=2560,  # 4 tracked vehicles x 640 rounds 35mm
+            radar_system="Integrated onboard S-band search radar (15 km) and Ku-band tracking radar",
+            c2_system="Gepard Autonomous Fire-Control Computer with optical aiming back-up",
+            footprint_radius_km=6.0,
+            description="Mobile armored all-weather air defense platoon protecting maneuvering mechanized units against low-flying subsonic cruise missiles and loitering munitions.",
+            tactical_doctrine="High-mobility convoy escort and forward area defense utilizing frangible armor-piercing discarding sabot (FAPDS) ammunition."
+        ),
+        SiteTemplate(
+            name="Anduril Barracuda Swarm Cell",
+            preset_id="anduril_barracuda_swarm_cell",
+            role="attacker",
+            category="cruise",
+            primary_weapon_id="anduril_barracuda_500",
+            secondary_weapon_id="anduril_barracuda_100",
+            launcher_count=6,
+            ready_capacity=24,  # Palletized Rapid Dragon or mobile container launchers
+            radar_system=None,
+            c2_system="Anduril Lattice Collaborative Autonomous Swarm Tasking",
+            footprint_radius_km=15.0,
+            description="Deployable standoff strike cell launching mass Autonomous Air Vehicles (AAVs) for long-range theater strike and saturation of enemy integrated air defense grids.",
+            tactical_doctrine="Autonomous cooperative routing, synchronized multi-axis convergence, and decoy/strike payload pairing."
+        ),
+        SiteTemplate(
+            name="ATACMS / HIMARS Fire Platoon",
+            preset_id="atacms_himars_platoon",
+            role="attacker",
+            category="ballistic",
+            primary_weapon_id="mgm140_atacms",
+            secondary_weapon_id=None,
+            launcher_count=4,
+            ready_capacity=4,  # 4 M142 HIMARS launchers x 1 ATACMS pod each
+            radar_system=None,
+            c2_system="Advanced Field Artillery Tactical Data System (AFATDS)",
+            footprint_radius_km=10.0,
+            description="High-mobility rocket artillery platoon firing precision MGM-140 ATACMS missiles for deep-strike counter-battery and command-node interdiction.",
+            tactical_doctrine="Dispersed rapid positioning, instant digital target package upload, single-missile launch, and 2-minute egress before counter-battery detection."
+        ),
+    ]
+
+    return {t.name: t for t in templates}
+
+
+def get_site_template(template_name: str) -> SiteTemplate:
+    """
+    Retrieve a specific site template preset by name or preset_id.
+    
+    Args:
+        template_name: Template identifier (e.g. 'Patriot PAC-3 Battery', 'patriot_pac3_battery').
+        
+    Returns:
+        SiteTemplate dataclass instance.
+    """
+    templates = get_site_templates()
+    if template_name in templates:
+        return templates[template_name]
+
+    # Search by normalized preset_id
+    norm_search = template_name.strip().lower().replace("-", "_")
+    for t in templates.values():
+        if t.preset_id == norm_search or t.name.lower().replace("-", "_") == norm_search:
+            return t
+
+    raise KeyError(f"Site template '{template_name}' not found. Available presets: {list(templates.keys())}")
+
+
+def get_all_categories() -> List[str]:
+    """Returns list of distinct weapon categories in the catalog."""
+    catalog = load_catalog()
+    unique = catalog.unique_weapons() if hasattr(catalog, "unique_weapons") else list(set(catalog.values()))
+    return sorted(list(set(w.category for w in unique)))
+
+
+def print_catalog_summary(catalog_path: Optional[Union[str, Path]] = None) -> None:
+    """Prints a structured summary of the weapons catalog to stdout."""
+    catalog = load_catalog(catalog_path)
+    unique_weapons = catalog.unique_weapons() if hasattr(catalog, "unique_weapons") else list(set(catalog.values()))
+    categories = get_all_categories()
+    templates = get_site_templates()
+
+    print("=" * 85)
+    print(f"WEAPONS CATALOG SUMMARY: {len(unique_weapons)} UNIQUE REGISTERED WEAPON SYSTEMS")
+    print("=" * 85)
+
+    for cat in categories:
+        weapons_in_cat = [w for w in unique_weapons if w.category == cat]
+        print(f"\n[{cat.upper()}] ({len(weapons_in_cat)} systems):")
+        for w in weapons_in_cat:
+            envelope = f"Range: {w.range_km:.0f} km | Speed: Mach {w.max_speed_mach:.1f} ({w.max_speed_kmh:.0f} km/h)"
+            if w.radar_range_km:
+                envelope += f" | Radar: {w.radar_range_km:.0f} km"
+            print(f"  * {w.id:24s} | {w.name:42s} | {envelope}")
+
+    print("\n" + "=" * 85)
+    print(f"FORCE SITE TEMPLATES: {len(templates)} PRECONFIGURED COMBAT PRESETS")
+    print("=" * 85)
+    for name, t in templates.items():
+        print(f"  * {t.name:32s} [{t.role.upper():9s}] | Primary: {t.primary_weapon_id:22s} | Ready Cap: {t.ready_capacity:4d} units")
+    print("=" * 85)
+
+
+if __name__ == "__main__":
+    print_catalog_summary()
