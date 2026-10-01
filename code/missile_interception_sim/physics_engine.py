@@ -1343,3 +1343,207 @@ def _simulate_drone(
 # ==============================================================================
 # 8. THREAT SYSTEM FACTORY GENERATORS
 # ==============================================================================
+def create_icbm_profile(
+    launch_lat: float = 55.7558, launch_lon: float = 37.6173,  # Moscow region
+    target_lat: float = 38.8951, target_lon: float = -77.0364, # Washington DC
+    name: str = "Minuteman/Sarmat ICBM"
+) -> ThreatProfile:
+    """Standard Intercontinental Ballistic Missile with exo-atmospheric Keplerian apogee > 1000 km."""
+    return ThreatProfile(
+        name=name,
+        threat_class=ThreatClass.BALLISTIC,
+        launch_lat=launch_lat,
+        launch_lon=launch_lon,
+        target_lat=target_lat,
+        target_lon=target_lon,
+        mass_kg=1500.0,
+        reference_area_m2=0.60,
+        cd_subsonic=0.15,
+        boost_duration_s=150.0,
+        burnout_alt_m=120000.0,
+        target_apogee_m=1200000.0  # 1,200 km (> 100 km)
+    )
+
+
+def create_iskander_profile(
+    launch_lat: float = 54.7104, launch_lon: float = 20.5100,  # Kaliningrad
+    target_lat: float = 52.2297, target_lon: float = 21.0122,  # Warsaw
+    name: str = "9M723 Iskander-M SRBM"
+) -> ThreatProfile:
+    """Short-Range Ballistic Missile with depressed quasi-ballistic apogee between 30 and 50 km."""
+    return ThreatProfile(
+        name=name,
+        threat_class=ThreatClass.BALLISTIC,
+        launch_lat=launch_lat,
+        launch_lon=launch_lon,
+        target_lat=target_lat,
+        target_lon=target_lon,
+        mass_kg=3800.0,
+        reference_area_m2=0.66,
+        cd_subsonic=0.20,
+        boost_duration_s=25.0,
+        burnout_alt_m=20000.0,
+        target_apogee_m=42000.0    # 42 km (in 30-50 km SRBM envelope)
+    )
+
+
+def create_kinzhal_profile(
+    launch_lat: float = 48.0, launch_lon: float = 40.0,
+    target_lat: float = 50.4501, target_lon: float = 30.5234,  # Kyiv
+    name: str = "Kh-47M2 Kinzhal Hypersonic"
+) -> ThreatProfile:
+    """Hypersonic aero-ballistic glide weapon with atmospheric skipping and lateral weave."""
+    return ThreatProfile(
+        name=name,
+        threat_class=ThreatClass.HYPERSONIC,
+        launch_lat=launch_lat,
+        launch_lon=launch_lon,
+        target_lat=target_lat,
+        target_lon=target_lon,
+        mass_kg=4000.0,
+        reference_area_m2=0.55,
+        cd_subsonic=0.18,
+        boost_duration_s=40.0,
+        glide_altitude_m=32000.0,  # 32 km depressed glide (25-40 km envelope)
+        skip_amplitude_m=4500.0,   # Oscillates 27.5 km - 36.5 km
+        skip_period_s=70.0,
+        weave_amplitude_m=12000.0, # +/- 12 km crossrange S-turns
+        weave_period_s=80.0,
+        cruise_mach=9.2            # Mach ~9
+    )
+
+
+def create_tomahawk_profile(
+    launch_lat: float = 34.0, launch_lon: float = 24.0,       # Eastern Med
+    target_lat: float = 33.5138, target_lon: float = 36.2765, # Damascus
+    name: str = "BGM-109 Tomahawk Cruise Missile"
+) -> ThreatProfile:
+    """Subsonic sea-skimming cruise missile maintaining low-altitude contour (50-300 m) at constant Mach."""
+    return ThreatProfile(
+        name=name,
+        threat_class=ThreatClass.CRUISE,
+        launch_lat=launch_lat,
+        launch_lon=launch_lon,
+        target_lat=target_lat,
+        target_lon=target_lon,
+        mass_kg=1300.0,
+        reference_area_m2=0.22,
+        cd_subsonic=0.22,
+        boost_duration_s=8.0,
+        cruise_altitude_m=120.0,   # 120 m AGL (in 50-300 m envelope)
+        cruise_mach=0.74           # High subsonic Mach ~0.74 (~252 m/s)
+    )
+
+
+def create_altius_drone_profile(
+    launch_lat: float = 31.0, launch_lon: float = 34.0,
+    target_lat: float = 32.0, target_lon: float = 35.5,
+    name: str = "Anduril ALTIUS-600 / Barracuda"
+) -> ThreatProfile:
+    """Subsonic modular loitering munition with circular loiter around target coordinates."""
+    return ThreatProfile(
+        name=name,
+        threat_class=ThreatClass.DRONE,
+        launch_lat=launch_lat,
+        launch_lon=launch_lon,
+        target_lat=target_lat,
+        target_lon=target_lon,
+        mass_kg=12.0,
+        reference_area_m2=0.08,
+        cd_subsonic=0.045,
+        boost_duration_s=3.0,
+        cruise_altitude_m=400.0,   # 400 m AGL (in 100-1000 m envelope)
+        cruise_mach=0.26,          # Subsonic Mach ~0.26 (~88 m/s, ~317 km/h)
+        has_loiter=True,
+        loiter_radius_m=2500.0,    # 2.5 km circular orbit
+        loiter_duration_s=300.0,   # 5 minutes loiter
+        loiter_altitude_m=400.0
+    )
+
+
+# ==============================================================================
+# 11. LEGACY INTEGRATION BRIDGE
+# ==============================================================================
+def convert_legacy_threat_to_profile(
+    threat: Dict[str, Any],
+    origin_lat: float = 45.0,
+    origin_lon: float = 30.0,
+) -> ThreatProfile:
+    """
+    Converts a legacy flat Cartesian theater threat dictionary (from Phase 6 or
+    AttackerSwarmCoordinator) into a WGS84 Geodetic ThreatProfile for high-fidelity
+    3-DoF RK4 aerospace simulation.
+
+    Args:
+        threat: Dict containing 'threat_type', 'launch_pos', 'target_pos', etc.
+        origin_lat: Reference geodetic latitude for theater origin.
+        origin_lon: Reference geodetic longitude for theater origin.
+
+    Returns:
+        ThreatProfile configured for RK4 trajectory generation.
+    """
+    lp = threat["launch_pos"]
+    tp = threat["target_pos"]
+    tt = threat.get("threat_type", "high_ballistic")
+
+    # Convert Cartesian [dx, dy] (meters) to approximate delta lat/lon
+    # 1 deg lat ~= 111,320 m, 1 deg lon ~= 111,320 * cos(lat) m
+    m_per_deg_lat = 111320.0
+    m_per_deg_lon = 111320.0 * math.cos(math.radians(origin_lat))
+
+    launch_lat = origin_lat + (lp[1] / m_per_deg_lat)
+    launch_lon = origin_lon + (lp[0] / m_per_deg_lon)
+
+    target_lat = origin_lat + (tp[1] / m_per_deg_lat)
+    target_lon = origin_lon + (tp[0] / m_per_deg_lon)
+
+    if tt == "high_ballistic":
+        return ThreatProfile(
+            name=f"Legacy Ballistic #{threat.get('threat_id', 1)}",
+            threat_class=ThreatClass.BALLISTIC,
+            launch_lat=launch_lat,
+            launch_lon=launch_lon,
+            target_lat=target_lat,
+            target_lon=target_lon,
+            target_apogee_m=115000.0,
+            boost_duration_s=45.0,
+        )
+    elif tt == "quasi_ballistic":
+        return ThreatProfile(
+            name=f"Legacy Quasi-Ballistic #{threat.get('threat_id', 1)}",
+            threat_class=ThreatClass.HYPERSONIC,
+            launch_lat=launch_lat,
+            launch_lon=launch_lon,
+            target_lat=target_lat,
+            target_lon=target_lon,
+            glide_altitude_m=35000.0,
+            weave_amplitude_m=8000.0,
+            weave_period_s=60.0,
+            cruise_mach=5.8,
+            boost_duration_s=35.0,
+        )
+    elif tt == "supersonic_cruise":
+        return ThreatProfile(
+            name=f"Legacy Cruise #{threat.get('threat_id', 1)}",
+            threat_class=ThreatClass.CRUISE,
+            launch_lat=launch_lat,
+            launch_lon=launch_lon,
+            target_lat=target_lat,
+            target_lon=target_lon,
+            cruise_altitude_m=2500.0,
+            cruise_mach=3.2,
+            boost_duration_s=8.0,
+        )
+    else:  # Drones / generic
+        return ThreatProfile(
+            name=f"Legacy Drone #{threat.get('threat_id', 1)}",
+            threat_class=ThreatClass.DRONE,
+            launch_lat=launch_lat,
+            launch_lon=launch_lon,
+            target_lat=target_lat,
+            target_lon=target_lon,
+            cruise_altitude_m=400.0,
+            cruise_mach=0.4,
+            boost_duration_s=5.0,
+        )
+
