@@ -147,3 +147,156 @@ class WeaponCatalog(dict):
 # Module-level cache for loaded catalog
 _CATALOG_CACHE: Optional[WeaponCatalog] = None
 
+
+def load_catalog(
+    catalog_path: Optional[Union[str, Path]] = None,
+    reload: bool = False
+) -> WeaponCatalog:
+    """
+    Load and parse the verified weapons catalog from JSON into strongly typed Weapon objects.
+    Both canonical IDs and common aliases are registered for fast lookup.
+    
+    Args:
+        catalog_path: Custom path to weapons_catalog.json (defaults to standard repo path).
+        reload: Force reload from disk, bypassing memory cache.
+        
+    Returns:
+        WeaponCatalog mapping weapon IDs and aliases to Weapon instances.
+    """
+    global _CATALOG_CACHE
+    if _CATALOG_CACHE is not None and not reload and catalog_path is None:
+        return _CATALOG_CACHE
+
+    target_path = Path(catalog_path) if catalog_path else DEFAULT_CATALOG_PATH
+    if not target_path.exists():
+        raise FileNotFoundError(f"Weapons catalog file not found at: {target_path}")
+
+    with open(target_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    catalog = WeaponCatalog()
+    for item in data.get("weapons", []):
+        cat = item["category"]
+        role = item.get("role")
+        if not role:
+            if cat in ("air_defense", "ciws_gun"):
+                role = "defender"
+            elif item["id"] == "anduril_roadrunner_m":
+                role = "defender"
+            elif item["id"] in ("anduril_roadrunner", "anduril_altius_600", "anduril_altius_700", "anduril_bolt"):
+                role = "dual_role"
+            else:
+                role = "attacker"
+
+        w = Weapon(
+            id=item["id"],
+            name=item["name"],
+            category=cat,
+            role=role,
+            manufacturer=item["manufacturer"],
+            country=item["country"],
+            range_km=float(item["range_km"]),
+            max_speed_mach=float(item["max_speed_mach"]),
+            max_speed_kmh=float(item["max_speed_kmh"]),
+            apogee_km=float(item["apogee_km"]) if item.get("apogee_km") is not None else None,
+            cruise_alt_m=float(item["cruise_alt_m"]) if item.get("cruise_alt_m") is not None else None,
+            flight_profile=item["flight_profile"],
+            guidance=item["guidance"],
+            warhead_type=item["warhead_type"],
+            warhead_mass_kg=float(item["warhead_mass_kg"]),
+            radar_range_km=float(item["radar_range_km"]) if item.get("radar_range_km") is not None else None,
+            min_intercept_alt_km=float(item["min_intercept_alt_km"]) if item.get("min_intercept_alt_km") is not None else None,
+            max_intercept_alt_km=float(item["max_intercept_alt_km"]) if item.get("max_intercept_alt_km") is not None else None,
+            pk_baseline=float(item["pk_baseline"]),
+            sourcing_url=item["sourcing_url"],
+            description=item["description"],
+            aliases=item.get("aliases", []),
+        )
+        catalog.register_weapon(w)
+
+    if catalog_path is None:
+        _CATALOG_CACHE = catalog
+
+    return catalog
+
+
+def get_weapon(
+    weapon_id: str,
+    catalog_path: Optional[Union[str, Path]] = None,
+    catalog: Optional[Dict[str, Weapon]] = None
+) -> Weapon:
+    """
+    Retrieve a specific weapon system by its unique ID or registered alias.
+    Performs case-insensitive matching and normalization of dashes to underscores.
+    
+    Args:
+        weapon_id: System identifier (e.g., 'patriot_pac3_mse', 'df-17', 'iskander_m', 'atacms').
+        catalog_path: Optional path to custom JSON catalog.
+        catalog: Optional preloaded catalog dict.
+        
+    Returns:
+        Weapon dataclass instance.
+        
+    Raises:
+        KeyError: If weapon ID is not registered in the catalog.
+    """
+    if catalog is None:
+        cat_obj = load_catalog(catalog_path)
+    else:
+        cat_obj = catalog
+
+    norm_id = weapon_id.strip().lower().replace("-", "_")
+
+    if norm_id in cat_obj:
+        return cat_obj[norm_id]
+
+    # Secondary fuzzy check against weapon names and aliases
+    for w in cat_obj.values():
+        if norm_id == w.name.lower().replace("-", "_"):
+            return w
+        for a in w.aliases:
+            if norm_id == a.lower().replace("-", "_"):
+                return w
+
+    raise KeyError(f"Weapon '{weapon_id}' not found in weapons catalog. Available IDs: {list(cat_obj.keys())}")
+
+
+def get_weapons_by_category(category: str, catalog_path: Optional[Union[str, Path]] = None) -> List[Weapon]:
+    """
+    Filter registered unique weapons by operational category.
+    
+    Args:
+        category: One of 'ballistic', 'hypersonic', 'cruise', 'air_defense', 'ciws_gun', 'drone'.
+        
+    Returns:
+        List of matching Weapon objects.
+    """
+    catalog = load_catalog(catalog_path)
+    cat_norm = category.strip().lower()
+    unique = catalog.unique_weapons() if hasattr(catalog, "unique_weapons") else list(set(catalog.values()))
+    return [w for w in unique if w.category.lower() == cat_norm]
+
+
+def get_weapons_for_role(role: str = "attacker", catalog_path: Optional[Union[str, Path]] = None) -> List[Weapon]:
+    """
+    Filter registered unique weapons by combat role.
+    
+    Args:
+        role: 'attacker' (strike/offensive systems), 'defender' (air defense/CIWS/C-UAS), or 'dual_role'.
+        
+    Returns:
+        List of matching Weapon objects.
+    """
+    catalog = load_catalog(catalog_path)
+    role_norm = role.strip().lower()
+    unique = catalog.unique_weapons() if hasattr(catalog, "unique_weapons") else list(set(catalog.values()))
+
+    if role_norm == "attacker":
+        return [w for w in unique if w.is_attacker()]
+    elif role_norm == "defender":
+        return [w for w in unique if w.is_defender()]
+    elif role_norm == "dual_role":
+        return [w for w in unique if w.role == "dual_role"]
+    else:
+        raise ValueError(f"Unknown role '{role}'. Expected 'attacker', 'defender', or 'dual_role'.")
+
