@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IAMD Global Defense Simulator | Interactive Web Display</title>
+  
+  <!-- Open-Source Libraries (Zero API Keys) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+
+  <style>
+    :root {
+      --bg-dark: #0a0e14;
+      --panel-bg: rgba(16, 23, 34, 0.92);
+      --border-color: #1e293b;
+      --accent-cyan: #00f0ff;
+      --accent-green: #00ff88;
+      --accent-red: #ff3366;
+      --accent-gold: #ffb703;
+      --text-main: #e2e8f0;
+      --text-muted: #94a3b8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", monospace;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Command Header */
+    header {
+      background: #0f172a;
+      border-bottom: 1px solid var(--border-color);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 1000;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand h1 {
+      font-size: 1.15rem;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--accent-cyan);
+      font-weight: 700;
+    }
+    .defcon-badge {
+      background: rgba(255, 51, 102, 0.2);
+      border: 1px solid var(--accent-red);
+      color: var(--accent-red);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: bold;
+      letter-spacing: 1px;
+    }
+    .controls-top {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    select, button {
+      background: #1e293b;
+      color: var(--text-main);
+      border: 1px solid #334155;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+    button:hover { background: #334155; border-color: var(--accent-cyan); }
+    .btn-strike {
+      background: rgba(255, 51, 102, 0.2);
+      border-color: var(--accent-red);
+      color: var(--accent-red);
+    }
+    .btn-strike:hover { background: var(--accent-red); color: #fff; }
+
+    /* Layout */
+    .main-container {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 120px);
+      position: relative;
+    }
+    #map-view {
+      flex: 1;
+      height: 100%;
+      background: #06090e;
+    }
+    #globe-view {
+      display: none;
+      flex: 1;
+      height: 100%;
+      background: #06090e;
+    }
+
+    /* Telemetry Sidebar */
+    .telemetry-sidebar {
+      width: 380px;
+      background: var(--panel-bg);
+      border-left: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      padding: 16px;
+      gap: 14px;
+      overflow-y: auto;
+      z-index: 500;
+    }
+    .hud-card {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid #1e293b;
+      border-radius: 6px;
+      padding: 12px;
+    }
+    .hud-title {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .stat-value {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      font-family: monospace;
+    }
+    .stat-sub {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    /* Mach Meter */
+    .mach-container {
+      height: 8px;
+      background: #1e293b;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 6px;
+      position: relative;
+    }
+    .mach-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent-cyan), var(--accent-gold), var(--accent-red));
+      transition: width 0.3s ease;
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+    .badge-boost { background: rgba(0, 240, 255, 0.15); color: var(--accent-cyan); border: 1px solid var(--accent-cyan); }
+    .badge-midcourse { background: rgba(0, 255, 136, 0.15); color: var(--accent-green); border: 1px solid var(--accent-green); }
+    .badge-glide { background: rgba(255, 183, 3, 0.15); color: var(--accent-gold); border: 1px solid var(--accent-gold); }
+    .badge-terminal { background: rgba(255, 51, 102, 0.2); color: var(--accent-red); border: 1px solid var(--accent-red); }
+
+    /* Altitude Profile Split */
+    .altitude-drawer {
+      height: 150px;
+      background: #090d14;
+      border-top: 1px solid var(--border-color);
+      padding: 6px 12px;
+    }
+
+    /* Bottom Playback Bar */
+    footer {
+      height: 60px;
+      background: #0f172a;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      z-index: 1000;
+    }
+    .playback-buttons {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .scrubber-container {
+      flex: 1;
+      margin: 0 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    input[type=range] {
+      flex: 1;
+      accent-color: var(--accent-cyan);
+      cursor: pointer;
+    }
+    .time-display {
+      font-family: monospace;
+      font-size: 0.85rem;
+      color: var(--accent-cyan);
+    }
+    .easter-egg-banner {
+      display: none;
+      position: absolute;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 183, 3, 0.18);
+      border: 1px solid var(--accent-gold);
+      color: var(--accent-gold);
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      z-index: 2000;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: translateX(-50%) scale(1); }
+      50% { opacity: 0.7; transform: translateX(-50%) scale(0.98); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header -->
+  <header>
+    <div class="brand">
+      <h1>IAMD Global Defense Simulator</h1>
+      <span class="defcon-badge">DEFCON 2 // ARMED</span>
+    </div>
+    <div class="controls-top">
+      <select id="theaterSelect" onchange="switchTheater(this.value)">
+        <option value="eastern_europe">Eastern Europe (Iskander / Kinzhal vs Patriot)</option>
+        <option value="persian_gulf">Persian Gulf (Drones / Cruise vs Roadrunner-M / CIWS)</option>
+        <option value="taiwan_strait">Taiwan Strait (DF-17 HGV vs THAAD / SM-3)</option>
+        <option value="conus_homeland">CONUS Homeland (ICBM vs GMD / THAAD)</option>
+      </select>
+      <button onclick="toggleViewMode('2d')" id="btn2D" style="border-color: var(--accent-cyan);">2D Tactical</button>
+      <button onclick="toggleViewMode('3d')" id="btn3D">3D Globe</button>
+      <button class="btn-strike" onclick="triggerSalvo()">🚀 Strike Salvo</button>
+    </div>
+  </header>
+
+  <!-- Easter Egg Alert -->
+  <div id="easterEggBanner" class="easter-egg-banner">
+    ⚡ AIR-LAUNCH DETECTED: F-22A RAPTOR INGRESS — DEPLOYED MUNITION AT MACH 1.5, ALT 45,000 FT
+  </div>
+
+  <!-- Main Viewports -->
+  <div class="main-container">
+    <div id="map-view"></div>
+    <div id="globe-view"></div>
+
+    <!-- Telemetry Sidebar -->
+    <aside class="telemetry-sidebar">
+      <div class="hud-card">
+        <div class="hud-title"><span>Target Track Focus</span><span id="trackFaction" class="badge badge-terminal">AGGRESSOR</span></div>
+        <div id="trackName" class="stat-value" style="font-size: 1.15rem;">Kh-47M2 Kinzhal</div>
+        <div id="trackClass" class="stat-sub">Hypersonic Aero-Ballistic Glide Weapon</div>
+      </div>
+
+      <div class="hud-card">
+        <div class="hud-title"><span>Velocity & Mach Rating</span><span id="flightPhase" class="badge badge-glide">GLIDE</span></div>
+        <div class="stat-value" id="trackMach">Mach 10.45</div>
+        <div class="stat-sub" id="trackKmh">11,843 km/h (3,290 m/s)</div>
+        <div class="mach-container"><div id="machFill" class="mach-fill" style="width: 85%;"></div></div>
+      </div>
+
+      <div class="hud-card">
+        <div class="hud-title"><span>Altitude & Apogee Ceiling</span><span id="atmoLayer" class="stat-sub">Stratosphere</span></div>
+        <div class="stat-value" id="trackAlt">36.8 km</div>
+        <div class="stat-sub" id="trackApogee">Max Apogee: 36.8 km | Descent: -240 m/s</div>
+      </div>
+
+      <div class="hud-card">
+        <div class="hud-title"><span>Engagement Geometry</span><span id="interceptStatus" class="stat-sub" style="color: var(--accent-green);">INTERCEPT LOCKED</span></div>
+        <div style="display: flex; justify-content: space-between; margin-top: 4px;">
+          <div><div class="stat-sub">Downrange</div><div id="statDownrange" style="font-weight: 700; color: #fff;">482 km</div></div>
+          <div><div class="stat-sub">To Target</div><div id="statRemaining" style="font-weight: 700; color: #fff;">257 km</div></div>
+          <div><div class="stat-sub">Time-to-Go</div><div id="statEta" style="font-weight: 700; color: var(--accent-cyan);">78.0 s</div></div>
+        </div>
+      </div>
+
+      <!-- Integrated Profile Graph -->
+      <div class="hud-card" style="flex: 1; display: flex; flex-direction: column;">
+        <div class="hud-title"><span>Altitude Profile Cross-Section</span><span>Missilemap Model</span></div>
+        <div id="miniProfileGraph" style="flex: 1; min-height: 140px;"></div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Bottom Playback Transport Bar -->
+  <footer>
+    <div class="playback-buttons">
+      <button onclick="togglePlay()" id="playBtn">▶ Play</button>
+      <button onclick="stepForward()">⏭ Step</button>
+      <button onclick="resetSim()">↺ Reset</button>
+      <select id="speedSelect" onchange="simSpeed = parseFloat(this.value)">
+        <option value="1">1x Speed</option>
+        <option value="5" selected>5x Speed</option>
+        <option value="20">20x Speed</option>
+      </select>
+    </div>
+
+    <div class="scrubber-container">
+      <span class="time-display" id="timeClock">T+00:35.0s / 120.0s</span>
+      <input type="range" id="timeSlider" min="0" max="120" step="0.5" value="35" oninput="seekSim(parseFloat(this.value))">
+    </div>
+
+    <div>
+      <span class="badge" style="background: rgba(0, 255, 136, 0.15); color: var(--accent-green); border: 1px solid var(--accent-green);">
+        RADAR ACTIVE // TPN ENGAGED
+      </span>
+    </div>
+  </footer>
+
+  <script>
+    // -------------------------------------------------------------
+    // Theater Geometries & Data (OpenStreetMap / CartoDB Zero API Keys)
+    // -------------------------------------------------------------
+    const THEATERS = {
+      eastern_europe: {
+        name: "Eastern Europe",
+        center: [49.5, 34.0],
+        zoom: 6,
+        attackers: [
+          { name: "Kursk Forward Strike Complex", coords: [51.73, 36.19], weapon: "9M723 Iskander-M", role: "SRBM" },
+          { name: "Savasleyka Airfield Corridor", coords: [55.45, 42.31], weapon: "Kh-47M2 Kinzhal", role: "HGV" },
+          { name: "Crimean Launch Array", coords: [45.30, 34.40], weapon: "Shahed-136 Swarm", role: "Drone" }
+        ],
+        defenders: [
+          { name: "Kyiv IAMD Division (Patriot PAC-3 MSE)", coords: [50.45, 30.52], wez_km: 120 },
+          { name: "Dnipro NASAMS-3 Battery", coords: [48.46, 35.04], wez_km: 50 },
+          { name: "Odesa Air Defense Cluster", coords: [46.48, 30.72], wez_km: 65 }
+        ],
+        targets: [
+          { name: "Kyiv Strategic C2 Hub", coords: [50.44, 30.51] },
+          { name: "Dnipro Hydroelectric Grid", coords: [48.45, 35.02] }
+        ]
+      },
+      persian_gulf: {
+        name: "Persian Gulf & Red Sea",
+        center: [26.0, 52.0],
+        zoom: 6,
+        attackers: [
+          { name: "Bandar Abbas Coastal Battery", coords: [27.20, 56.28], weapon: "Quds-3 Cruise", role: "Cruise" },
+          { name: "Shiraz Ballistic Silo Array", coords: [29.60, 52.53], weapon: "Khyber Shekan", role: "MRBM" }
+        ],
+        defenders: [
+          { name: "Al Dhafra Air Base (THAAD)", coords: [24.25, 54.55], wez_km: 200 },
+          { name: "Ras Tanura Patriot Battery", coords: [26.68, 50.16], wez_km: 120 },
+          { name: "Strait of Hormuz Roadrunner-M Nest", coords: [25.80, 55.00], wez_km: 35 }
+        ],
+        targets: [
+          { name: "Ras Tanura Oil Terminal", coords: [26.67, 50.15] },
+          { name: "Jebel Ali Commercial Port", coords: [25.01, 55.06] }
+        ]
+      }
+    };
+
+    let currentTheater = "eastern_europe";
+    let simTime = 35.0;
+    let isPlaying = false;
+    let simSpeed = 5.0;
+    let timer = null;
+
+    // -------------------------------------------------------------
+    // Leaflet 2D Map Initialization (100% Open Source CartoDB Tiles)
+    // -------------------------------------------------------------
+    const map = L.map('map-view', { zoomControl: true }).setView(THEATERS.eastern_europe.center, THEATERS.eastern_europe.zoom);
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      subdomains: 'abcd',
+      maxZoom: 19
+    }).addTo(map);
+
+    let mapLayers = [];
+
+    function renderTheater(theaterKey) {
+      mapLayers.forEach(l => map.removeLayer(l));
+      mapLayers = [];
+
+      const t = THEATERS[theaterKey];
+      map.setView(t.center, t.zoom);
+
+      // 1. Radar WEZ Circles
+      t.defenders.forEach(d => {
+        const circle = L.circle(d.coords, {
+          radius: d.wez_km * 1000,
+          color: '#00ff88',
+          fillColor: '#00ff88',
+          fillOpacity: 0.08,
+          weight: 1.5,
+          dashArray: '4, 4'
+        }).addTo(map);
+        circle.bindTooltip(`<b>${d.name}</b><br>Radar WEZ: ${d.wez_km} km`, { className: 'hud-tooltip' });
+        mapLayers.push(circle);
+
+        // Defender Marker
+        const m = L.circleMarker(d.coords, {
+          radius: 8,
+          color: '#00ff88',
+          fillColor: '#00ff88',
+          fillOpacity: 0.9
+        }).addTo(map);
+        m.bindPopup(`<b>DEFENDER BATTERY:</b> ${d.name}<br>Status: OPERATIONAL // READY`);
+        mapLayers.push(m);
+      });
+
+      // 2. Defended Targets
+      t.targets.forEach(tgt => {
+        const m = L.circleMarker(tgt.coords, {
+          radius: 7,
+          color: '#ffb703',
+          fillColor: '#ffb703',
+          fillOpacity: 0.9
+        }).addTo(map);
+        m.bindPopup(`<b>DEFENDED ASSET:</b> ${tgt.name}`);
+        mapLayers.push(m);
+      });
+
+      // 3. Attackers & Trajectory Arcs
+      t.attackers.forEach((atk, idx) => {
+        const m = L.circleMarker(atk.coords, {
+          radius: 8,
+          color: '#ff3366',
+          fillColor: '#ff3366',
+          fillOpacity: 0.9
+        }).addTo(map);
+        m.bindPopup(`<b>AGGRESSOR:</b> ${atk.name}<br>Weapon: ${atk.weapon}`);
+        mapLayers.push(m);
+
+        // Flight Polyline to Target
+        const targetCoords = t.targets[idx % t.targets.length].coords;
+        const line = L.polyline([atk.coords, targetCoords], {
+          color: atk.role === 'HGV' ? '#ff00ff' : '#ff3366',
+          weight: 2,
+          opacity: 0.75,
+          dashArray: '6, 6'
+        }).addTo(map);
+        mapLayers.push(line);
+
+        // Mid-flight Threat Marker
+        const frac = 0.55;
+        const midLat = atk.coords[0] + (targetCoords[0] - atk.coords[0]) * frac;
+        const midLon = atk.coords[1] + (targetCoords[1] - atk.coords[1]) * frac;
+        const threatMarker = L.circleMarker([midLat, midLon], {
+          radius: 6,
+          color: '#00f0ff',
+          fillColor: '#00f0ff',
+          fillOpacity: 1.0
+        }).addTo(map);
+        threatMarker.bindTooltip(`<b>${atk.weapon}</b><br>Mach 10.45 | Alt 36.8km`, { permanent: true, direction: 'top' });
+        mapLayers.push(threatMarker);
+
+        // Intercept burst
+        const burst = L.marker([midLat + 0.05, midLon + 0.05], {
+          icon: L.divIcon({
+            html: '<div style="font-size: 20px; text-shadow: 0 0 10px #ffb703;">💥</div>',
+            className: 'burst-icon',
+            iconSize: [24, 24]
+          })
+        }).addTo(map);
+        burst.bindPopup(`<b>KINETIC INTERCEPT // DIRECT HIT</b><br>CPA Miss Distance: 0.42 m<br>Probability of Kill: 99.8%`);
+        mapLayers.push(burst);
+      });
+    }
+
+    renderTheater(currentTheater);
+
+    function switchTheater(val) {
+      currentTheater = val;
+      renderTheater(val);
+      updateMiniProfile();
+    }
+
+    // -------------------------------------------------------------
+    // Mini Altitude Profile Chart (Plotly)
+    // -------------------------------------------------------------
+    function updateMiniProfile() {
+      const x = [0, 50, 150, 300, 480, 550, 680];
+      const yThreat = [0, 22, 36.8, 32.5, 36.2, 18.0, 0];
+      const yInterceptor = [null, null, null, 0, 36.2, null, null];
+
+      const traces = [
+        {
+          x: x,
+          y: yThreat,
+          mode: 'lines',
+          name: 'Kinzhal HGV',
+          line: { color: '#ff3366', width: 2.5 }
+        },
+        {
+          x: [480],
+          y: [36.2],
+          mode: 'markers',
+          name: 'Intercept (CPA 0.42m)',
+          marker: { color: '#ffb703', size: 10, symbol: 'star' }
+        },
+        {
+          x: [300, 480],
+          y: [0, 36.2],
+          mode: 'lines',
+          name: 'PAC-3 Climb',
+          line: { color: '#00ff88', width: 2, dash: 'dot' }
+        }
+      ];
+
+      const layout = {
+        margin: { l: 30, r: 15, t: 10, b: 25 },
+        paper_bgcolor: 'transparent',
+        plot_bgcolor: 'transparent',
+        xaxis: { title: 'Downrange (km)', color: '#94a3b8', gridcolor: '#1e293b' },
+        yaxis: { title: 'Alt (km)', color: '#94a3b8', gridcolor: '#1e293b' },
+        showlegend: false,
+        font: { size: 9, color: '#94a3b8' }
+      };
+
+      Plotly.newPlot('miniProfileGraph', traces, layout, { responsive: true, displayModeBar: false });
+    }
+
+    updateMiniProfile();
+
+    // -------------------------------------------------------------
+    // 3D Globe Mode (Plotly 3D Scatter)
+    // -------------------------------------------------------------
+    let globeInitialized = false;
+    function render3DGlobe() {
+      if (globeInitialized) return;
+      globeInitialized = true;
+
+      // Simple wireframe sphere
+      const u = [];
+      const v = [];
+      for (let i = 0; i <= 20; i++) u.push(i * Math.PI / 20);
+      for (let j = 0; j <= 30; j++) v.push(j * 2 * Math.PI / 30);
+
+      const x = [];
+      const y = [];
+      const z = [];
+      const r = 6371;
+
+      for (let i = 0; i < u.length; i++) {
+        const rowX = [], rowY = [], rowZ = [];
+        for (let j = 0; j < v.length; j++) {
+          rowX.push(r * Math.sin(u[i]) * Math.cos(v[j]));
+          rowY.push(r * Math.sin(u[i]) * Math.sin(v[j]));
+          rowZ.push(r * Math.cos(u[i]));
+        }
+        x.push(rowX); y.push(rowY); z.push(rowZ);
+      }
+
+      // Ballistic Arc Example
+      const arcX = [4000, 4500, 4900, 4800, 4200];
+      const arcY = [2800, 3100, 3400, 3600, 3800];
+      const arcZ = [4200, 4900, 5600, 5200, 4600];
+
+      const data = [
+        {
+          type: 'surface',
+          x: x, y: y, z: z,
+          colorscale: [[0, '#06090e'], [1, '#1e293b']],
+          showscale: false,
+          opacity: 0.95
+        },
+        {
+          type: 'scatter3d',
+          mode: 'lines+markers',
+          x: arcX, y: arcY, z: arcZ,
+          line: { color: '#ff3366', width: 4 },
+          marker: { size: 4, color: '#00f0ff' },
+          name: 'Trajectory Arc'
+        }
+      ];
+
+      const layout = {
+        paper_bgcolor: '#06090e',
+        scene: {
+          xaxis: { visible: false },
+          yaxis: { visible: false },
+          zaxis: { visible: false },
+          camera: { eye: { x: 1.5, y: 1.5, z: 1.2 } }
+        },
+        margin: { l: 0, r: 0, t: 0, b: 0 }
+      };
+
+      Plotly.newPlot('globe-view', data, layout, { responsive: true });
+    }
+
+    function toggleViewMode(mode) {
+      if (mode === '2d') {
+        document.getElementById('map-view').style.display = 'block';
+        document.getElementById('globe-view').style.display = 'none';
+        document.getElementById('btn2D').style.borderColor = 'var(--accent-cyan)';
+        document.getElementById('btn3D').style.borderColor = '#334155';
+        map.invalidateSize();
+      } else {
+        document.getElementById('map-view').style.display = 'none';
+        document.getElementById('globe-view').style.display = 'block';
+        document.getElementById('btn3D').style.borderColor = 'var(--accent-cyan)';
+        document.getElementById('btn2D').style.borderColor = '#334155';
+        render3DGlobe();
+      }
+    }
+
+    // -------------------------------------------------------------
+    // Playback Engine & 10% Easter Egg
+    // -------------------------------------------------------------
+    function togglePlay() {
+      isPlaying = !isPlaying;
+      document.getElementById('playBtn').innerText = isPlaying ? '⏸ Pause' : '▶ Play';
+      if (isPlaying) {
+        timer = setInterval(tick, 200);
+      } else {
+        clearInterval(timer);
+      }
+    }
+
+    function tick() {
+      simTime += (0.2 * simSpeed);
+      if (simTime > 120) simTime = 0;
+      updateUI();
+    }
+
+    function seekSim(val) {
+      simTime = val;
+      updateUI();
+    }
+
+    function stepForward() {
+      simTime = Math.min(120, simTime + 2.0);
+      updateUI();
+    }
+
+    function resetSim() {
+      simTime = 0;
+      isPlaying = false;
+      document.getElementById('playBtn').innerText = '▶ Play';
+      clearInterval(timer);
+      updateUI();
+    }
+
+    function updateUI() {
+      document.getElementById('timeSlider').value = simTime;
+      const mm = Math.floor(simTime / 60).toString().padStart(2, '0');
+      const ss = (simTime % 60).toFixed(1).padStart(4, '0');
+      document.getElementById('timeClock').innerText = `T+${mm}:${ss}s / 120.0s`;
+
+      // Dynamic telemetry mock
+      const progress = Math.min(1.0, simTime / 90.0);
+      const mach = (10.45 * Math.sin(progress * Math.PI * 0.8 + 0.2)).toFixed(2);
+      const alt = (36.8 * Math.sin(progress * Math.PI)).toFixed(1);
+
+      document.getElementById('trackMach').innerText = `Mach ${mach}`;
+      document.getElementById('trackAlt').innerText = `${alt} km`;
+      document.getElementById('machFill').style.width = `${Math.min(100, (mach / 12) * 100)}%`;
+      document.getElementById('statRemaining').innerText = `${Math.max(0, Math.floor(740 * (1 - progress)))} km`;
+      document.getElementById('statDownrange').innerText = `${Math.floor(740 * progress)} km`;
+      document.getElementById('statEta').innerText = `${Math.max(0, (90 - simTime).toFixed(1))} s`;
+
+      if (progress < 0.15) {
+        document.getElementById('flightPhase').className = 'badge badge-boost';
+        document.getElementById('flightPhase').innerText = 'BOOST';
+      } else if (progress < 0.80) {
+        document.getElementById('flightPhase').className = 'badge badge-glide';
+        document.getElementById('flightPhase').innerText = 'GLIDE';
+      } else {
+        document.getElementById('flightPhase').className = 'badge badge-terminal';
+        document.getElementById('flightPhase').innerText = 'TERMINAL';
+      }
+    }
+
+    function triggerSalvo() {
+      // 10% Chance Easter Egg trigger
+      const eggBanner = document.getElementById('easterEggBanner');
+      if (Math.random() < 0.3) { // 30% on manual click for demo visibility!
+        eggBanner.style.display = 'block';
+        setTimeout(() => { eggBanner.style.display = 'none'; }, 6000);
+      }
+      resetSim();
+      togglePlay();
+    }
+  </script>
+</body>
+</html>
