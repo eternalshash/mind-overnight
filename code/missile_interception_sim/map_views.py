@@ -1984,3 +1984,252 @@ def build_3d_globe_figure(
 # ==============================================================================
 # 8. HIGH-LEVEL UNIFIED DASH VIEW CONTAINER & MODE TOGGLE
 # ==============================================================================
+
+def build_map_views_container(
+    theater_key: str = "eastern_europe",
+    default_mode: str = "2d"
+) -> html.Div:
+    """
+    Construct the unified Dashboard component layout integrating:
+    - Theater Quick-Jump Selector Dropdown
+    - View Mode Switcher: 2D Tactical Map (dash-leaflet) vs. 3D Digital Globe (Plotly 3D)
+    - Interactive Layer Filters (Radar WEZ, Interceptors, Detonation Bursts)
+    - Container for 2D Map and 3D Globe with dynamic toggle support
+    - Altitude Profile Chart container
+    - Real-Time Tactical Status HUD Badges
+    """
+    theater_options = [
+        {"label": f"🌍 {data['name']}", "value": key}
+        for key, data in THEATER_PRESETS.items()
+    ]
+
+    is_2d = default_mode == "2d"
+
+    # Status KPI calculations for initial view
+    theater = THEATER_PRESETS.get(theater_key, THEATER_PRESETS["eastern_europe"])
+    trajectories = theater.get("threat_trajectories", [])
+    n_threats = len(trajectories)
+    n_intercepts = sum(1 for t in trajectories if t.get("status") == "INTERCEPTED")
+    n_leakers = sum(1 for t in trajectories if t.get("status") == "IMPACT")
+    fleet_pkill = np.mean([t.get("p_kill", 0.95) for t in trajectories]) * 100.0 if trajectories else 96.0
+
+    return html.Div([
+        # 1. Top Control Toolbar
+        html.Div([
+            html.Div([
+                html.Label("OPERATIONAL THEATER QUICK-JUMP:", style={"fontSize": "11px", "color": "#8b949e", "fontWeight": "bold", "marginBottom": "4px", "display": "block"}),
+                dcc.Dropdown(
+                    id="theater-selector",
+                    options=theater_options,
+                    value=theater_key,
+                    clearable=False,
+                    style={"backgroundColor": "#161b22", "color": "#000000", "minWidth": "280px", "fontSize": "13px"}
+                )
+            ], style={"marginRight": "20px"}),
+
+            html.Div([
+                html.Label("VISUALIZATION MODE TOGGLE:", style={"fontSize": "11px", "color": "#8b949e", "fontWeight": "bold", "marginBottom": "4px", "display": "block"}),
+                dcc.RadioItems(
+                    id="view-mode-toggle",
+                    options=[
+                        {"label": " 🛰️ 2D Tactical Map (Leaflet) ", "value": "2d"},
+                        {"label": " 🌐 3D Digital Globe (Plotly) ", "value": "3d"}
+                    ],
+                    value=default_mode,
+                    inline=True,
+                    style={"color": "#ffffff", "fontSize": "13px", "paddingTop": "6px"}
+                )
+            ], style={"marginRight": "20px"}),
+
+            html.Div([
+                html.Label("TACTICAL OVERLAYS:", style={"fontSize": "11px", "color": "#8b949e", "fontWeight": "bold", "marginBottom": "4px", "display": "block"}),
+                dcc.Checklist(
+                    id="map-layer-toggles",
+                    options=[
+                        {"label": " Radar WEZ ", "value": "wez"},
+                        {"label": " Interceptors ", "value": "interceptors"},
+                        {"label": " Detonations ", "value": "bursts"}
+                    ],
+                    value=["wez", "interceptors", "bursts"],
+                    inline=True,
+                    style={"color": "#58a6ff", "fontSize": "12px", "paddingTop": "6px"}
+                )
+            ])
+        ], style={
+            "display": "flex",
+            "flexWrap": "wrap",
+            "alignItems": "center",
+            "backgroundColor": "#161b22",
+            "padding": "12px 18px",
+            "borderRadius": "8px",
+            "border": "1px solid #30363d",
+            "marginBottom": "12px"
+        }),
+
+        # 2. Tactical Status HUD KPI Badges
+        html.Div(id="tactical-status-hud", children=[
+            html.Div([
+                html.Span("ACTIVE THREATS: ", style={"color": "#8b949e", "fontSize": "11px"}),
+                html.Span(f"{n_threats} Tracking", style={"color": "#ff3344", "fontWeight": "bold", "fontSize": "13px"})
+            ], style={"backgroundColor": "#0d1117", "border": "1px solid #ff3344", "padding": "6px 14px", "borderRadius": "4px", "marginRight": "10px"}),
+
+            html.Div([
+                html.Span("KINETIC INTERCEPTS: ", style={"color": "#8b949e", "fontSize": "11px"}),
+                html.Span(f"{n_intercepts} Confirmed", style={"color": "#00ff88", "fontWeight": "bold", "fontSize": "13px"})
+            ], style={"backgroundColor": "#0d1117", "border": "1px solid #00ff88", "padding": "6px 14px", "borderRadius": "4px", "marginRight": "10px"}),
+
+            html.Div([
+                html.Span("LEAKER PENETRATIONS: ", style={"color": "#8b949e", "fontSize": "11px"}),
+                html.Span(f"{n_leakers} Impacts", style={"color": "#ffea00", "fontWeight": "bold", "fontSize": "13px"})
+            ], style={"backgroundColor": "#0d1117", "border": "1px solid #ffea00", "padding": "6px 14px", "borderRadius": "4px", "marginRight": "10px"}),
+
+            html.Div([
+                html.Span("SYSTEM-WIDE P_KILL: ", style={"color": "#8b949e", "fontSize": "11px"}),
+                html.Span(f"{fleet_pkill:.1f}%", style={"color": "#00e5ff", "fontWeight": "bold", "fontSize": "13px"})
+            ], style={"backgroundColor": "#0d1117", "border": "1px solid #00e5ff", "padding": "6px 14px", "borderRadius": "4px"})
+        ], style={"display": "flex", "flexWrap": "wrap", "marginBottom": "12px"}),
+
+        # 3. Viewport Containers for 2D Map vs 3D Globe
+        html.Div(
+            id="tactical-2d-viewport-container",
+            children=[build_tactical_leaflet_map(theater_key=theater_key)],
+            style={"display": "block" if is_2d else "none", "marginBottom": "16px"}
+        ),
+
+        html.Div(
+            id="tactical-3d-viewport-container",
+            children=[
+                dcc.Graph(
+                    id="tactical-3d-globe-graph",
+                    figure=build_3d_globe_figure(theater_key=theater_key),
+                    config={"displayModeBar": True, "responsive": True}
+                )
+            ],
+            style={"display": "none" if is_2d else "block", "marginBottom": "16px"}
+        ),
+
+        # 4. Missilemap 2D Altitude Profile Section
+        html.Div([
+            html.Div([
+                html.H4("🎯 MISSILEMAP 2D DOWNRANGE VS. ALTITUDE PROFILE", style={"color": "#ffffff", "margin": "0 0 6px 0", "fontSize": "15px"}),
+                html.P("Simultaneous multi-variable flight profile depicting boost-phase burnout, peak apogee, interceptor climb vector, and kinetic interception geometry.", style={"color": "#8b949e", "fontSize": "12px", "margin": "0 0 10px 0"})
+            ]),
+            dcc.Graph(
+                id="missilemap-altitude-profile-graph",
+                figure=build_altitude_profile_figure(theater_key=theater_key, threat_index=0),
+                config={"displayModeBar": True, "responsive": True}
+            )
+        ], style={
+            "backgroundColor": "#161b22",
+            "padding": "16px",
+            "borderRadius": "8px",
+            "border": "1px solid #30363d"
+        })
+    ], id="unified-map-views-container", style={"fontFamily": "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif"})
+
+
+# ==============================================================================
+# 9. DASH CALLBACK REGISTRATION
+# ==============================================================================
+
+def register_map_callbacks(app) -> None:
+    """Register all interactive callbacks for theater jumping, 2D/3D toggling, and overlays."""
+
+    @app.callback(
+        Output("tactical-2d-viewport-container", "style"),
+        Output("tactical-3d-viewport-container", "style"),
+        Input("view-mode-toggle", "value")
+    )
+    def toggle_view_mode(mode):
+        if mode == "3d":
+            return {"display": "none", "marginBottom": "16px"}, {"display": "block", "marginBottom": "16px"}
+        return {"display": "block", "marginBottom": "16px"}, {"display": "none", "marginBottom": "16px"}
+
+    @app.callback(
+        Output("tactical-2d-viewport-container", "children"),
+        Output("tactical-3d-globe-graph", "figure"),
+        Output("missilemap-altitude-profile-graph", "figure"),
+        Output("tactical-status-hud", "children"),
+        Input("theater-selector", "value"),
+        Input("map-layer-toggles", "value")
+    )
+    def update_theater_and_layers(selected_theater, active_layers):
+        layers = active_layers or []
+        show_wez = "wez" in layers
+        show_interceptors = "interceptors" in layers
+        show_bursts = "bursts" in layers
+
+        # 1. Rebuild 2D Leaflet Map
+        new_map = build_tactical_leaflet_map(
+            theater_key=selected_theater,
+            show_wez=show_wez,
+            show_interceptors=show_interceptors,
+            show_bursts=show_bursts
+        )
+
+        # 2. Rebuild 3D Globe Figure
+        new_globe_fig = build_3d_globe_figure(
+            theater_key=selected_theater,
+            show_wez_domes=show_wez,
+            show_bursts=show_bursts
+        )
+
+        # 3. Rebuild Altitude Profile Chart
+        new_alt_fig = build_altitude_profile_figure(
+            theater_key=selected_theater,
+            threat_index=0
+        )
+
+        # 4. Rebuild Status HUD
+        th_data = THEATER_PRESETS.get(selected_theater, THEATER_PRESETS["eastern_europe"])
+        trajectories = th_data.get("threat_trajectories", [])
+        n_threats = len(trajectories)
+        n_intercepts = sum(1 for t in trajectories if t.get("status") == "INTERCEPTED")
+        n_leakers = sum(1 for t in trajectories if t.get("status") == "IMPACT")
+        fleet_pkill = np.mean([t.get("p_kill", 0.95) for t in trajectories]) * 100.0 if trajectories else 96.0
+
+        new_hud = [
+            html.Div([
+                html.Span("ACTIVE THREATS: ", style={"color": "#8b949e", "fontSize": "11px"}),
+                html.Span(f"{n_threats} Tracking", style={"color": "#ff3344", "fontWeight": "bold", "fontSize": "13px"})
+            ], style={"backgroundColor": "#0d1117", "border": "1px solid #ff3344", "padding": "6px 14px", "borderRadius": "4px", "marginRight": "10px"}),
+
+            html.Div([
+                html.Span("KINETIC INTERCEPTS: ", style={"color": "#8b949e", "fontSize": "11px"}),
+                html.Span(f"{n_intercepts} Confirmed", style={"color": "#00ff88", "fontWeight": "bold", "fontSize": "13px"})
+            ], style={"backgroundColor": "#0d1117", "border": "1px solid #00ff88", "padding": "6px 14px", "borderRadius": "4px", "marginRight": "10px"}),
+
+            html.Div([
+                html.Span("LEAKER PENETRATIONS: ", style={"color": "#8b949e", "fontSize": "11px"}),
+                html.Span(f"{n_leakers} Impacts", style={"color": "#ffea00", "fontWeight": "bold", "fontSize": "13px"})
+            ], style={"backgroundColor": "#0d1117", "border": "1px solid #ffea00", "padding": "6px 14px", "borderRadius": "4px", "marginRight": "10px"}),
+
+            html.Div([
+                html.Span("SYSTEM-WIDE P_KILL: ", style={"color": "#8b949e", "fontSize": "11px"}),
+                html.Span(f"{fleet_pkill:.1f}%", style={"color": "#00e5ff", "fontWeight": "bold", "fontSize": "13px"})
+            ], style={"backgroundColor": "#0d1117", "border": "1px solid #00e5ff", "padding": "6px 14px", "borderRadius": "4px"})
+        ]
+
+        return [new_map], new_globe_fig, new_alt_fig, new_hud
+
+
+# ==============================================================================
+# 10. DIRECT DEMO EXECUTION
+# ==============================================================================
+
+if __name__ == "__main__":
+    from dash import Dash
+
+    demo_app = Dash(__name__)
+    demo_app.title = "Tactical Map & Air Defense HUD"
+    demo_app.layout = html.Div([
+        html.Div([
+            html.H2("🛰️ INTEGRATED AIR & MISSILE DEFENSE (IAMD) COMMAND HUD", style={"color": "#ffffff", "margin": "0 0 4px 0", "letterSpacing": "1px"}),
+            html.P("Multi-Theater Tactical Command Visualizer: 2D Tactical Leaflet Map, 3D Digital Globe, and Missilemap Altitude Profiles", style={"color": "#8b949e", "margin": "0 0 16px 0", "fontSize": "13px"})
+        ], style={"padding": "16px 20px 0 20px"}),
+        build_map_views_container()
+    ], style={"backgroundColor": "#0d1117", "minHeight": "100vh", "padding": "10px"})
+
+    register_map_callbacks(demo_app)
+    print("Starting tactical map demo on http://127.0.0.1:8050 ...")
+    demo_app.run(debug=True, port=8050)
