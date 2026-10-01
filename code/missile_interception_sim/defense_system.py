@@ -847,3 +847,242 @@ class DefenderBattery:
 
         return True
 
+
+class IAMDFireControlSystem:
+    """
+    Multi-Tier Integrated Air and Missile Defense (IAMD) Fire Control System.
+
+    Features:
+    - Layered tier assignment based on threat type, altitude, and range.
+    - Automated threat handoff between tiers (Tier 1 -> Tier 2 -> Tier 3 -> Tier 4).
+    - Firing doctrines: "Shoot-Look-Shoot" (SLS) and "Salvo of 2".
+    - Operational modes: Automatic (Weapons Free) vs. Manual (Operator Auth).
+    - Battle Damage Assessment (BDA) with immediate re-engagement of surviving leakers.
+    """
+
+    def __init__(
+        self,
+        batteries: List[DefenderBattery],
+        firing_doctrine: FiringDoctrine = FiringDoctrine.SHOOT_LOOK_SHOOT,
+        auth_mode: FireAuthorizationMode = FireAuthorizationMode.AUTOMATIC,
+        seeker_noise_std: float = 0.0,
+        wind_vector: Optional[np.ndarray] = None,
+    ):
+        self.batteries = {b.battery_id: b for b in batteries}
+        self.firing_doctrine = firing_doctrine
+        self.auth_mode = auth_mode
+        self.seeker_noise_std = seeker_noise_std
+        self.wind_vector = wind_vector
+
+        # Operational state tracking
+        self.threat_registry: Dict[int, Threat] = {}
+        self.active_interceptors: List[Interceptor] = []
+        self.pending_authorizations: List[int] = [] # Threat IDs awaiting manual auth
+        self.authorized_threats: set = set()
+        self.threat_status: Dict[int, EngagementStatus] = {}
+        self.threat_assigned_batteries: Dict[int, List[str]] = {}
+        self.engagement_records: List[dict] = []
+        self._interceptor_counter = 0
+
+    def register_threat(self, threat: Threat):
+        """Registers a newly detected threat into fire control database."""
+        self.threat_registry[threat.threat_id] = threat
+        self.threat_status[threat.threat_id] = EngagementStatus.DETECTED
+        self.threat_assigned_batteries[threat.threat_id] = []
+
+    def authorize_fire(self, threat_id: int):
+        """Operator manual authorization for a specific threat."""
+        self.authorized_threats.add(threat_id)
+        if threat_id in self.pending_authorizations:
+            self.pending_authorizations.remove(threat_id)
+
+    def authorize_all(self):
+        """Operator manual authorization for all pending threats."""
+        for tid in list(self.pending_authorizations):
+            self.authorize_fire(tid)
+
+    def select_optimal_tier(self, threat: Threat) -> Optional[DefenderBattery]:
+        """
+        Doctrine Tier Assignment Logic:
+        - Tier 1: Exo-atmospheric ballistic threats (alt > 40 km, range <= 250 km).
+        - Tier 2: Mid-altitude ballistic & hypersonic (PAC-3 MSE / S-400, alt 5-38 km, range <= 120 km).
+        - Tier 3: Low/medium cruise missiles & drones (Roadrunner-M / Tamir, alt 0.1-10 km, range <= 35 km).
+        - Tier 4: Terminal close-in point defense (CIWS, range < 3.5 km).
+        """
+        alt = threat.pos[2]
+        dist_to_threat = {
+            b_id: float(np.linalg.norm(b.pos - threat.pos))
+            for b_id, b in self.batteries.items()
+        }
+
+        # 1. Tier 1: High Ballistic / Exo-atmospheric
+        if threat.threat_type == ThreatType.BALLISTIC_HIGH or alt > 40000.0:
+            tier1_bats = [b for b in self.batteries.values() if b.tier == DefenseTier.TIER_1_EXO and b.can_engage(threat)]
+            if tier1_bats:
+                return min(tier1_bats, key=lambda b: dist_to_threat[b.battery_id])
+
+        # 2. Tier 2: Hypersonic & Aero-Ballistic (Kinzhal, Iskander, high re-entry)
+        if threat.threat_type in (ThreatType.KINZHAL_HYPERSONIC, ThreatType.ISKANDER_QUASI_BALLISTIC) or (5000.0 <= alt <= 40000.0):
+            tier2_bats = [b for b in self.batteries.values() if b.tier == DefenseTier.TIER_2_ENDO and b.can_engage(threat)]
+            if tier2_bats:
+                return min(tier2_bats, key=lambda b: dist_to_threat[b.battery_id])
+
+        # 3. Tier 3: Low/Medium Altitude Drones & Cruise Missiles
+        if threat.threat_type in (ThreatType.SHAHED_DRONE, ThreatType.CRUISE_MISSILE) or (50.0 <= alt <= 10000.0):
+            tier3_bats = [b for b in self.batteries.values() if b.tier == DefenseTier.TIER_3_SHORAD and b.can_engage(threat)]
+            if tier3_bats:
+                return min(tier3_bats, key=lambda b: dist_to_threat[b.battery_id])
+
+        # 4. Tier 4: Close-in Terminal Point Defense (< 3.5 km)
+        tier4_bats = [b for b in self.batteries.values() if b.tier == DefenseTier.TIER_4_CIWS and b.can_engage(threat)]
+        if tier4_bats:
+            return min(tier4_bats, key=lambda b: dist_to_threat[b.battery_id])
+
+        # Fallback: Any battery that can engage
+        available_bats = [b for b in self.batteries.values() if b.can_engage(threat)]
+        if available_bats:
+            return min(available_bats, key=lambda b: dist_to_threat[b.battery_id])
+
+        return None
+
+    def _dispatch_interceptor(self, battery: DefenderBattery, threat: Threat, t: float, stagger: float = 0.0) -> Interceptor:
+        """Launches an interceptor from battery against threat."""
+        self._interceptor_counter += 1
+        battery.missiles_remaining -= 1
+        battery.missiles_fired += 1
+
+        interceptor = Interceptor(
+            interceptor_id=self._interceptor_counter,
+            config=battery.config,
+            launch_site=battery.pos,
+            target=threat,
+            launch_time=t + stagger,
+            seeker_noise_std=self.seeker_noise_std,
+            wind_vector=self.wind_vector,
+        )
+        self.active_interceptors.append(interceptor)
+        self.threat_assigned_batteries[threat.threat_id].append(battery.battery_id)
+        threat.assigned_battery_id = battery.battery_id
+        threat.assigned_tier = battery.tier
+        return interceptor
+
+    def evaluate_and_assign(self, t: float):
+        """Evaluates active threats, assigns batteries, and dispatches interceptors."""
+        for tid, threat in self.threat_registry.items():
+            if not threat.is_alive or threat.is_intercepted:
+                continue
+
+            current_status = self.threat_status.get(tid, EngagementStatus.DETECTED)
+
+            # Check if threat is already being engaged by active interceptor(s)
+            has_inflight = any(
+                inc.is_active and inc.target.threat_id == tid
+                for inc in self.active_interceptors
+            )
+            if has_inflight:
+                continue
+
+            # Check for close-in terminal zone breach (< 3.5 km) requiring immediate CIWS fallback
+            dist_to_hva = float(np.linalg.norm(threat.pos - threat.target_asset_pos))
+            if dist_to_hva <= 3500.0:
+                tier4_bats = [b for b in self.batteries.values() if b.tier == DefenseTier.TIER_4_CIWS and b.missiles_remaining > 0]
+                if tier4_bats:
+                    ciws_bat = tier4_bats[0]
+                    # Check manual authorization if needed
+                    if self.auth_mode == FireAuthorizationMode.MANUAL and tid not in self.authorized_threats:
+                        if tid not in self.pending_authorizations:
+                            self.pending_authorizations.append(tid)
+                            self.threat_status[tid] = EngagementStatus.AWAITING_AUTH
+                        continue
+                    # Emergency CIWS point defense burst
+                    self._dispatch_interceptor(ciws_bat, threat, t)
+                    self.threat_status[tid] = EngagementStatus.IN_FLIGHT
+                    continue
+
+            # Standard tier selection
+            battery = self.select_optimal_tier(threat)
+            if battery is None:
+                continue
+
+            # Authorization Check
+            if self.auth_mode == FireAuthorizationMode.MANUAL and tid not in self.authorized_threats:
+                if tid not in self.pending_authorizations:
+                    self.pending_authorizations.append(tid)
+                    self.threat_status[tid] = EngagementStatus.AWAITING_AUTH
+                continue
+
+            # Dispatch according to firing doctrine
+            if self.firing_doctrine == FiringDoctrine.SALVO_OF_2:
+                # Fire primary and secondary staggered interceptors
+                self._dispatch_interceptor(battery, threat, t, stagger=0.0)
+                if battery.missiles_remaining > 0:
+                    self._dispatch_interceptor(battery, threat, t, stagger=battery.config.salvo_interval)
+                self.threat_status[tid] = EngagementStatus.IN_FLIGHT
+            else: # SHOOT_LOOK_SHOOT
+                self._dispatch_interceptor(battery, threat, t, stagger=0.0)
+                self.threat_status[tid] = EngagementStatus.IN_FLIGHT
+
+    def process_bda_and_handoff(self, threat: Threat, interceptor: Interceptor, is_kill: bool, miss_dist: float, t: float):
+        """
+        Conducts Battle Damage Assessment (BDA).
+        If kill: registers target neutralization.
+        If miss: initiates Shoot-Look-Shoot re-engagement or tier handoff.
+        """
+        tid = threat.threat_id
+
+        record = {
+            "threat_id": tid,
+            "threat_name": threat.name,
+            "threat_type": threat.threat_type.value,
+            "interceptor_id": interceptor.interceptor_id,
+            "battery_id": interceptor.config.name,
+            "tier": interceptor.config.tier.value,
+            "kill": is_kill,
+            "miss_distance": miss_dist,
+            "intercept_time": t,
+            "intercept_altitude": interceptor.pos[2],
+            "substep_cpa_used": True,
+        }
+        self.engagement_records.append(record)
+
+        if is_kill:
+            threat.is_alive = False
+            threat.is_intercepted = True
+            threat.interception_time = t
+            threat.intercept_pos = interceptor.pos.copy()
+            self.threat_status[tid] = EngagementStatus.INTERCEPTED
+            # Deactivate any remaining airborne salvo interceptors for this neutralized target
+            for inc in self.active_interceptors:
+                if inc.is_active and inc.target.threat_id == tid and inc.interceptor_id != interceptor.interceptor_id:
+                    inc.is_active = False
+        else:
+            # Check if any other salvo interceptor is still heading toward this threat
+            other_inflight = any(
+                inc.is_active and inc.target.threat_id == tid
+                for inc in self.active_interceptors
+            )
+            if not other_inflight:
+                # BDA confirms miss / leaker: initiate immediate layered tier handoff
+                self.threat_status[tid] = EngagementStatus.HANDED_OFF
+
+    def step(self, t: float, dt: float):
+        """Advances fire control logic, interceptors, and BDA."""
+        # 1. Evaluate threat assignments and launch new interceptors
+        self.evaluate_and_assign(t)
+
+        # 2. Advance all active interceptors
+        for inc in list(self.active_interceptors):
+            if not inc.is_active:
+                continue
+
+            result = inc.step(t, dt)
+            if result is not None:
+                is_kill, miss_dist, t_event = result
+                self.process_bda_and_handoff(inc.target, inc, is_kill, miss_dist, t_event)
+
+
+# ==============================================================================
+# 6. SIMULATION SCENARIO & MONTE CARLO ENGINE
+# ==============================================================================
+
+@dataclass
