@@ -275,3 +275,142 @@ def enu_to_geodetic(
 # ==============================================================================
 # 4. GREAT-CIRCLE GEODESIC NAVIGATION MATH
 # ==============================================================================
+def great_circle_distance(
+    lat1_deg: float, lon1_deg: float,
+    lat2_deg: float, lon2_deg: float,
+    radius: float = R_EARTH
+) -> float:
+    """
+    Compute geodesic great-circle distance (meters) between two points on spherical Earth
+    using the numerically stable Vincenty great-circle formula.
+    """
+    phi1 = math.radians(lat1_deg)
+    lam1 = math.radians(lon1_deg)
+    phi2 = math.radians(lat2_deg)
+    lam2 = math.radians(lon2_deg)
+    dlam = lam2 - lam1
+
+    num = math.sqrt(
+        (math.cos(phi2) * math.sin(dlam))**2 +
+        (math.cos(phi1) * math.sin(phi2) - math.sin(phi1) * math.cos(phi2) * math.cos(dlam))**2
+    )
+    den = math.sin(phi1) * math.sin(phi2) + math.cos(phi1) * math.cos(phi2) * math.cos(dlam)
+    sigma = math.atan2(num, den)
+    return radius * sigma
+
+
+def initial_bearing(
+    lat1_deg: float, lon1_deg: float,
+    lat2_deg: float, lon2_deg: float
+) -> float:
+    """
+    Compute initial forward azimuth / bearing (degrees clockwise from True North, 0..360)
+    from (lat1, lon1) to (lat2, lon2).
+    """
+    phi1 = math.radians(lat1_deg)
+    lam1 = math.radians(lon1_deg)
+    phi2 = math.radians(lat2_deg)
+    lam2 = math.radians(lon2_deg)
+    dlam = lam2 - lam1
+
+    y = math.sin(dlam) * math.cos(phi2)
+    x = math.cos(phi1) * math.sin(phi2) - math.sin(phi1) * math.cos(phi2) * math.cos(dlam)
+    bearing_deg = math.degrees(math.atan2(y, x))
+    return (bearing_deg + 360.0) % 360.0
+
+
+def great_circle_waypoint(
+    lat1_deg: float, lon1_deg: float,
+    lat2_deg: float, lon2_deg: float,
+    fraction: float
+) -> Tuple[float, float]:
+    """
+    Compute intermediate geodetic coordinates (lat, lon in degrees) along the great circle
+    at fractional distance f in [0, 1].
+    """
+    if fraction <= 0.0:
+        return lat1_deg, lon1_deg
+    if fraction >= 1.0:
+        return lat2_deg, lon2_deg
+
+    phi1 = math.radians(lat1_deg)
+    lam1 = math.radians(lon1_deg)
+    phi2 = math.radians(lat2_deg)
+    lam2 = math.radians(lon2_deg)
+    dlam = lam2 - lam1
+
+    num = math.sqrt(
+        (math.cos(phi2) * math.sin(dlam))**2 +
+        (math.cos(phi1) * math.sin(phi2) - math.sin(phi1) * math.cos(phi2) * math.cos(dlam))**2
+    )
+    den = math.sin(phi1) * math.sin(phi2) + math.cos(phi1) * math.cos(phi2) * math.cos(dlam)
+    sigma = math.atan2(num, den)
+
+    if math.isclose(sigma, 0.0):
+        return lat1_deg, lon1_deg
+
+    a = math.sin((1.0 - fraction) * sigma) / math.sin(sigma)
+    b = math.sin(fraction * sigma) / math.sin(sigma)
+
+    x = a * math.cos(phi1) * math.cos(lam1) + b * math.cos(phi2) * math.cos(lam2)
+    y = a * math.cos(phi1) * math.sin(lam1) + b * math.cos(phi2) * math.sin(lam2)
+    z = a * math.sin(phi1) + b * math.sin(phi2)
+
+    lat = math.atan2(z, math.sqrt(x**2 + y**2))
+    lon = math.atan2(y, x)
+    return math.degrees(lat), (math.degrees(lon) + 540.0) % 360.0 - 180.0
+
+
+def great_circle_waypoints(
+    lat1_deg: float, lon1_deg: float,
+    lat2_deg: float, lon2_deg: float,
+    num_points: int = 100
+) -> List[Tuple[float, float]]:
+    """Generate uniform sequence of geodesic waypoints along the great circle track."""
+    fractions = np.linspace(0.0, 1.0, max(2, num_points))
+    return [great_circle_waypoint(lat1_deg, lon1_deg, lat2_deg, lon2_deg, f) for f in fractions]
+
+
+def destination_point(
+    lat_deg: float, lon_deg: float,
+    bearing_deg: float, distance_m: float,
+    radius: float = R_EARTH
+) -> Tuple[float, float]:
+    """
+    Compute destination geodetic coordinates given starting point, initial bearing,
+    and ground distance traveled along the sphere.
+    """
+    phi1 = math.radians(lat_deg)
+    lam1 = math.radians(lon_deg)
+    theta = math.radians(bearing_deg)
+    delta = distance_m / radius
+
+    sin_phi2 = math.sin(phi1) * math.cos(delta) + math.cos(phi1) * math.sin(delta) * math.cos(theta)
+    phi2 = math.asin(max(-1.0, min(1.0, sin_phi2)))
+
+    y = math.sin(theta) * math.sin(delta) * math.cos(phi1)
+    x = math.cos(delta) - math.sin(phi1) * math.sin(phi2)
+    lam2 = lam1 + math.atan2(y, x)
+    return math.degrees(phi2), (math.degrees(lam2) + 540.0) % 360.0 - 180.0
+
+
+def cross_track_distance(
+    lat_deg: float, lon_deg: float,
+    lat_start: float, lon_start: float,
+    lat_end: float, lon_end: float,
+    radius: float = R_EARTH
+) -> float:
+    """
+    Compute signed lateral cross-track distance (meters) of a point from the great circle
+    defined by start and end waypoints (positive = right of track, negative = left).
+    """
+    d13 = great_circle_distance(lat_start, lon_start, lat_deg, lon_deg, radius) / radius
+    theta13 = math.radians(initial_bearing(lat_start, lon_start, lat_deg, lon_deg))
+    theta12 = math.radians(initial_bearing(lat_start, lon_start, lat_end, lon_end))
+    d_xt = math.asin(math.sin(d13) * math.sin(theta13 - theta12))
+    return radius * d_xt
+
+
+# ==============================================================================
+# 5. ATMOSPHERE, GRAVITY, SPEED OF SOUND & AERODYNAMICS
+# ==============================================================================
