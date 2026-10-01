@@ -766,3 +766,294 @@ def create_telemetry_sidebar(
 # ==============================================================================
 # 5. REAL-TIME BOTTOM TACTICAL MATRIX (DataTable)
 # ==============================================================================
+def create_tactical_matrix(
+    track_data_list: Optional[List[Dict[str, Any]]] = None,
+    selected_row_idx: int = 0,
+) -> html.Div:
+    """
+    Renders an Aegis / NORAD style real-time tactical air picture table
+    listing all active airborne tracks with speed, altitude, target, and status.
+    """
+    if track_data_list is None:
+        track_data_list = [
+            {
+                "track_id": "TRK-01",
+                "name": "Iskander-M (9M723)",
+                "faction": "Aggressor",
+                "type": "Ballistic",
+                "mach": 5.9,
+                "alt_km": 48.5,
+                "target": "Command HQ",
+                "phase": "TERMINAL",
+                "status": "IN FLIGHT",
+            },
+            {
+                "track_id": "TRK-02",
+                "name": "Kh-47M2 Kinzhal",
+                "faction": "Aggressor",
+                "type": "Hypersonic",
+                "mach": 8.4,
+                "alt_km": 32.1,
+                "target": "Ballistic Radar Array",
+                "phase": "GLIDE",
+                "status": "IN FLIGHT",
+            },
+            {
+                "track_id": "TRK-03",
+                "name": "Shahed-136 (x2)",
+                "faction": "Aggressor",
+                "type": "Drone Swarm",
+                "mach": 0.16,
+                "alt_km": 0.45,
+                "target": "Primary Airbase",
+                "phase": "LOITER",
+                "status": "IN FLIGHT",
+            },
+            {
+                "track_id": "INT-01",
+                "name": "Patriot PAC-3 MSE",
+                "faction": "Defender",
+                "type": "Interceptor",
+                "mach": 4.1,
+                "alt_km": 28.0,
+                "target": "TRK-01",
+                "phase": "INTERCEPT",
+                "status": "IN FLIGHT",
+            },
+            {
+                "track_id": "INT-02",
+                "name": "Anduril Roadrunner-M",
+                "faction": "Defender",
+                "type": "C-UAS Interceptor",
+                "mach": 0.85,
+                "alt_km": 0.6,
+                "target": "TRK-03",
+                "phase": "INTERCEPT",
+                "status": "IN FLIGHT",
+            },
+        ]
+
+    # Format numeric fields for table display
+    formatted_data = []
+    for item in track_data_list:
+        mach_val = item.get("mach", 0.0)
+        alt_val = item.get("alt_km", item.get("alt_m", 0.0) / 1000.0 if "alt_m" in item else 0.0)
+        formatted_data.append(
+            {
+                "track_id": item.get("track_id", item.get("id", "TRK-??")),
+                "name": item.get("name", "Unknown"),
+                "faction": item.get("faction", "Aggressor"),
+                "type": item.get("type", "Threat"),
+                "mach": f"M {mach_val:.2f}",
+                "alt_km": f"{alt_val:.2f} km",
+                "target": item.get("target", "Asset"),
+                "phase": item.get("phase", "MIDCOURSE"),
+                "status": item.get("status", "IN FLIGHT"),
+            }
+        )
+
+    columns = [
+        {"name": "TRACK ID", "id": "track_id"},
+        {"name": "DESIGNATION", "id": "name"},
+        {"name": "FACTION", "id": "faction"},
+        {"name": "CLASSIFICATION", "id": "type"},
+        {"name": "VELOCITY", "id": "mach"},
+        {"name": "ALTITUDE", "id": "alt_km"},
+        {"name": "ASSIGNED TARGET", "id": "target"},
+        {"name": "FLIGHT PHASE", "id": "phase"},
+        {"name": "TRACK STATUS", "id": "status"},
+    ]
+
+    selected_rows = [selected_row_idx] if 0 <= selected_row_idx < len(formatted_data) else [0]
+
+    table = dash_table.DataTable(
+        id="tactical-matrix-table",
+        columns=columns,
+        data=formatted_data,
+        row_selectable="single",
+        selected_rows=selected_rows,
+        style_as_list_view=True,
+        style_table={
+            "overflowX": "auto",
+            "backgroundColor": "#090d16",
+            "border": f"1px solid {THEME['card_border']}",
+            "borderRadius": "4px",
+        },
+        style_header={
+            "backgroundColor": "#090d16",
+            "color": THEME["text_muted"],
+            "fontWeight": "700",
+            "fontFamily": THEME["font_mono"],
+            "fontSize": "0.74rem",
+            "letterSpacing": "1px",
+            "borderBottom": f"1px solid {THEME['card_border']}",
+            "padding": "8px 12px",
+        },
+        style_cell={
+            "backgroundColor": THEME["card_bg"],
+            "color": THEME["text_main"],
+            "fontFamily": THEME["font_mono"],
+            "fontSize": "0.78rem",
+            "padding": "7px 12px",
+            "textAlign": "left",
+            "borderBottom": "1px solid #172033",
+        },
+        style_data_conditional=[
+            {
+                "if": {"state": "selected"},
+                "backgroundColor": "rgba(0, 240, 255, 0.18)",
+                "border": f"1px solid {THEME['accent_cyan']} !important",
+                "color": "#ffffff",
+                "fontWeight": "bold",
+            },
+            {
+                "if": {"column_id": "track_id"},
+                "fontWeight": "700",
+                "color": THEME["accent_cyan"],
+            },
+            {
+                "if": {"filter_query": '{faction} = "Aggressor"', "column_id": "faction"},
+                "color": THEME["accent_red"],
+                "fontWeight": "700",
+            },
+            {
+                "if": {"filter_query": '{faction} = "Defender"', "column_id": "faction"},
+                "color": THEME["accent_green"],
+                "fontWeight": "700",
+            },
+            {
+                "if": {"filter_query": '{status} = "DIRECT HIT"', "column_id": "status"},
+                "color": THEME["accent_green"],
+                "fontWeight": "700",
+            },
+            {
+                "if": {"filter_query": '{status} = "INTERCEPTED"', "column_id": "status"},
+                "color": THEME["accent_red"],
+                "fontWeight": "700",
+            },
+            {
+                "if": {"filter_query": '{status} = "IN FLIGHT"', "column_id": "status"},
+                "color": THEME["accent_cyan"],
+            },
+        ],
+    )
+
+    return html.Div(
+        [
+            html.Div(
+                [
+                    html.Div(
+                        [
+                            html.Span("▲ ", style={"color": THEME["accent_cyan"]}),
+                            html.Strong("INTEGRATED AIR PICTURE: ACTIVE TRACK MATRIX", style={"letterSpacing": "1.2px"}),
+                        ],
+                        style={"color": THEME["text_main"], "fontFamily": THEME["font_mono"], "fontSize": "0.82rem"},
+                    ),
+                    html.Small(
+                        f"TOTAL TRACKS: {len(formatted_data)} | CLICK ROW TO FOCUS TELEMETRY",
+                        style={"color": THEME["text_muted"], "fontFamily": THEME["font_mono"], "fontSize": "0.7rem"},
+                    ),
+                ],
+                className="d-flex justify-content-between align-items-center mb-1",
+            ),
+            table,
+        ]
+    )
+
+
+# ==============================================================================
+# 6. DYNAMIC UPDATE HELPER
+# ==============================================================================
+def update_telemetry_components(track_data: Dict[str, Any]):
+    """
+    Given a single track dictionary at current simulation time t,
+    returns the updated figure and component children for Dash callbacks:
+    (mach_fig, speed_readout, alt_indicators, progress_bar, metrics_cards, badges, target_info)
+    """
+    mach = track_data.get("mach", 0.0)
+    name = track_data.get("name", "Active Track")
+    kmh = track_data.get("speed_kmh", 0.0)
+    mps = track_data.get("speed_mps", 0.0)
+    alt_m = track_data.get("alt_m", 0.0)
+    apogee_m = track_data.get("apogee_m", max(alt_m, 1.0))
+    vs_mps = track_data.get("vertical_speed_mps", 0.0)
+    traveled_km = track_data.get("dist_traveled_km", 0.0)
+    rem_km = track_data.get("dist_remaining_km", 0.0)
+    etof_s = track_data.get("etof_s", 0.0)
+    rem_time_s = track_data.get("time_remaining_s", 0.0)
+    prog_pct = track_data.get("progress_pct", 0.0)
+    phase = track_data.get("phase", "MIDCOURSE")
+    status = track_data.get("status", "IN FLIGHT")
+
+    mach_fig = create_mach_gauge(mach_val=mach, unit_name=name, speed_kmh=kmh, speed_mps=mps)
+
+    speed_readout = html.Div(
+        [
+            html.Span(f"VEL: {mps:,.0f} m/s", style={"color": THEME["accent_cyan"], "fontWeight": "700", "marginRight": "12px"}),
+            html.Span(f"({kmh:,.0f} km/h)", style={"color": THEME["text_muted"]}),
+        ],
+        className="text-center pb-2",
+        style={"fontFamily": THEME["font_mono"], "fontSize": "0.78rem"},
+    )
+
+    alt_ind = create_altitude_apogee_indicators(current_alt_m=alt_m, apogee_alt_m=apogee_m, vertical_speed_mps=vs_mps)
+    prog_bar = create_animated_progress_bar(progress_pct=prog_pct)
+    metrics = create_trajectory_metrics_cards(
+        dist_traveled_km=traveled_km,
+        dist_remaining_km=rem_km,
+        etof_s=etof_s,
+        time_remaining_s=rem_time_s,
+    )
+
+    badges = html.Div(
+        [
+            create_flight_phase_badge(phase),
+            html.Div(style={"width": "8px"}),
+            create_outcome_badge(status),
+        ],
+        className="d-flex justify-content-between align-items-center mb-3",
+    )
+
+    target_info = html.Div(
+        [
+            html.Div(
+                [
+                    html.Small("DESIGNATION: ", style={"color": THEME["text_muted"]}),
+                    html.Span(str(track_data.get("name", "Unknown")), style={"color": THEME["text_main"], "fontWeight": "700"}),
+                ]
+            ),
+            html.Div(
+                [
+                    html.Small("CLASSIFICATION: ", style={"color": THEME["text_muted"]}),
+                    html.Span(str(track_data.get("type", "Unknown")), style={"color": THEME["accent_cyan"]}),
+                ]
+            ),
+            html.Div(
+                [
+                    html.Small("ASSIGNED TARGET: ", style={"color": THEME["text_muted"]}),
+                    html.Span(str(track_data.get("target", "Asset Grid")), style={"color": THEME["accent_amber"], "fontWeight": "700"}),
+                ]
+            ),
+            html.Div(
+                [
+                    html.Small("WARHEAD / PAYLOAD: ", style={"color": THEME["text_muted"]}),
+                    html.Span(str(track_data.get("warhead", "Conventional")), style={"color": THEME["text_dim"]}),
+                ]
+            ),
+            html.Div(
+                [
+                    html.Small("GUIDANCE / SEEKER: ", style={"color": THEME["text_muted"]}),
+                    html.Span(str(track_data.get("guidance", "INS/GPS/Active Radar")), style={"color": THEME["text_dim"]}),
+                ]
+            ),
+        ],
+        className="p-2 rounded",
+        style={
+            "backgroundColor": "#090d16",
+            "border": f"1px solid {THEME['card_border']}",
+            "fontSize": "0.72rem",
+            "fontFamily": THEME["font_mono"],
+        },
+    )
+
+    return mach_fig, speed_readout, alt_ind, prog_bar, metrics, badges, target_info
