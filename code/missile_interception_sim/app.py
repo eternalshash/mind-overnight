@@ -866,3 +866,56 @@ def create_playback_control_bar() -> dbc.Card:
         },
     )
 
+
+def create_easter_egg_banner() -> html.Div:
+    """Special HUD tactical telemetry alert banner for stealth air-launch."""
+    return html.Div(
+        id="easter-egg-banner-container",
+        children=[
+            dbc.Alert(
+                [
+                    dbc.Row(
+                        [
+                            dbc.Col(
+                                html.Div(
+                                    [
+                                        html.Span("⚡ ", style={"fontSize": "1.4rem"}),
+                                        html.Strong(
+                                            "AIR-LAUNCH DETECTED: F-22 RAPTOR DEPLOYED WEAPON AT MACH 1.5, ALT 45,000 FT",
+                                            id="easter-egg-banner-text",
+                                            style={"letterSpacing": "1px", "fontSize": "0.88rem"},
+                                        ),
+                                    ],
+                                    className="d-flex align-items-center",
+                                ),
+                                md=9,
+                            ),
+                            dbc.Col(
+                                html.Small(
+                                    "STEALTH INGRESS CONFIRMED | RADAR CROSS SECTION < 0.0001 m² | EGRESS CORRIDOR ACTIVE",
+                                    style={"fontFamily": MIL_DARK["font_mono"], "color": "#ffe082", "fontSize": "0.72rem"},
+                                ),
+                                md=3,
+                                className="text-end d-flex align-items-center justify-content-end",
+                            ),
+                        ],
+                        align="center",
+                    )
+                ],
+                id="easter-egg-alert",
+                color="warning",
+                is_open=False,
+                dismissable=True,
+                style={
+                    "backgroundColor": "rgba(255, 179, 0, 0.15)",
+                    "border": "1px solid #ffb300",
+                    "boxShadow": "0 0 16px rgba(255, 179, 0, 0.35)",
+                    "color": "#fff8e1",
+                    "fontFamily": MIL_DARK["font_mono"],
+                    "marginBottom": "10px",
+                    "padding": "10px 16px",
+                },
+            )
+        ],
+    )
+
