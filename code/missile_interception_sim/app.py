@@ -766,3 +766,103 @@ def create_top_navbar() -> dbc.Navbar:
         style={"borderBottom": f"1px solid {MIL_DARK['card_border']}", "boxShadow": "0 4px 18px rgba(0,0,0,0.6)"},
     )
 
+
+def create_playback_control_bar() -> dbc.Card:
+    """Builds playback controls (Play, Pause, Step, Reset, Speed, Timeline scrubber)."""
+    return dbc.Card(
+        dbc.CardBody(
+            [
+                dbc.Row(
+                    [
+                        # Play, Pause, Step, Reset buttons
+                        dbc.Col(
+                            dbc.ButtonGroup(
+                                [
+                                    dbc.Button("▶ PLAY", id="btn-play", color="success", size="sm", className="px-3 fw-bold"),
+                                    dbc.Button("⏸ PAUSE", id="btn-pause", color="secondary", size="sm", className="px-3 fw-bold"),
+                                    dbc.Button("⏭ STEP", id="btn-step", color="info", size="sm", className="px-3 fw-bold"),
+                                    dbc.Button("↺ RESET", id="btn-reset", color="danger", size="sm", className="px-3 fw-bold"),
+                                ],
+                                style={"fontFamily": MIL_DARK["font_mono"], "fontSize": "0.78rem"},
+                            ),
+                            width="auto",
+                        ),
+                        # Speed Multiplier
+                        dbc.Col(
+                            html.Div(
+                                [
+                                    html.Small("SIM SPEED: ", style={"color": MIL_DARK["text_muted"], "fontWeight": "700", "fontSize": "0.72rem"}),
+                                    dcc.RadioItems(
+                                        id="sim-speed-radio",
+                                        options=[
+                                            {"label": " 1x ", "value": 1.0},
+                                            {"label": " 5x ", "value": 5.0},
+                                            {"label": " 20x ", "value": 20.0},
+                                        ],
+                                        value=1.0,
+                                        inline=True,
+                                        style={"color": MIL_DARK["accent_cyan"], "fontFamily": MIL_DARK["font_mono"], "fontSize": "0.78rem"},
+                                    ),
+                                ],
+                                className="d-flex align-items-center ms-2",
+                            ),
+                            width="auto",
+                        ),
+                        # Digital Simulation Clock
+                        dbc.Col(
+                            html.Div(
+                                id="sim-clock-display",
+                                children="T+00:00.0s / 120.0s [READY]",
+                                className="px-3 py-1 rounded text-center",
+                                style={
+                                    "backgroundColor": "#060a12",
+                                    "border": f"1px solid {MIL_DARK['card_border']}",
+                                    "color": MIL_DARK["accent_cyan"],
+                                    "fontFamily": MIL_DARK["font_mono"],
+                                    "fontWeight": "800",
+                                    "fontSize": "0.86rem",
+                                    "letterSpacing": "1.2px",
+                                },
+                            ),
+                            width="auto",
+                        ),
+                        # Timeline Scrubber Slider
+                        dbc.Col(
+                            html.Div(
+                                [
+                                    dcc.Slider(
+                                        id="sim-timeline-slider",
+                                        min=0.0,
+                                        max=120.0,
+                                        step=0.5,
+                                        value=0.0,
+                                        marks={
+                                            0: "T+0s",
+                                            30: "30s (Boost)",
+                                            60: "60s (Midcourse)",
+                                            90: "90s (Terminal)",
+                                            120: "120s (End)",
+                                        },
+                                        tooltip={"placement": "bottom", "always_visible": False},
+                                        className="dash-dark-slider",
+                                    )
+                                ],
+                                style={"paddingTop": "6px"},
+                            ),
+                            xs=12, md=True,
+                        ),
+                    ],
+                    align="center",
+                    className="g-2",
+                ),
+            ],
+            style={"padding": "8px 16px"},
+        ),
+        style={
+            "backgroundColor": MIL_DARK["card_bg"],
+            "border": f"1px solid {MIL_DARK['card_border']}",
+            "borderRadius": "6px",
+            "marginBottom": "10px",
+        },
+    )
+
