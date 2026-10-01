@@ -985,3 +985,360 @@ THEATER_PRESETS: Dict[str, Dict[str, Any]] = {
 # ==============================================================================
 # 5. 2D TACTICAL MAP BUILDER (DASH-LEAFLET)
 # ==============================================================================
+
+def build_tactical_leaflet_map(
+    theater_key: str = "eastern_europe",
+    show_wez: bool = True,
+    show_interceptors: bool = True,
+    show_bursts: bool = True,
+    active_threats: bool = True,
+    height: str = "660px",
+    custom_launch_sites: Optional[List[Dict[str, Any]]] = None,
+    custom_batteries: Optional[List[Dict[str, Any]]] = None,
+    custom_targets: Optional[List[Dict[str, Any]]] = None
+) -> dl.MapContainer:
+    """
+    Construct an interactive 2D Tactical Map using dash-leaflet:
+    - Dark military basemap tiles (CartoDB Dark Matter)
+    - Draggable red markers for Attacker Launch Sites
+    - Draggable green/cyan markers for Defender Batteries with radar WEZ circles
+    - Draggable gold markers for Defended Target HVAs
+    - Dynamic Polylines / Geodesic arcs for active missile and drone trajectories
+    - Animated / real-time threat tracking markers with velocity, altitude, and ETA readouts
+    - Detonation burst markers (gold stars / red explosions) at kinetic intercept and impact locations
+    """
+    theater = THEATER_PRESETS.get(theater_key, THEATER_PRESETS["eastern_europe"])
+    center = theater["center"]
+    zoom = theater["zoom"]
+
+    launch_sites = custom_launch_sites if custom_launch_sites is not None else theater["attacker_launch_sites"]
+    batteries = custom_batteries if custom_batteries is not None else theater["defender_batteries"]
+    targets = custom_targets if custom_targets is not None else theater["target_assets"]
+    trajectories = theater.get("threat_trajectories", [])
+
+    children: List[Any] = []
+
+    # 1. Dark Basemap Tile Layer (CartoDB Dark Matter)
+    children.append(
+        dl.TileLayer(
+            id={"type": "tactical-tile-layer", "theater": theater_key},
+            url=TILE_CARTO_DARK_MATTER["url"],
+            attribution=TILE_CARTO_DARK_MATTER["attribution"],
+            maxZoom=TILE_CARTO_DARK_MATTER["maxZoom"]
+        )
+    )
+
+    # Lookup dictionaries for fast coordinate reference
+    launch_dict = {s["id"]: s for s in launch_sites}
+    target_dict = {t["id"]: t for t in targets}
+    battery_dict = {b["id"]: b for b in batteries}
+
+    # 2. Attacker Launch Sites (Draggable Red Markers)
+    for site in launch_sites:
+        site_id = site["id"]
+        lat, lon = site["lat"], site["lon"]
+        tooltip_content = f"🔴 LAUNCH SITE: {site['name']} ({lat:.2f}°, {lon:.2f}°)"
+        popup_content = html.Div([
+            html.H5(site["name"], style={"color": "#ff3344", "margin": "0 0 5px 0", "fontWeight": "bold"}),
+            html.P(f"Faction: {site.get('faction', 'Opposing Force')}", style={"margin": "2px 0", "fontSize": "12px"}),
+            html.P(f"Coordinates: {lat:.4f}°N, {lon:.4f}°E", style={"margin": "2px 0", "fontSize": "11px", "color": "#aaaaaa"}),
+            html.Hr(style={"borderColor": "#444444", "margin": "6px 0"}),
+            html.P("Available Threat Inventories:", style={"margin": "2px 0", "fontSize": "11px", "fontWeight": "bold"}),
+            html.Ul([html.Li(sys, style={"fontSize": "11px", "color": "#ff8899"}) for sys in site.get("systems", [])], style={"paddingLeft": "18px", "margin": "4px 0"}),
+            html.Div(f"Status: {site.get('status', 'Operational')}", style={"fontSize": "11px", "color": "#00ff88", "marginTop": "4px"}),
+            html.Div("ℹ️ Draggable: Click and drag marker to relocate aggressor launch origin.", style={"fontSize": "10px", "color": "#888888", "marginTop": "6px", "fontStyle": "italic"})
+        ], style={"color": "#ffffff", "backgroundColor": "#161b22", "padding": "8px", "borderRadius": "4px", "minWidth": "220px"})
+
+        children.append(
+            dl.Marker(
+                id={"type": "attacker-launch-site", "id": site_id},
+                position=[lat, lon],
+                draggable=True,
+                icon=dict(
+                    iconUrl=ATTACKER_LAUNCH_ICON_URI,
+                    iconSize=[34, 34],
+                    iconAnchor=[17, 17],
+                    popupAnchor=[0, -17]
+                ),
+                children=[
+                    dl.Tooltip(tooltip_content),
+                    dl.Popup(popup_content)
+                ]
+            )
+        )
+
+    # 3. Defender Batteries (Draggable Green/Cyan Markers with Radar WEZ Circles)
+    for bat in batteries:
+        bat_id = bat["id"]
+        lat, lon = bat["lat"], bat["lon"]
+        wez_km = bat.get("wez_radius_km", 70.0)
+        wez_meters = wez_km * 1000.0
+
+        # Radar WEZ Circle
+        if show_wez:
+            children.append(
+                dl.Circle(
+                    id={"type": "radar-wez-circle", "id": f"{bat_id}-wez"},
+                    center=[lat, lon],
+                    radius=wez_meters,
+                    color="#00ff88",
+                    fillColor="#00ff88",
+                    fillOpacity=0.10,
+                    weight=1.6,
+                    dashArray="5, 5",
+                    children=[
+                        dl.Tooltip(f"Radar WEZ: {bat['name']} (Radius: {wez_km:.0f} km)")
+                    ]
+                )
+            )
+
+        tooltip_content = f"🛡️ DEFENDER: {bat['name']} (WEZ: {wez_km:.0f} km)"
+        popup_content = html.Div([
+            html.H5(bat["name"], style={"color": "#00ff88", "margin": "0 0 5px 0", "fontWeight": "bold"}),
+            html.P(f"System: {bat.get('system', 'Air Defense Battery')}", style={"margin": "2px 0", "fontSize": "12px"}),
+            html.P(f"Radar Sensor: {bat.get('radar', 'AESA Radar Array')}", style={"margin": "2px 0", "fontSize": "11px", "color": "#00e5ff"}),
+            html.P(f"Engagement WEZ Radius: {wez_km:.1f} km ({wez_km * 0.539957:.1f} nmi)", style={"margin": "2px 0", "fontSize": "11px"}),
+            html.P(f"Ready Munitions: {bat.get('missiles_available', 32)} Interceptors", style={"margin": "2px 0", "fontSize": "11px", "color": "#ffea00"}),
+            html.Hr(style={"borderColor": "#444444", "margin": "6px 0"}),
+            html.Div(f"Operational State: {bat.get('status', 'Weapons Free')}", style={"fontSize": "11px", "color": "#00ff88"}),
+            html.Div("ℹ️ Draggable: Click and drag marker to reposition IAMD battery on theater grid.", style={"fontSize": "10px", "color": "#888888", "marginTop": "6px", "fontStyle": "italic"})
+        ], style={"color": "#ffffff", "backgroundColor": "#161b22", "padding": "8px", "borderRadius": "4px", "minWidth": "230px"})
+
+        children.append(
+            dl.Marker(
+                id={"type": "defender-battery", "id": bat_id},
+                position=[lat, lon],
+                draggable=True,
+                icon=dict(
+                    iconUrl=DEFENDER_BATTERY_ICON_URI,
+                    iconSize=[34, 34],
+                    iconAnchor=[17, 17],
+                    popupAnchor=[0, -17]
+                ),
+                children=[
+                    dl.Tooltip(tooltip_content),
+                    dl.Popup(popup_content)
+                ]
+            )
+        )
+
+    # 4. Defended Target Assets / HVAs (Draggable Gold Markers)
+    for tgt in targets:
+        tgt_id = tgt["id"]
+        lat, lon = tgt["lat"], tgt["lon"]
+        strat_val = tgt.get("strategic_value", 100.0)
+
+        tooltip_content = f"⭐ TARGET HVA: {tgt['name']} (Value: {strat_val:.0f})"
+        popup_content = html.Div([
+            html.H5(tgt["name"], style={"color": "#ffb700", "margin": "0 0 5px 0", "fontWeight": "bold"}),
+            html.P(f"Classification: {tgt.get('type', 'Strategic Command Infrastructure')}", style={"margin": "2px 0", "fontSize": "12px"}),
+            html.P(f"Strategic Value Score: {strat_val:.1f} / 160.0", style={"margin": "2px 0", "fontSize": "11px", "color": "#ffd700", "fontWeight": "bold"}),
+            html.P(f"Blast Tolerance Radius: {tgt.get('blast_tolerance_km', 25.0):.1f} km", style={"margin": "2px 0", "fontSize": "11px"}),
+            html.Hr(style={"borderColor": "#444444", "margin": "6px 0"}),
+            html.Div(f"Status: {tgt.get('status', 'Operational')}", style={"fontSize": "11px", "color": "#00e5ff"}),
+            html.Div("ℹ️ Draggable: Relocate defended asset to evaluate spatial defense posture.", style={"fontSize": "10px", "color": "#888888", "marginTop": "6px", "fontStyle": "italic"})
+        ], style={"color": "#ffffff", "backgroundColor": "#161b22", "padding": "8px", "borderRadius": "4px", "minWidth": "220px"})
+
+        children.append(
+            dl.Marker(
+                id={"type": "target-asset", "id": tgt_id},
+                position=[lat, lon],
+                draggable=True,
+                icon=dict(
+                    iconUrl=TARGET_ASSET_ICON_URI,
+                    iconSize=[34, 34],
+                    iconAnchor=[17, 17],
+                    popupAnchor=[0, -17]
+                ),
+                children=[
+                    dl.Tooltip(tooltip_content),
+                    dl.Popup(popup_content)
+                ]
+            )
+        )
+
+    # 5. Dynamic Trajectories, Threat Markers, and Detonation Bursts
+    color_map = {
+        "ballistic": "#ff3344",
+        "quasi-ballistic": "#ff3344",
+        "mrbm": "#ff2244",
+        "icbm": "#ff0033",
+        "hypersonic": "#ff00bb",
+        "cruise": "#ff9900",
+        "drone": "#ffea00"
+    }
+
+    for idx, threat in enumerate(trajectories):
+        t_id = threat["threat_id"]
+        t_type = threat["threat_type"].lower()
+        l_site = launch_dict.get(threat["launch_site_id"])
+        tgt = target_dict.get(threat["target_id"])
+        bat = battery_dict.get(threat["assigned_battery_id"])
+
+        if not l_site or not tgt:
+            continue
+
+        color = color_map.get(t_type, "#ff4444")
+        waypoints = generate_trajectory_waypoints(
+            l_site["lat"], l_site["lon"], tgt["lat"], tgt["lon"],
+            threat_type=t_type,
+            apogee_km=threat.get("apogee_km", 60.0),
+            n_points=60
+        )
+
+        all_coords = [[wp["lat"], wp["lon"]] for wp in waypoints]
+        progress = threat.get("progress", 0.70)
+        progress_idx = int(progress * (len(waypoints) - 1))
+        cur_wp = waypoints[progress_idx]
+
+        # Flown Path (Solid Bright Line)
+        flown_coords = all_coords[:progress_idx + 1]
+        if len(flown_coords) > 1:
+            children.append(
+                dl.Polyline(
+                    id={"type": "threat-flown-polyline", "id": f"{t_id}-flown"},
+                    positions=flown_coords,
+                    color=color,
+                    weight=3.2,
+                    opacity=0.95,
+                    children=[
+                        dl.Tooltip(f"Trajectory: {threat.get('threat_name', t_id)} [Active Track]")
+                    ]
+                )
+            )
+
+        # Projected Path (Dashed Semi-Transparent Line)
+        proj_coords = all_coords[progress_idx:]
+        if len(proj_coords) > 1:
+            children.append(
+                dl.Polyline(
+                    id={"type": "threat-projected-polyline", "id": f"{t_id}-proj"},
+                    positions=proj_coords,
+                    color=color,
+                    weight=2.0,
+                    opacity=0.45,
+                    dashArray="5, 6"
+                )
+            )
+
+        # Animated Real-Time Threat Position Marker
+        if active_threats:
+            speed_mach = threat.get("speed_mach", 4.0)
+            alt_km = cur_wp["alt_km"]
+            children.append(
+                dl.Marker(
+                    id={"type": "threat-active-marker", "id": f"{t_id}-pos"},
+                    position=[cur_wp["lat"], cur_wp["lon"]],
+                    icon=dict(
+                        iconUrl=THREAT_POSITION_ICON_URI,
+                        iconSize=[26, 26],
+                        iconAnchor=[13, 13]
+                    ),
+                    children=[
+                        dl.Tooltip(
+                            f"🚀 {threat.get('threat_name', t_id)} | Alt: {alt_km:.1f} km | Speed: Mach {speed_mach:.1f} | State: {threat['status']}"
+                        )
+                    ]
+                )
+            )
+
+        # Kinetic Intercept or Impact Detonation Burst
+        if show_bursts:
+            status = threat.get("status", "IN_FLIGHT")
+            if status == "INTERCEPTED":
+                int_frac = threat.get("intercept_fraction", 0.75)
+                int_lat, int_lon = great_circle_intermediate_point(
+                    l_site["lat"], l_site["lon"], tgt["lat"], tgt["lon"], int_frac
+                )
+                cpa_m = threat.get("intercept_cpa_m", 0.5)
+                int_alt = threat.get("intercept_alt_km", 25.0)
+                p_kill = threat.get("p_kill", 0.96) * 100.0
+
+                # Interceptor Vector from Battery to Intercept Point
+                if show_interceptors and bat:
+                    int_track = [[bat["lat"], bat["lon"]], [int_lat, int_lon]]
+                    children.append(
+                        dl.Polyline(
+                            id={"type": "interceptor-vector", "id": f"{t_id}-int-vector"},
+                            positions=int_track,
+                            color="#00e5ff",
+                            weight=2.4,
+                            dashArray="4, 4",
+                            opacity=0.85,
+                            children=[
+                                dl.Tooltip(f"Interceptor Vector: {bat['name']} -> Kinetic Intercept Point")
+                            ]
+                        )
+                    )
+
+                burst_tooltip = f"💥 KINETIC INTERCEPT CONFIRMED | CPA: {cpa_m:.2f} m | Alt: {int_alt:.1f} km | P_kill: {p_kill:.1f}%"
+                burst_popup = html.Div([
+                    html.H5("💥 KINETIC HIT CONFIRMED", style={"color": "#ffea00", "margin": "0 0 4px 0", "fontWeight": "bold"}),
+                    html.P(f"Target Threat: {threat.get('threat_name', t_id)}", style={"margin": "2px 0", "fontSize": "12px", "color": "#ffffff"}),
+                    html.P(f"Defending Battery: {bat['name'] if bat else 'Assigned IAMD Battery'}", style={"margin": "2px 0", "fontSize": "11px", "color": "#00ff88"}),
+                    html.Hr(style={"borderColor": "#444444", "margin": "6px 0"}),
+                    html.P(f"Intercept Altitude: {int_alt:.1f} km MSL", style={"margin": "2px 0", "fontSize": "11px"}),
+                    html.P(f"Sub-Timestep CPA Miss Distance: {cpa_m:.2f} meters", style={"margin": "2px 0", "fontSize": "11px", "color": "#00e5ff", "fontWeight": "bold"}),
+                    html.P(f"Calculated Interception Kill Probability: {p_kill:.1f}%", style={"margin": "2px 0", "fontSize": "11px", "color": "#00ff88", "fontWeight": "bold"}),
+                    html.Div("Outcome: Catastrophic Kinetic Warhead Deflagration", style={"fontSize": "10px", "color": "#ffcc00", "marginTop": "6px", "fontWeight": "bold"})
+                ], style={"backgroundColor": "#161b22", "padding": "8px", "borderRadius": "4px", "minWidth": "240px"})
+
+                children.append(
+                    dl.Marker(
+                        id={"type": "detonation-burst-marker", "id": f"{t_id}-burst"},
+                        position=[int_lat, int_lon],
+                        icon=dict(
+                            iconUrl=DETONATION_BURST_ICON_URI,
+                            iconSize=[38, 38],
+                            iconAnchor=[19, 19]
+                        ),
+                        children=[
+                            dl.Tooltip(burst_tooltip),
+                            dl.Popup(burst_popup)
+                        ]
+                    )
+                )
+
+            elif status == "IMPACT":
+                # Leaker Impact Burst at Target HVA
+                children.append(
+                    dl.Marker(
+                        id={"type": "leaker-impact-marker", "id": f"{t_id}-impact"},
+                        position=[tgt["lat"], tgt["lon"]],
+                        icon=dict(
+                            iconUrl=LEAKER_IMPACT_ICON_URI,
+                            iconSize=[36, 36],
+                            iconAnchor=[18, 18]
+                        ),
+                        children=[
+                            dl.Tooltip(f"🔥 LEAKER IMPACT: {tgt['name']} sustained kinetic damage!"),
+                            dl.Popup(html.Div([
+                                html.H5("⚠️ LEAKER TARGET IMPACT", style={"color": "#ff3344", "margin": "0"}),
+                                html.P(f"Penetrated defenses and struck {tgt['name']}.", style={"fontSize": "12px", "color": "#ffffff"})
+                            ], style={"backgroundColor": "#161b22", "padding": "8px"}))
+                        ]
+                    )
+                )
+
+    # 6. Leaflet Map Controls
+    children.append(dl.ScaleControl(position="bottomleft", metric=True, imperial=True))
+    children.append(dl.FullScreenControl(position="topright"))
+
+    return dl.MapContainer(
+        id="tactical-2d-leaflet-map",
+        center=center,
+        zoom=zoom,
+        children=children,
+        style={
+            "width": "100%",
+            "height": height,
+            "borderRadius": "8px",
+            "border": "1px solid #30363d",
+            "backgroundColor": "#0d1117"
+        }
+    )
+
+
+# ==============================================================================
+# 6. ALTITUDE PROFILE CHART BUILDER (MISSILEMAP STYLE)
+# ==============================================================================
