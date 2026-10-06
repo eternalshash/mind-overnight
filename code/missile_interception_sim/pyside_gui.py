@@ -98,3 +98,103 @@ class DefenseSimulatorMainWindow(QMainWindow):
         self.pause_btn = QPushButton("Pause")
         self.reset_btn = QPushButton("Reset")
         self.playback_layout.addWidget(self.play_btn)
+        self.playback_layout.addWidget(self.pause_btn)
+        self.playback_layout.addWidget(self.reset_btn)
+        
+        # --- Telemetry HUD ---
+        self.hud_group = QGroupBox("Live Telemetry")
+        self.hud_layout = QVBoxLayout(self.hud_group)
+        self.sidebar_layout.addWidget(self.hud_group)
+        self.hud_active_threats = QLabel("Active Threats: 0")
+        self.hud_interceptors = QLabel("Airborne Interceptors: 0")
+        self.hud_layout.addWidget(self.hud_active_threats)
+        self.hud_layout.addWidget(self.hud_interceptors)
+        
+        # Main Map Area
+        from PySide6.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsPixmapItem
+        self.map_view = QGraphicsView()
+        self.map_scene = QGraphicsScene()
+        self.map_view.setScene(self.map_scene)
+        self.map_view.setSceneRect(-896, -640, 1792, 1280)  # full stitched tile mosaic (7x5 tiles of 256px)
+        self.map_view.setBackgroundBrush(Qt.black)
+        self.map_view.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
+        self.map_view.setResizeAnchor(QGraphicsView.AnchorViewCenter)
+        self.map_view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.map_view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.map_view.wheelEvent = self.map_wheel
+        self._press_pos = None
+        self._dragged = False
+        self.map_view.mousePressEvent = self.map_mouse_press
+        self.map_view.mouseMoveEvent = self.map_mouse_move
+        self.map_view.mouseReleaseEvent = self.map_mouse_release
+        self.splitter.addWidget(self.map_view)
+        
+        # Load Background Tiles
+        import tile_manager
+        z = 4
+        center_x, center_y = tile_manager.deg2num(23.5, 120.0, z) # Indo-Pacific
+        for dx in range(-3, 4):
+            for dy in range(-2, 3):
+                pixmap = tile_manager.get_carto_tile(z, center_x + dx, center_y + dy)
+                if pixmap:
+                    item = QGraphicsPixmapItem(pixmap)
+                    item.setPos(dx * 256 - 128, dy * 256 - 128)
+                    item.setZValue(-100) # Keep in background
+                    self.map_scene.addItem(item)
+        
+        self.splitter.setSizes([350, 850])
+        
+        # --- Placement Mode ---
+        from PySide6.QtWidgets import QRadioButton, QButtonGroup
+        self.placement_group = QGroupBox("Map Placement Mode")
+        self.placement_layout = QHBoxLayout(self.placement_group)
+        self.sidebar_layout.insertWidget(0, self.placement_group)
+        
+        self.mode_btn_group = QButtonGroup(self)
+        self.radio_defender = QRadioButton("Place Defender")
+        self.radio_defender.setChecked(True)
+        self.radio_attacker = QRadioButton("Place Launch Site")
+        
+        self.mode_btn_group.addButton(self.radio_defender, 0)
+        self.mode_btn_group.addButton(self.radio_attacker, 1)
+        self.placement_layout.addWidget(self.radio_defender)
+        self.placement_layout.addWidget(self.radio_attacker)
+        
+        self.mode_btn_group.buttonClicked.connect(self.change_placement_mode)
+        self.placement_mode = "Defender"
+        
+        # --- Simulation Engine State ---
+        self.sim_time = 0.0
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update_simulation)
+        self.is_playing = False
+        
+        # Data Structures
+        self.waves_schedule = []
+        self.active_threats = []
+        self.active_interceptors = []
+        self.defense_batteries = []
+        self.launch_sites = []
+        self.transient_items = []
+        self.radar_range = 70  # px, shared by the drawn dome and the detection check
+        
+        self.connect_signals()
+
+    def track(self, item):
+        """Register a short-lived scene item so reset can remove it."""
+        self.transient_items.append(item)
+        return item
+
+    def safe_remove(self, item):
+        """Remove an item from the scene if it is still there."""
+        if item is not None and item.scene() is self.map_scene:
+            self.map_scene.removeItem(item)
+
+    def connect_signals(self):
+        self.play_btn.clicked.connect(self.play_sim)
+        self.pause_btn.clicked.connect(self.pause_sim)
+        self.reset_btn.clicked.connect(self.reset_sim)
+        self.add_wave_btn.clicked.connect(self.add_wave)
+        
+    @Slot()
+    def change_placement_mode(self):
