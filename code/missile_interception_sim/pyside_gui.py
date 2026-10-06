@@ -458,3 +458,29 @@ class DefenseSimulatorMainWindow(QMainWindow):
         step = interceptor["speed"] * 0.05
         
         if dist <= max(6.0, step): # Interception Hit (radius covers one full step, no overshoot)
+            interceptor["active"] = False
+            target["active"] = False
+            self.safe_remove(interceptor["item"])
+            self.safe_remove(target["item"])
+            self.draw_kill_marker(target["x"], target["y"])
+            return
+            
+        old_x, old_y = interceptor["x"], interceptor["y"]
+        interceptor["x"] += (dx / dist) * step
+        interceptor["y"] += (dy / dist) * step
+        interceptor["item"].setPos(interceptor["x"], interceptor["y"])
+        
+        # Interceptor trail
+        from PySide6.QtGui import QPen, QColor
+        color_tuple = interceptor.get("color", (0, 255, 255))
+        int_pen = QPen(QColor(color_tuple[0], color_tuple[1], color_tuple[2], 150))
+        int_pen.setStyle(Qt.DashLine)
+        int_pen.setWidth(2)
+        trail = self.track(self.map_scene.addLine(old_x, old_y, interceptor["x"], interceptor["y"], int_pen))
+        trail.setZValue(-10)
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = DefenseSimulatorMainWindow()
+    window.show()
+    sys.exit(app.exec())
