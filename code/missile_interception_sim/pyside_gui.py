@@ -298,3 +298,103 @@ class DefenseSimulatorMainWindow(QMainWindow):
         self.waves_table.setItem(row, 1, QTableWidgetItem(wtype))
         self.waves_table.setItem(row, 2, QTableWidgetItem(str(count)))
         
+    def update_hud(self):
+        active_t = sum(1 for t in self.active_threats if t.get("active", True))
+        active_i = sum(1 for i in self.active_interceptors if i.get("active", True))
+        self.hud_active_threats.setText(f"Active Threats: {active_t}")
+        self.hud_interceptors.setText(f"Airborne Interceptors: {active_i}")
+        
+    def update_simulation(self):
+        self.sim_time += 0.05
+        
+        # Check for waves to launch sequentially
+        for wave in self.waves_schedule:
+            if self.sim_time >= wave["delay"] and wave.get("spawned", 0) < wave["count"]:
+                if self.sim_time - wave.get("last_spawn", -99) >= 0.4:  # spawn every 0.4s
+                    self.launch_single_threat(wave)
+                    wave["spawned"] = wave.get("spawned", 0) + 1
+                    wave["last_spawn"] = self.sim_time
+                
+        # Basic Kinematics for Threats
+        from PySide6.QtWidgets import QGraphicsLineItem
+        from PySide6.QtGui import QPen, QColor
+        
+        for threat in self.active_threats:
+            if not threat.get("active", True): continue
+            
+            old_x, old_y = threat["x"], threat["y"]
+            # Straight-line base flight path
+            threat["bx"] += threat["vx"] * 0.05
+            threat["by"] += threat["vy"] * 0.05
+            threat["age"] += 0.05
+            remaining = math.hypot(threat["target_x"] - threat["bx"], threat["target_y"] - threat["by"])
+            # Terminal weave: lateral sine offset over the last part of the flight, fading to 0 at the target
+            offset = 0.0
+            if threat["weave_amp"] and remaining < threat["total"] * threat["weave_start"]:
+                offset = threat["weave_amp"] * math.sin(2 * math.pi * threat["weave_hz"] * threat["age"]) * min(1.0, remaining / 40.0)
+            speed = math.hypot(threat["vx"], threat["vy"]) or 1.0
+            threat["x"] = threat["bx"] - (threat["vy"] / speed) * offset
+            threat["y"] = threat["by"] + (threat["vx"] / speed) * offset
+            threat["item"].setPos(threat["x"], threat["y"])
+            
+            # Draw dashed trailing line in the threat's colour
+            dash_pen = QPen(QColor(*threat["color"], 150))
+            dash_pen.setStyle(Qt.DashLine)
+            dash_pen.setWidth(2)
+            trail = self.track(self.map_scene.addLine(old_x, old_y, threat["x"], threat["y"], dash_pen))
+            trail.setZValue(-10)
+            
+            # Threat reached its target: it hits (leak) and is removed
+            if remaining <= speed * 0.05:
+                threat["active"] = False
+                self.safe_remove(threat["item"])
+                self.draw_impact_marker(threat["target_x"], threat["target_y"])
+                continue
+            
+            # Check radar detection & launch interceptor
+            if not threat.get("engaged", False):
+                for battery in self.defense_batteries:
+                    dist_to_battery = math.hypot(threat["x"] - battery["x"], threat["y"] - battery["y"])
+                    if dist_to_battery < self.radar_range:
+                        self.launch_interceptor(battery, threat)
+                        threat["engaged"] = True
+                        break
+                            
+        # Basic Kinematics for Interceptors
+        for interceptor in self.active_interceptors:
+            self.update_interceptor_kinematics(interceptor)
+            
+        self.update_hud()
+        
+    def launch_single_threat(self, wave):
+        from PySide6.QtWidgets import QGraphicsEllipseItem
+        from PySide6.QtGui import QBrush, QPen, QColor
+        
+        # Pick a random launch site, or use default if none exist
+        if self.launch_sites:
+            site = random.choice(self.launch_sites)
+            start_x, start_y = site["x"], site["y"]
+        else:
+            start_x, start_y = -350, random.uniform(-200, 200)
+            
+        # Pick a random target (defense battery), or use default
+        if self.defense_batteries:
+            target = random.choice(self.defense_batteries)
+            tx, ty = target["x"], target["y"]
+        else:
+            tx, ty = 350, random.uniform(-200, 200)
+                
+        profile = THREAT_PROFILES.get(wave["type"], DEFAULT_PROFILE)
+        dx, dy = tx - start_x, ty - start_y
+        dist = math.hypot(dx, dy)
+        speed = random.uniform(*profile["speed"])
+        vx = (dx / dist) * speed if dist > 0 else speed
+        vy = (dy / dist) * speed if dist > 0 else 0
+        
+        r = profile["radius"]
+        item = self.track(self.map_scene.addEllipse(-r, -r, 2 * r, 2 * r, QPen(Qt.NoPen), QBrush(QColor(*profile["color"]))))
+        item.setPos(start_x, start_y)
+        threat = {"x": start_x, "y": start_y, "vx": vx, "vy": vy, "item": item, "target_x": tx, "target_y": ty, "active": True,
+                  "bx": start_x, "by": start_y, "total": dist, "age": 0.0, "color": profile["color"],
+                  "weave_amp": profile["weave_amp"], "weave_hz": profile["weave_hz"], "weave_start": profile["weave_start"],
+                  "type": wave["type"]}
