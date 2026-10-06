@@ -198,3 +198,103 @@ class DefenseSimulatorMainWindow(QMainWindow):
         
     @Slot()
     def change_placement_mode(self):
+        if self.radio_defender.isChecked():
+            self.placement_mode = "Defender"
+        else:
+            self.placement_mode = "Attacker"
+
+    def map_wheel(self, event):
+        """Zoom toward the cursor, clamped between 'whole map fits the view' and 6x."""
+        factor = 1.15 if event.angleDelta().y() > 0 else 1 / 1.15
+        current = self.map_view.transform().m11()
+        vp = self.map_view.viewport()
+        min_scale = max(vp.width() / 1792, vp.height() / 1280)
+        new_scale = max(min_scale, min(6.0, current * factor))
+        self.map_view.scale(new_scale / current, new_scale / current)
+
+    def map_mouse_press(self, event):
+        if event.button() == Qt.LeftButton:
+            self._press_pos = event.position().toPoint()
+            self._dragged = False
+
+    def map_mouse_move(self, event):
+        """Left-drag pans the map by scrolling the (hidden) scrollbars."""
+        if self._press_pos is None or not (event.buttons() & Qt.LeftButton):
+            return
+        pos = event.position().toPoint()
+        delta = pos - self._press_pos
+        if self._dragged or delta.manhattanLength() > 5:  # small jitter still counts as a click
+            self._dragged = True
+            self.map_view.horizontalScrollBar().setValue(self.map_view.horizontalScrollBar().value() - delta.x())
+            self.map_view.verticalScrollBar().setValue(self.map_view.verticalScrollBar().value() - delta.y())
+            self._press_pos = pos
+            self.map_view.viewport().setCursor(Qt.ClosedHandCursor)
+
+    def map_mouse_release(self, event):
+        self.map_view.viewport().unsetCursor()
+        if event.button() == Qt.LeftButton and self._press_pos is not None and not self._dragged:
+            self.map_clicked(event)  # a clean click places a site/battery
+        self._press_pos = None
+
+    def map_clicked(self, event):
+        if self.is_playing: return
+        scene_pos = self.map_view.mapToScene(event.position().toPoint())
+        
+        from PySide6.QtGui import QBrush, QPen, QColor
+        from PySide6.QtWidgets import QGraphicsEllipseItem
+        
+        if self.placement_mode == "Defender":
+            # Draw radar dome
+            r = self.radar_range
+            dome = self.map_scene.addEllipse(-r, -r, 2 * r, 2 * r, QPen(QColor(0, 150, 255, 100)), QBrush(QColor(0, 150, 255, 30)))
+            dome.setPos(scene_pos)
+            # Draw battery core
+            core = self.map_scene.addEllipse(-2.5, -2.5, 5, 5, QPen(Qt.NoPen), QBrush(Qt.blue))
+            core.setPos(scene_pos)
+            self.defense_batteries.append({"x": scene_pos.x(), "y": scene_pos.y(), "dome": dome, "core": core})
+        
+        elif self.placement_mode == "Attacker":
+            # Draw launch site
+            site = self.map_scene.addEllipse(-5, -5, 10, 10, QPen(Qt.NoPen), QBrush(Qt.darkRed))
+            site.setPos(scene_pos)
+            self.launch_sites.append({"x": scene_pos.x(), "y": scene_pos.y(), "item": site})
+        
+    @Slot()
+    def play_sim(self):
+        self.is_playing = True
+        self.timer.start(50)  # 50 ms loop = 20 fps
+        
+    @Slot()
+    def pause_sim(self):
+        self.is_playing = False
+        self.timer.stop()
+        
+    @Slot()
+    def reset_sim(self):
+        self.pause_sim()
+        self.sim_time = 0.0
+        for item in self.transient_items:
+            self.safe_remove(item)
+        self.transient_items.clear()
+        self.active_threats.clear()
+        self.active_interceptors.clear()
+        for wave in self.waves_schedule:
+            wave["launched"] = False
+            wave["spawned"] = 0
+            wave["last_spawn"] = -99
+        self.update_hud()
+        
+    @Slot()
+    def add_wave(self):
+        delay = self.wave_delay_spin.value()
+        wtype = self.wave_type_combo.currentText()
+        count = self.wave_count_spin.value()
+        
+        self.waves_schedule.append({"delay": delay, "type": wtype, "count": count, "launched": False})
+        
+        row = self.waves_table.rowCount()
+        self.waves_table.insertRow(row)
+        self.waves_table.setItem(row, 0, QTableWidgetItem(f"{delay:.1f}"))
+        self.waves_table.setItem(row, 1, QTableWidgetItem(wtype))
+        self.waves_table.setItem(row, 2, QTableWidgetItem(str(count)))
+        
