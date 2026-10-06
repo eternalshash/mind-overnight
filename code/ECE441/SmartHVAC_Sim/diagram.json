@@ -4,17 +4,16 @@
   "editor": "wokwi",
   "parts": [
     { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": 0, "left": 0, "attrs": {} },
-    { "type": "board-bme280", "id": "bme", "top": -80, "left": 250, "attrs": {} },
+    { "type": "wokwi-potentiometer", "id": "pot1", "top": -80, "left": 250, "attrs": {} },
     { "type": "wokwi-led", "id": "led_heater", "top": 50, "left": 250, "attrs": { "color": "red" } },
     { "type": "wokwi-led", "id": "led_fan", "top": 120, "left": 250, "attrs": { "color": "blue" } },
     { "type": "wokwi-resistor", "id": "r_heater", "top": 90, "left": 180, "attrs": { "value": "330" } },
     { "type": "wokwi-resistor", "id": "r_fan", "top": 160, "left": 180, "attrs": { "value": "330" } }
   ],
   "connections": [
-    [ "esp:3V3", "bme:VIN", "red", [ "v0" ] ],
-    [ "esp:GND", "bme:GND", "black", [ "v0" ] ],
-    [ "esp:22", "bme:SCL", "green", [ "v0" ] ],
-    [ "esp:21", "bme:SDA", "blue", [ "v0" ] ],
+    [ "esp:3V3", "pot1:VCC", "red", [ "v0" ] ],
+    [ "esp:GND", "pot1:GND", "black", [ "v0" ] ],
+    [ "esp:34", "pot1:SIG", "green", [ "v0" ] ],
     
     [ "esp:25", "r_heater:1", "green", [ "v0" ] ],
     [ "r_heater:2", "led_heater:A", "green", [ "v0" ] ],

@@ -22,7 +22,9 @@ public:
 
     float getTemperature() {
         if (bme_status) return bme.readTemperature();
-        return 25.0; // Mock default
+        // Map Wokwi potentiometer (0-4095) to temperature range (10C to 40C)
+        int potValue = analogRead(34);
+        return 10.0 + (potValue / 4095.0) * 30.0;
     }
 
     float getHumidity() {
