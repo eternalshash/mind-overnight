@@ -398,3 +398,63 @@ class DefenseSimulatorMainWindow(QMainWindow):
                   "bx": start_x, "by": start_y, "total": dist, "age": 0.0, "color": profile["color"],
                   "weave_amp": profile["weave_amp"], "weave_hz": profile["weave_hz"], "weave_start": profile["weave_start"],
                   "type": wave["type"]}
+        self.active_threats.append(threat)
+            
+    def launch_interceptor(self, battery, threat):
+        from PySide6.QtWidgets import QGraphicsEllipseItem
+        from PySide6.QtGui import QBrush, QPen, QColor
+        
+        itype = self.interceptor_combo.currentText()
+        if itype == "Auto (Layered Defense)":
+            if threat.get("type") == QUASI_BALLISTIC or threat.get("type") == "Exo-Atmospheric Ballistic":
+                itype = "THAAD"
+            elif threat.get("type") == "Loitering Drone Swarm":
+                itype = "Iron Dome"
+            else:
+                itype = "Patriot PAC-3"
+                
+        profile = INTERCEPTOR_PROFILES.get(itype, INTERCEPTOR_PROFILES["Patriot PAC-3"])
+        
+        item = self.track(self.map_scene.addEllipse(-2, -2, 4, 4, QPen(Qt.NoPen), QBrush(QColor(*profile["color"]))))
+        item.setPos(battery["x"], battery["y"])
+        interceptor = {
+            "x": battery["x"], "y": battery["y"], 
+            "item": item, "target": threat, "speed": profile["speed"], "active": True,
+            "color": profile["color"]
+        }
+        self.active_interceptors.append(interceptor)
+        
+    def draw_kill_marker(self, x, y):
+        """Permanent red X at the intercept point plus a short yellow flash."""
+        from PySide6.QtGui import QBrush, QPen, QColor
+        x_pen = QPen(QColor(255, 40, 40))
+        x_pen.setWidth(3)
+        for a, b in (((-7, -7), (7, 7)), ((-7, 7), (7, -7))):
+            seg = self.track(self.map_scene.addLine(x + a[0], y + a[1], x + b[0], y + b[1], x_pen))
+            seg.setZValue(20)
+        flash = self.track(self.map_scene.addEllipse(-14, -14, 28, 28, QPen(Qt.NoPen), QBrush(QColor(255, 220, 0, 170))))
+        flash.setPos(x, y)
+        flash.setZValue(19)
+        QTimer.singleShot(350, lambda: self.safe_remove(flash))
+
+    def draw_impact_marker(self, x, y):
+        """Orange burst where a threat got through and hit its target."""
+        from PySide6.QtGui import QBrush, QPen, QColor
+        burst = self.track(self.map_scene.addEllipse(-12, -12, 24, 24, QPen(QColor(255, 140, 0), 2), QBrush(QColor(255, 100, 0, 140))))
+        burst.setPos(x, y)
+        burst.setZValue(19)
+
+    def update_interceptor_kinematics(self, interceptor):
+        if not interceptor["active"]: return
+        
+        target = interceptor["target"]
+        if not target["active"]:
+            interceptor["active"] = False
+            self.safe_remove(interceptor["item"])
+            return
+            
+        dx, dy = target["x"] - interceptor["x"], target["y"] - interceptor["y"]
+        dist = math.hypot(dx, dy)
+        step = interceptor["speed"] * 0.05
+        
+        if dist <= max(6.0, step): # Interception Hit (radius covers one full step, no overshoot)
