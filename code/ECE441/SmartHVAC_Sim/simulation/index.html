@@ -798,3 +798,103 @@ function tick() {
   if (++tickN % 5 === 0) { sample(); if (chart) chart.update('none'); }
   if (!S.quiet) { updateCards(); updatePanel(); }
 }
+
+/* =====================================================================
+   14. BLUEPRINT RENDERER
+   ===================================================================== */
+const cv = $('bp'), ctx = cv.getContext('2d');
+let W = 0, Hh = 0, size = 0, ox = 0, oy = 0;
+function resize() {
+  const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  W = r.width; Hh = r.height; cv.width = W * dpr; cv.height = Hh * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const top = 40, bot = 62;
+  size = Math.max(200, Math.min(W - 30, Hh - top - bot));
+  ox = (W - size) / 2; oy = top + (Hh - top - bot - size) / 2;
+}
+window.addEventListener('resize', resize);
+const X = n => ox + n * size, Y = n => oy + n * size, Dd = n => n * size;
+
+const R = {
+  room: { x: .08, y: .08, w: .84, h: .84 },
+  bed: { x: .10, y: .10, w: .32, h: .36 }, nightstand: { x: .43, y: .10, w: .08, h: .08 },
+  desk: { x: .74, y: .11, w: .16, h: .28 }, table: { x: .77, y: .42, w: .13, h: .11 }, tvc: { x: .74, y: .56, w: .16, h: .26 },
+  ahu: { x: .10, y: .49, w: .09, h: .23 }, door: { x: .10, y: .78, w: .12, h: .14 }, window: { x: .26, y: .895, w: .52, h: .04 },
+  supply: { x: .46, y: .30, w: .14, h: .08 }, ret: { x: .50, y: .71, w: .14, h: .08 },
+  thermostat: { x: .104, y: .733, w: .042, h: .04 }, iaq: { x: .55, y: .103, w: .05, h: .04 }, tsb: { x: .655, y: .103, w: .03, h: .03 },
+  damper: { x: .81, y: .893, w: .07, h: .035 }, plugDesk: { x: .913, y: .18, w: .012, h: .03 }, plugTv: { x: .913, y: .66, w: .012, h: .03 }
+};
+const ctr = o => [X(o.x + o.w / 2), Y(o.y + o.h / 2)];
+const TGT = { thermostat: R.thermostat, iaq: R.iaq, damper: R.damper, ret: R.ret, ahu: R.ahu, window: R.window, tv: R.plugTv, desk: R.desk, bed: R.bed, tsb: R.tsb };
+const DEV = {
+  thermostat: { o: R.thermostat, name: 'CTRL-HUB dual ESP32 + TS-A (BME280)', info: () => `MCU-A ${S.mcu.a}, MCU-B ${S.mcu.b}. TS-A ${fF(S.sensA)} F ${S.ctl.sensorAOk ? '(in loop)' : '(voted out)'}. RH ${f0(S.RH)}%.` },
+  iaq: { o: R.iaq, name: 'IAQ node (SGP30 VOC/CO2 + PM2.5)', info: () => `VOC ${f0(S.VOC)} ppb, CO2 ${f0(S.CO2)} ppm, PM2.5 ${f1(S.PM)} ug/m3.` },
+  tsb: { o: R.tsb, name: 'TS-B redundant temp sensor (SHT31)', info: () => `${fF(S.sensB)} F. Used for cross-check voting against TS-A.` },
+  supply: { o: R.supply, name: 'Ceiling supply diffuser', info: () => `Supply air ${fF(S.SAT)} F, duct velocity ${f2(S.vel)} m/s.` },
+  ret: { o: R.ret, name: 'Return grille + MERV-13 filter + FS3000', info: () => `FS3000 ${f2(S.vel)} m/s, dP ${f0(S.dP)} Pa, filter ${f0(S.filterH * 100)}%.` },
+  ahu: { o: R.ahu, name: 'AHU-01 blower / evaporator coil / PTC heater', info: () => `Blower ${f0(S.fanAct)}% (${f0(S.rpm)} RPM), compressor ${f0(S.ctl.comp)}%, heater ${f0(S.ctl.heat)}%.` },
+  damper: { o: R.damper, name: 'Outdoor-air damper actuator', info: () => `Position ${f0(S.damperAct)}%${S.ctl.smokeLock ? ', LOCKED closed (smoke)' : ''}. Outdoor PM2.5 ${f0(S.PMout)}.` },
+  window: { o: R.window, name: 'Exterior window + contact sensor', info: () => `${S.inj.window ? 'OPEN' : 'Closed'}. Outdoor ${fF(S.Tout)} F.` },
+  desk: { o: R.desk, name: 'PC workstation on smart plug', info: () => `${f0(S.plugs.wrk)} W. Feed-forward ${f1(S.ctl.ff)}%.` },
+  tvc: { o: R.tvc, name: 'Entertainment center on smart plug', info: () => S.ctl.shed ? 'Plug OFF (shed by demand limiter).' : 'Plug ON, 45 W.' },
+  bed: { o: R.bed, name: 'Bed / occupancy zone', info: () => `Feels like ${fF(apparentTemp(S.T, S.RH, S.vel))} F at occupant.` },
+  table: { o: R.table, name: 'Side table / audio hub', info: () => 'Passive furniture.' },
+  nightstand: { o: R.nightstand, name: 'Nightstand + lamp (10 W)', info: () => 'Lamp 10 W on lighting circuit.' }
+};
+cv.addEventListener('click', e => {
+  const r = cv.getBoundingClientRect(), nx = (e.clientX - r.left - ox) / size, ny = (e.clientY - r.top - oy) / size;
+  for (const k of ['thermostat', 'iaq', 'tsb', 'damper', 'supply', 'ret', 'ahu', 'window', 'desk', 'tvc', 'table', 'nightstand', 'bed']) {
+    const o = DEV[k].o;
+    if (nx >= o.x - .01 && nx <= o.x + o.w + .01 && ny >= o.y - .01 && ny <= o.y + o.h + .01) { S.inspect = k; S.inspectUntil = performance.now() + 6000; updatePanel(); return; }
+  }
+  S.inspect = null;
+});
+
+// duct polylines (normalized) and flow particles
+const DUCT = { sup: [[.19, .545], [.53, .545], [.53, .38]], ret: [[.57, .71], [.57, .645], [.19, .645]] };
+function polyLen(p) { let L = 0; for (let i = 1; i < p.length; i++) L += Math.hypot(p[i][0] - p[i - 1][0], p[i][1] - p[i - 1][1]); return L; }
+function along(p, s) {
+  let target = s * polyLen(p);
+  for (let i = 1; i < p.length; i++) {
+    const seg = Math.hypot(p[i][0] - p[i - 1][0], p[i][1] - p[i - 1][1]);
+    if (target <= seg) { const t = target / seg; return [X(lerp(p[i - 1][0], p[i][0], t)), Y(lerp(p[i - 1][1], p[i][1], t))]; }
+    target -= seg;
+  }
+  const l = p[p.length - 1]; return [X(l[0]), Y(l[1])];
+}
+const parts = { sup: Array.from({ length: 16 }, (_, i) => i / 16), ret: Array.from({ length: 16 }, (_, i) => i / 16) };
+const diffuse = Array.from({ length: 30 }, () => ({ a: Math.random() * Math.PI * 2, r: Math.random(), sp: .3 + Math.random() * .7 }));
+const blobs = Array.from({ length: 26 }, () => ({ x: .12 + Math.random() * .6, y: .15 + Math.random() * .65, r: .03 + Math.random() * .05, ph: Math.random() * 6 }));
+
+function lbl(s, x, y, col, align, sz, bold) {
+  ctx.fillStyle = col || '#7dd3fc'; ctx.font = `${bold ? 'bold ' : ''}${sz || 9}px ${MONO}`; ctx.textAlign = align || 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillText(s, x, y);
+}
+function rect(o, fill, stroke, lw) {
+  const x = X(o.x), y = Y(o.y), w = Dd(o.w), h = Dd(o.h);
+  if (fill) { ctx.fillStyle = fill; ctx.fillRect(x, y, w, h); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw || 1.5; ctx.strokeRect(x, y, w, h); }
+  return [x, y, w, h];
+}
+
+let lastFrame = performance.now();
+function render(now) {
+  const dt = Math.min(0.05, (now - lastFrame) / 1000); lastFrame = now;
+  const c = S.ctl, inj = S.inj;
+  ctx.clearRect(0, 0, W, Hh);
+  const rm = R.room, rx = X(rm.x), ry = Y(rm.y), rw = Dd(rm.w), rh = Dd(rm.h), wt = 10;
+
+  // dimension strings
+  ctx.save(); ctx.strokeStyle = 'rgba(56,189,248,.45)'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(rx, ry - 24); ctx.lineTo(rx + rw, ry - 24); ctx.moveTo(rx - 24, ry); ctx.lineTo(rx - 24, ry + rh); ctx.stroke();
+  ctx.setLineDash([]);
+  [[rx, ry - 30, rx, ry - 16], [rx + rw, ry - 30, rx + rw, ry - 16], [rx - 30, ry, rx - 16, ry], [rx - 30, ry + rh, rx - 16, ry + rh]].forEach(([a, b, c2, d]) => { ctx.beginPath(); ctx.moveTo(a, b); ctx.lineTo(c2, d); ctx.stroke(); });
+  lbl(`14'-0" [4.27 m]`, rx + rw / 2, ry - 28, '#38bdf8', 'center');
+  ctx.translate(rx - 28, ry + rh / 2); ctx.rotate(-Math.PI / 2); lbl(`14'-0" [4.27 m]`, 0, 0, '#38bdf8', 'center'); ctx.restore();
+
+  // floor + temperature tint
+  ctx.fillStyle = '#08172e'; ctx.fillRect(rx, ry, rw, rh);
+  const dev = S.T - c.sp;
+  ctx.fillStyle = dev > 0 ? `rgba(239,68,68,${Math.min(.28, dev * .05)})` : `rgba(59,130,246,${Math.min(.28, -dev * .05)})`;
+  ctx.fillRect(rx, ry, rw, rh);
+
+  // walls with hatch
