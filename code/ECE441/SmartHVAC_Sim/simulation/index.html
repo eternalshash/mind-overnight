@@ -698,3 +698,103 @@ function updateCards() {
     h += card('TOTAL DRAW', f0(S.pw.total), 'W', `HVAC ${f0(hv)} W | PLUGS ${f0(S.pw.plugs)} W`, S.pw.total > S.demandLimit ? 'warn' : '');
     h += card('ENERGY (SIM)', f2(S.kWh), 'kWh', `COST $${f2(S.kWh * P.price)} @ $${P.price}/kWh`);
     h += card('HVAC MODE', c.mode.split(' ')[0], '', `COMP ${f0(c.comp)}% | HTR ${f0(c.heat)}% | FAN ${f0(S.fanAct)}%`, d['E-302'] || d['E-403'] ? 'crit' : '');
+    h += card('DEMAND LIMIT', S.demandLimit, 'W', c.shed ? 'SHEDDING: TV PLUG OFF, SP +1.8 F' : 'NO LOAD SHED ACTIVE', c.shed ? 'warn' : '');
+  } else if (view === 'forecast') {
+    h += card('NEXT 6 H ENERGY', f2(F.kWh), 'kWh', 'DIURNAL + ENVELOPE + PLUG MODEL');
+    h += card('NEXT 6 H COST', '$' + f2(F.kWh * P.price), '', `AVG ${f0(F.kWh / 6 * 1000)} W`);
+    h += card('PREDICTED PEAK', f0(F.peakW), 'W', `AT ${F.peakT}${F.peakW > S.demandLimit ? ' - OVER LIMIT' : ''}`, F.peakW > S.demandLimit ? 'warn' : '');
+    h += card('AVG OUTDOOR (FCST)', f1(F.avgTo), 'C', S.inj.heatwave ? 'HEATWAVE ACTIVE' : 'PEAK AT 15:00');
+  } else if (view === 'thermal') {
+    h += card('ROOM (CONTROL)', fF(c.Tctl), 'F', `SENSOR IN USE: ${c.sensorAOk ? 'TS-A' : 'TS-B (TS-A VOTED OUT)'}`, d['E-202'] ? 'warn' : '');
+    h += card('EFFECTIVE SETPOINT', fF(c.sp), 'F', `ERROR ${fD(c.Tctl - c.sp)} F | PID ${f0(c.u)}%`);
+    h += card('FEELS LIKE', fF(c.AT), 'F', `STEADMAN | RH ${f0(S.RH)}%`, c.heatEmerg ? 'crit' : '');
+    h += card('OUTDOOR', fF(S.Tout), 'F', S.inj.window ? 'WINDOW OPEN' : 'ENVELOPE SEALED');
+  } else if (view === 'airflow') {
+    h += card('FS3000 VELOCITY', f2(S.vel), 'm/s', `${f0(c.ratio * 100)}% OF EXPECTED`, c.blowerFault ? 'crit' : c.clogLevel ? 'warn' : '');
+    h += card('STATIC PRESSURE', f0(S.dP), 'Pa', S.dP > 280 ? 'CRITICAL (>280 Pa)' : S.dP > 180 ? 'ELEVATED' : 'NORMAL', S.dP > 280 ? 'crit' : S.dP > 180 ? 'warn' : '');
+    h += card('BLOWER', f0(S.fanAct), '%', `CMD ${f0(c.fanCmd)}% | ${f0(S.rpm)} RPM`, c.blowerFault ? 'crit' : '');
+    h += card('FILTER HEALTH', f0(S.filterH * 100), '%', S.filterH < 0.4 ? 'REPLACE FILTER' : S.filterH < 0.7 ? 'LOADING' : 'CLEAN', S.filterH < 0.4 ? 'crit' : S.filterH < 0.7 ? 'warn' : '');
+  } else {
+    h += card('VOC INDEX', f0(S.VOC), 'ppb', S.VOC > 350 ? 'POOR' : S.VOC > 220 ? 'MODERATE' : 'GOOD', S.VOC > 350 ? 'warn' : '');
+    h += card('CO2', f0(S.CO2), 'ppm', S.CO2 > 1100 ? 'STALE' : S.CO2 > 800 ? 'MODERATE' : 'FRESH', S.CO2 > 1100 ? 'warn' : '');
+    h += card('PM2.5 INDOOR', f1(S.PM), 'ug/m3', `OUTDOOR ${S.inj.wifi ? 'N/A (OFFLINE)' : f0(S.PMout)}`, S.PM > 25 ? 'crit' : S.PM > 12 ? 'warn' : '');
+    h += card('OA DAMPER', f0(S.damperAct), '%', c.smokeLock ? 'LOCKED CLOSED (SMOKE)' : c.purge ? 'PURGE OPEN' : 'MINIMUM', c.smokeLock ? 'crit' : '');
+  }
+  $('cards').innerHTML = h;
+}
+function bar(label, pct, val, color) {
+  return `<div class="bar"><span>${label}</span><div class="tr"><div class="fl" style="width:${clamp(pct, 0, 100)}%;background:${color}"></div></div><span class="vv">${val}</span></div>`;
+}
+function updatePanel() {
+  const c = S.ctl, m = S.mcu, alive = controllerAlive();
+  // MCU boxes
+  const aTxt = { RUN: m.active === 'A' ? 'RUN - IN CONTROL' : 'RUN', CRASHED: 'CRASHED', SYNC: 'REBOOTED - SYNCING' }[m.a];
+  $('mAs').textContent = aTxt; $('mAs').className = 'st ' + (m.a === 'RUN' ? 'grn' : m.a === 'SYNC' ? 'amb' : 'red');
+  $('mA').className = 'mbox ' + (m.a === 'RUN' ? 'ok' : m.a === 'SYNC' ? 'stby' : 'bad');
+  $('mAh').textContent = m.a === 'RUN' ? 'Heartbeat OK (1 Hz)' : m.a === 'SYNC' ? 'State sync in progress' : `Heartbeat LOST | reboot tries ${m.rebootTry}`;
+  $('mBs').textContent = m.b === 'ACTIVE' ? 'ACTIVE - IN CONTROL' : 'HOT STANDBY';
+  $('mBs').className = 'st ' + (m.b === 'ACTIVE' ? 'grn' : 'amb');
+  $('mB').className = 'mbox ' + (m.b === 'ACTIVE' ? 'ok' : 'stby');
+  $('mBh').textContent = m.b === 'ACTIVE' ? `Took over in ${m.failMs} ms` : !alive ? 'Watchdog counting...' : 'Mirroring PID state';
+  // header
+  const setDot = (id, col) => { $(id).style.background = col; $(id).style.color = col; };
+  setDot('hA', m.a === 'RUN' ? '#10b981' : m.a === 'SYNC' ? '#f59e0b' : '#ef4444'); $('hAt').textContent = m.a;
+  setDot('hB', m.b === 'ACTIVE' ? '#10b981' : '#f59e0b'); $('hBt').textContent = m.b;
+  setDot('hW', S.inj.wifi ? '#ef4444' : '#10b981'); $('hWt').textContent = S.inj.wifi ? 'OFFLINE' : 'ONLINE';
+  $('clock').textContent = clockStr(S.t);
+  // mode
+  const mode = alive ? c.mode : 'FAILOVER HOLD';
+  const modeCls = /INTERLOCK|EMERGENCY|SMOKE|FAILOVER/.test(mode) ? ' crit' : /PAUSE|PURGE/.test(mode) ? ' warn' : '';
+  $('modeBadge').textContent = mode; $('modeBadge').className = 'badge' + modeCls;
+  // bars
+  $('bars').innerHTML =
+    bar('COMPRESSOR', c.comp, `${f0(c.comp)}%${c.compCap < 100 || c.clogLevel === 2 ? ' CAP' : ''}`, c.blowerFault ? '#ef4444' : '#60a5fa') +
+    bar('PTC HEATER', c.heat, alive ? `${f0(c.heat)}%` : 'GATED', '#f87171') +
+    bar('BLOWER CMD', c.fanCmd, `${f0(c.fanCmd)}%${c.boost > 0.5 ? ' +' + f0(c.boost) : ''}`, '#a78bfa') +
+    bar('BLOWER TACH', S.fanAct, `${f0(S.rpm)} RPM`, c.blowerFault ? '#ef4444' : '#c4b5fd') +
+    bar('OA DAMPER', S.damperAct, c.smokeLock ? 'LOCKED' : `${f0(S.damperAct)}%`, c.smokeLock ? '#ef4444' : '#38bdf8');
+  $('kv').innerHTML =
+    `<span>Control sensor</span><span>${c.sensorAOk ? 'TS-A' : 'TS-B'} ${fF(c.Tctl)} F</span>` +
+    `<span>PID (P / I / FF)</span><span>${f1(c.P)} / ${f1(c.I)} / ${f1(c.ff)} %</span>` +
+    `<span>Supply air temp</span><span>${fF(S.SAT)} F</span>` +
+    `<span>Smart plugs</span><span>WRK ${f0(S.plugs.wrk)} W | TV ${c.shed ? 'SHED' : '45 W'}</span>`;
+  // faults
+  const list = Object.entries(S.diag).sort((a, b) => SEVRANK[b[1].sev] - SEVRANK[a[1].sev]);
+  $('flist').innerHTML = list.length ? list.map(([k, f]) =>
+    `<div class="fi ${f.sev}"><div class="c">${k}  ${f.title}</div><div class="m">${f.msg}</div><div class="a">RESPONSE: ${f.act}</div></div>`).join('')
+    : '<div class="none">No active faults. All diagnostics passing.</div>';
+  // status bar
+  const sb = $('statusBar');
+  if (S.inspect && performance.now() < S.inspectUntil) {
+    const o = DEV[S.inspect];
+    sb.className = 'info'; $('sbT').className = 'cy'; $('sbT').textContent = 'INSPECT: ' + o.name; $('sbD').textContent = o.info();
+  } else if (list.length) {
+    const [k, f] = list[0];
+    sb.className = f.sev; $('sbT').className = f.sev === 'crit' ? 'red' : f.sev === 'warn' ? 'amb' : 'cy';
+    $('sbT').textContent = `${k} ${f.title}${list.length > 1 ? `  (+${list.length - 1} more)` : ''}`; $('sbD').textContent = 'ESP32 RESPONSE: ' + f.act;
+  } else {
+    sb.className = ''; $('sbT').className = 'grn'; $('sbT').textContent = 'SYSTEM NOMINAL';
+    $('sbD').textContent = 'All diagnostics passing. Closed-loop PID regulating zone temperature.';
+  }
+  $('sbR').innerHTML = `CONTROLLER: MCU-${m.active} | ${mode}<br>T ${fF(c.Tctl)} F -> SP ${fF(c.sp)} F | ${f0(S.pw.total)} W`;
+  $('lOut').textContent = S.inj.heatwave ? 'HEATWAVE 102.2 F' : fF(S.ToutSet) + ' F';
+}
+
+/* =====================================================================
+   13. MAIN LOOP
+   ===================================================================== */
+let tickN = 0;
+function tick() {
+  const dtR = 0.2, dtS = S.speed * dtR;
+  S.t += dtS;
+  mcuStep(dtR);
+  sensors();
+  const alive = controllerAlive();
+  if (alive) controller(dtS, dtR); else { S.ctl.heat = 0; S.ctl.mode = 'FAILOVER HOLD'; }
+  plant(dtS);
+  diffDiag(diagnose(alive));
+  if (S.wifiPrev && !S.inj.wifi) { log('ok', `Cloud link restored. Flushed ${S.ctl.buffered} buffered telemetry samples to MQTT broker.`); S.ctl.buffered = 0; }
+  S.wifiPrev = !!S.inj.wifi;
+  if (++tickN % 5 === 0) { sample(); if (chart) chart.update('none'); }
+  if (!S.quiet) { updateCards(); updatePanel(); }
+}
