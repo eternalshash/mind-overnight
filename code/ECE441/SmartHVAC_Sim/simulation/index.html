@@ -98,3 +98,103 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px}
 .kv span:nth-child(even){color:#fff;text-align:right}
 .fi{border:1px solid var(--border);border-left:3px solid var(--amber);padding:5px 7px;margin-bottom:5px;background:rgba(17,38,74,.6)}
 .fi.crit{border-left-color:var(--red)} .fi.info{border-left-color:var(--cyan)}
+.fi .c{font-size:10px;font-weight:bold}
+.fi.crit .c{color:#fca5a5} .fi.warn .c{color:#fcd34d} .fi.info .c{color:#7dd3fc}
+.fi .m{font-size:9px;color:var(--muted);margin-top:2px}
+.fi .a{font-size:9px;color:var(--accent);margin-top:2px}
+.none{font-size:10px;color:var(--green);padding:4px 0}
+#log{height:130px;overflow-y:auto;background:#050d1a;border:1px solid var(--border);padding:5px 7px;font-size:9.5px;line-height:1.45}
+#log div{color:#7dd3fc;word-break:break-word}
+#log .warn{color:#fcd34d} #log .crit{color:#f87171} #log .ok{color:#6ee7b7} #log .sim{color:#c4b5fd}
+.red{color:var(--red)} .amb{color:var(--amber)} .grn{color:var(--green)} .cy{color:var(--accent)}
+</style>
+</head>
+<body>
+<header>
+  <div class="title"><span class="badge">ECE 441 / CAD-2D</span><h1>SMART HVAC CONTROL - RESIDENTIAL DIGITAL TWIN</h1></div>
+  <div class="hstat">
+    <span><i class="dot" id="hA"></i>MCU-A <b id="hAt">RUN</b></span>
+    <span><i class="dot" id="hB"></i>MCU-B <b id="hBt">STANDBY</b></span>
+    <span><i class="dot" id="hW"></i>CLOUD <b id="hWt">ONLINE</b></span>
+    <span>SIM <b id="clock" class="cy">14:00:00</b> <span id="speedLbl" style="color:var(--muted)">x40</span></span>
+  </div>
+</header>
+<main>
+  <section id="roomSec">
+    <canvas id="bp"></canvas>
+    <div class="toolbar">PLAN: ZONE-A RESIDENTIAL SUITE 14'-0" x 14'-0" &nbsp;|&nbsp; CEILING DUCTWORK SHOWN DASHED &nbsp;|&nbsp; CLICK A DEVICE TO INSPECT</div>
+    <div id="toasts"></div>
+    <div id="statusBar">
+      <div><b id="sbT" class="grn">SYSTEM NOMINAL</b><div id="sbD">All diagnostics passing. Closed-loop PID regulating zone temperature.</div></div>
+      <div id="sbR"></div>
+    </div>
+  </section>
+
+  <section id="side">
+    <div id="tele">
+      <div class="pane-h"><span class="pane-t">Live Telemetry</span>
+        <div class="tabs" id="tabs">
+          <button class="tab on" data-v="power">POWER</button>
+          <button class="tab" data-v="forecast">6H FORECAST</button>
+          <button class="tab" data-v="thermal">THERMAL</button>
+          <button class="tab" data-v="airflow">AIRFLOW</button>
+          <button class="tab" data-v="iaq">AIR QUALITY</button>
+        </div>
+      </div>
+      <div class="cards" id="cards"></div>
+      <div class="chartbox"><canvas id="chart"></canvas></div>
+    </div>
+
+    <div id="bottom">
+      <div class="col">
+        <div class="pane-h"><span class="pane-t">Fault Injection</span><span id="injCount" class="badge">0 INJECTED</span></div>
+        <div id="faultGroups"></div>
+        <button class="btn" id="clearAll">CLEAR ALL FAULTS / RESTORE BASELINE</button>
+        <div class="grp-h" style="margin-top:10px">ENVIRONMENT AND CONTROL PARAMETERS</div>
+        <div class="sl"><div class="h"><span>THERMOSTAT SETPOINT</span><b id="lSp">73.4 F</b></div><input type="range" id="sSp" min="64" max="82" step="1" value="73"></div>
+        <div class="sl"><div class="h"><span>OUTDOOR TEMPERATURE</span><b id="lOut">82.4 F</b></div><input type="range" id="sOut" min="23" max="108" step="1" value="82"></div>
+        <div class="sl"><div class="h"><span>DEMAND LIMIT (LOAD SHEDDING)</span><b id="lLim">1000 W</b></div><input type="range" id="sLim" min="300" max="2000" step="50" value="1000"></div>
+        <div class="sl"><div class="h"><span>SIMULATION SPEED</span><b id="lSpd">x40</b></div><input type="range" id="sSpd" min="5" max="120" step="5" value="40"></div>
+      </div>
+
+      <div class="col">
+        <div class="pane-h"><span class="pane-t">ESP32 Controller Response</span><span id="modeBadge" class="badge">IDLE</span></div>
+        <div class="mcu">
+          <div class="mbox ok" id="mA"><div class="n">MCU-A / PRIMARY ESP32</div><div class="st" id="mAs">RUN - IN CONTROL</div><div class="hb" id="mAh">Heartbeat OK</div></div>
+          <div class="mbox stby" id="mB"><div class="n">MCU-B / REDUNDANT ESP32</div><div class="st" id="mBs">HOT STANDBY</div><div class="hb" id="mBh">Mirroring PID state</div></div>
+        </div>
+        <div class="grp-h">ACTUATOR OUTPUTS</div>
+        <div id="bars"></div>
+        <div class="kv" id="kv"></div>
+        <div class="grp-h" style="margin-top:8px">DIAGNOSTICS / ACTIVE FAULTS</div>
+        <div id="flist"></div>
+        <div class="grp-h" style="margin-top:8px">FIRMWARE EVENT LOG (NEWEST FIRST)</div>
+        <div id="log"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+/* =====================================================================
+   0. HELPERS
+   ===================================================================== */
+const $ = id => document.getElementById(id);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const noise = a => (Math.random() * 2 - 1) * a;
+const MONO = 'Menlo, Consolas, monospace';
+const f1 = v => v.toFixed(1), f0 = v => v.toFixed(0), f2 = v => v.toFixed(2), fF = v => (v * 9/5 + 32).toFixed(1), fD = v => (v * 9/5).toFixed(1);
+
+/* =====================================================================
+   1. PHYSICAL PARAMETERS (scaled residential zone)
+   ===================================================================== */
+const P = {
+  C: 120000,      // effective zone thermal capacitance (J/K)
+  UA: 22,         // envelope conductance, window closed (W/K)
+  UAwin: 120,     // extra conductance when window open (W/K)
+  capCool: 2600,  // cooling capacity, thermal (W)
+  capHeat: 2200,  // PTC heater capacity (W)
+  COP: 3.2,       // cooling coefficient of performance
+  fanMax: 120,    // blower power at 100% (W)
+  vMax: 3.4,      // FS3000 duct velocity at 100% fan, clean filter (m/s)
