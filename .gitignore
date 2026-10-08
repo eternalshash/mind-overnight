@@ -23,3 +23,7 @@ ece449/project2/easynn_test
 *.key
 config_keys.py
 
+
+# Node
+node_modules/
+
