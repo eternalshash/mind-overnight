@@ -398,3 +398,103 @@ function controller(dtS, dtR) {
   c.ratio = S.fanAct > 15 ? S.vel / (P.vMax * S.fanAct / 100) : 1;
   const prevLvl = c.clogLevel;
   if (c.clogLevel === 0 && c.ratio < 0.8) c.clogLevel = 1;
+  if (c.clogLevel >= 1 && S.dP > 280) c.clogLevel = 2;
+  if (c.clogLevel === 2 && S.dP < 240) c.clogLevel = 1;
+  if (c.clogLevel >= 1 && c.ratio > 0.88 && S.dP < 240) c.clogLevel = 0;
+  if (c.clogLevel !== prevLvl) {
+    if (c.clogLevel === 1 && prevLvl === 0) log('warn', `Airflow ${f0(c.ratio * 100)}% of expected. Boosting blower, filter maintenance alert issued.`);
+    if (c.clogLevel === 2) log('crit', `Static pressure ${f0(S.dP)} Pa. Compressor capped at 50% to prevent evaporator icing.`);
+  }
+  c.boost = c.clogLevel >= 1 ? clamp((0.95 - c.ratio) * 100, 0, 30) : 0;
+  fan += c.boost;
+  if (c.clogLevel === 2) comp = Math.min(comp, 50);
+  if (c.blowerFault) { comp = 0; heat = 0; fan = 40; }
+
+  // 7.9 Demand limiting / load shedding via smart plugs
+  const total = S.pw.total;
+  if (!c.shed) {
+    if (total > S.demandLimit) { c.shedTimer += dtS; if (c.shedTimer > 30) { c.shed = true; c.shedTimer = 0; log('warn', `Demand ${f0(total)} W > limit ${S.demandLimit} W. Shedding TV plug, setpoint +1.8 F.`); } }
+    else c.shedTimer = 0;
+  } else {
+    if (total < S.demandLimit - 150) { c.shedTimer += dtS; if (c.shedTimer > 300) { c.shed = false; c.shedTimer = 0; log('ok', 'Demand back under limit. TV plug restored, setpoint restored.'); } }
+    else c.shedTimer = 0;
+  }
+  c.compCap = 100;
+  if (c.shed && !c.heatEmerg) {
+    const avail = S.demandLimit - (total - S.pw.comp);
+    c.compCap = clamp(avail / (P.capCool / P.COP) * 100, 30, 100);
+    comp = Math.min(comp, c.compCap);
+  }
+
+  c.comp = comp; c.heat = heat; c.fanCmd = clamp(fan, 0, 100); c.damper = damper;
+  c.mode = c.blowerFault ? 'INTERLOCK' : c.heatEmerg ? 'HEAT EMERGENCY' : c.winPause ? 'WINDOW PAUSE' :
+           c.smokeLock ? 'SMOKE RECIRC' : c.purge ? 'IAQ PURGE' : comp > 0 ? 'COOLING' : heat > 0 ? 'HEATING' : 'IDLE';
+}
+
+/* =====================================================================
+   8. PLANT MODEL (room, duct, filter, IAQ, power)
+   ===================================================================== */
+function plant(dtS) {
+  const c = S.ctl, inj = S.inj, k = x => Math.min(1, dtS / x);
+  S.Tout += ((inj.heatwave ? 39 : S.ToutSet) - S.Tout) * k(900);
+  S.PMout += ((inj.smoke ? 160 : 8) - S.PMout) * k(600);
+  if (inj.clog) S.filterH = Math.max(0.12, S.filterH - 0.015 / 60 * dtS);
+
+  // actuators
+  S.fanAct += ((inj.blower ? 0 : c.fanCmd) - S.fanAct) * k(20);
+  S.damperAct += (c.damper - S.damperAct) * k(30);
+  const h = S.filterH, hf = 0.2 + 0.8 * Math.pow(h, 1.5);
+  const flow = S.fanAct / 100 * hf;
+  S.vel = P.vMax * flow + noise(0.02) * (flow > 0.01 ? 1 : 0);
+  S.vel = Math.max(0, S.vel);
+  S.dP = 100 * Math.pow(S.fanAct / 100, 2) * (1 + 5 * (1 - h));
+  S.rpm = inj.blower ? 0 : S.fanAct * 28;
+  const capF = Math.min(1, flow / 0.45);
+  const Qc = c.comp / 100 * P.capCool * capF;
+  const htrF = flow > 0.05 ? 1 : 0.25;  // PTC self-limits without airflow
+  const Qh = c.heat / 100 * P.capHeat * htrF;
+  const airM3s = flow * 0.25;
+  S.SAT = airM3s > 0.01 ? clamp(S.T + (Qh - Qc) / (1206 * airM3s), 6, 60) : S.T;
+
+  // electrical power
+  S.plugs.wrk = lerp(S.plugs.wrk, inj.surge ? 380 : 95, k(20));
+  S.plugs.tv = c.shed ? 0 : 45;
+  S.pw.comp = c.comp / 100 * P.capCool / P.COP;
+  S.pw.heat = Qh;
+  S.pw.fan = P.fanMax * Math.pow(S.fanAct / 100, 3) * (1 + 0.8 * (1 - h));
+  S.pw.plugs = S.plugs.wrk + S.plugs.tv + S.plugs.lamp;
+  S.pw.ctrl = (S.mcu.a === 'RUN' ? 0.8 : 0.15) + (S.mcu.b === 'ACTIVE' ? 0.8 : 0.25) + 0.45;
+  S.pw.total = S.pw.comp + S.pw.heat + S.pw.fan + S.pw.plugs + S.pw.ctrl;
+  S.kWh += S.pw.total * dtS / 3.6e6;
+
+  // thermal balance
+  const achInf = inj.window ? 6 : 0.4, achOA = S.damperAct / 100 * 4;
+  const UA = P.UA + (inj.window ? P.UAwin : 0);
+  const gains = S.plugs.wrk * 0.95 + S.plugs.tv * 0.9 + S.plugs.lamp + 80 + S.pw.fan * 0.9 + S.pw.ctrl;
+  const Q = Qh - Qc + gains + (UA + P.kVent * (achInf + achOA)) * (S.Tout - S.T);
+  S.T += Q / P.C * dtS;
+
+  // humidity
+  const rhT = clamp(50 + (achInf + achOA) * 1.5 - c.comp * 0.12 - c.heat * 0.08, 25, 75);
+  S.RH += (rhT - S.RH) * k(1200);
+
+  // IAQ mass balance (rates per hour)
+  const ach = achInf + achOA, hr = dtS / 3600;
+  S.VOC += ((inj.voc ? 750 : 40) - ach * (S.VOC - 40)) * hr;
+  S.CO2 += ((inj.voc ? 700 : 115) - ach * (S.CO2 - 420)) * hr;
+  const recirc = flow * 5 * 0.85;
+  S.PM += (achInf * (0.8 * S.PMout - S.PM) + achOA * (0.5 * S.PMout - S.PM) - recirc * S.PM - 0.2 * S.PM + 4) * hr;
+  S.PM = Math.max(0, S.PM);
+}
+
+/* =====================================================================
+   9. DIAGNOSTICS (what the ESP32 reports)
+   ===================================================================== */
+function diagnose(alive) {
+  const c = S.ctl, m = S.mcu, inj = S.inj, d = {};
+  if (m.a !== 'RUN') d['E-201'] = { sev: 'crit', title: 'MCU-A WATCHDOG TIMEOUT', target: 'thermostat',
+    short: m.active === 'A' ? 'FAILOVER...' : m.a === 'SYNC' ? 'RESYNC' : 'ON MCU-B',
+    msg: m.active === 'A' ? 'Heartbeat lost. Hardware fail-safe holding outputs, heater gated OFF.' :
+         m.a === 'SYNC' ? 'MCU-A rebooted, synchronizing state from MCU-B.' : `MCU-A in boot loop (reboot attempts: ${m.rebootTry}).`,
+    act: m.active === 'B' ? `MCU-B in control (failover ${m.failMs} ms). PID state transferred bumplessly.` : 'Awaiting watchdog failover to MCU-B...' };
+  if (!alive) { for (const k in S.diag) if (k !== 'E-201') d[k] = S.diag[k]; return d; }
