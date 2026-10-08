@@ -298,3 +298,103 @@ function mcuStep(dtR) {
   if (m.a === 'CRASHED' && m.active === 'B') {
     m.rebootTimer += dtR;
     if (m.rebootTimer > 3.5) {
+      m.rebootTimer = 0; m.rebootTry++;
+      if (S.inj.mcu) log('warn', `MCU-A reboot attempt ${m.rebootTry} failed (boot loop). Remaining on MCU-B.`);
+      else { m.a = 'SYNC'; m.syncT = 0; log('ok', 'MCU-A rebooted cleanly. Synchronizing state from MCU-B.'); }
+    }
+  }
+  if (m.a === 'SYNC') {
+    m.syncT += dtR;
+    if (m.syncT > 1.5) {
+      m.a = 'RUN'; m.active = 'A'; m.b = 'STANDBY'; m.rebootTry = 0;
+      log('ok', 'MCU-A restored as primary controller. MCU-B returned to hot standby.');
+    }
+  }
+}
+const controllerAlive = () => (S.mcu.active === 'A' && S.mcu.a === 'RUN') || S.mcu.active === 'B';
+
+/* =====================================================================
+   6. SENSORS
+   ===================================================================== */
+function sensors() {
+  S.sensB = S.T + 0.05 + noise(0.03);
+  S.sensA = S.inj.sensor ? 17.2 + noise(0.01) : S.T - 0.04 + noise(0.03);
+}
+function apparentTemp(T, RH, vDuct) {
+  // Steadman apparent temperature: AT = Ta + 0.33e - 0.70v - 4.00 (v = room air speed)
+  const e = RH / 100 * 6.105 * Math.exp(17.27 * T / (237.7 + T));
+  const vRoom = 0.05 + 0.06 * vDuct;
+  return T + 0.33 * e - 0.70 * vRoom - 4.0;
+}
+
+/* =====================================================================
+   7. ESP32 CONTROL FIRMWARE (runs on whichever MCU is active)
+   ===================================================================== */
+function controller(dtS, dtR) {
+  const c = S.ctl, inj = S.inj;
+
+  // 7.1 Redundant temperature sensor cross-check (TS-A BME280 vs TS-B SHT31)
+  const dA = Math.abs(S.sensA - S.sensB);
+  if (c.sensorAOk) {
+    if (dA > 1.5) { c.sensorMis += dtR; if (c.sensorMis > 2.0) { c.sensorAOk = false; c.sensorMis = 0; log('warn', `TS-A/TS-B disagree by ${fF(dA)} F. TS-A voted out, switching loop to TS-B.`); } }
+    else c.sensorMis = 0;
+  } else {
+    if (dA < 0.4) { c.sensorMis += dtR; if (c.sensorMis > 2.0) { c.sensorAOk = true; c.sensorMis = 0; log('ok', 'TS-A agrees with TS-B again. TS-A restored to control loop.'); } }
+    else c.sensorMis = 0;
+  }
+  c.Tctl = c.sensorAOk ? S.sensA : S.sensB;
+  const T = c.Tctl;
+  c.AT = apparentTemp(T, S.RH, S.vel);
+
+  // 7.2 Smoke detection: cloud outdoor AQI (needs Wi-Fi) OR indoor PM2.5 node
+  const smoke = (!inj.wifi && S.PMout > 55) || S.PM > 25;
+  if (smoke && !c.smokeLock) { c.smokeLock = true; log('crit', 'Smoke event detected. Outdoor-air damper locked CLOSED, recirculating through filter.'); }
+  if (c.smokeLock && !smoke && S.PM < 12 && (inj.wifi || S.PMout < 35)) { c.smokeLock = false; log('ok', 'Smoke cleared. Outdoor-air damper unlocked.'); }
+
+  // 7.3 IAQ purge with hysteresis
+  if (!c.purge && (S.VOC > 350 || S.CO2 > 1100)) { c.purge = true; log('warn', `IAQ threshold exceeded (VOC ${f0(S.VOC)} ppb, CO2 ${f0(S.CO2)} ppm). Starting ventilation purge.`); }
+  if (c.purge && S.VOC < 220 && S.CO2 < 800) { c.purge = false; log('ok', 'IAQ back in range. Purge stopped, damper returning to minimum.'); }
+  let damper = c.purge ? 100 : 0;
+  if (c.smokeLock) damper = 0;
+
+  // 7.4 Window contact sensor + safety band (heat-vulnerable occupant protection)
+  if (inj.window) c.winTimer += dtS; else c.winTimer = 0;
+  c.safety = T > 29.5 || T < 12;
+  const wasPaused = c.winPause;
+  c.winPause = c.winTimer > 60 && !c.safety;
+  if (c.winPause && !wasPaused) log('warn', 'Window open > 60 s. HVAC paused to avoid conditioning outdoors.');
+  if (!c.winPause && wasPaused && inj.window) log('crit', 'Room left safe band with window open. Safety override: HVAC resumed.');
+
+  // 7.5 Heat-stress emergency with hysteresis
+  if (!c.heatEmerg && (T > 29 || c.AT > 31)) { c.heatEmerg = true; log('crit', `Heat stress risk: room ${fF(T)} F, feels like ${fF(c.AT)} F. Max cooling. ${inj.wifi ? 'Caregiver alert QUEUED (offline).' : 'Caregiver push alert sent.'}`); }
+  if (c.heatEmerg && T < 27.5 && c.AT < 29) { c.heatEmerg = false; log('ok', 'Heat stress condition cleared.'); }
+
+  // 7.6 PID with smart-plug feed-forward (positive output = cooling)
+  c.sp = S.setpoint + (c.shed ? 1.0 : 0);
+  c.ff = Math.max(0, S.plugs.wrk - 95) * 0.95 / P.capCool * 100;
+  const e = T - c.sp, Kp = 55, Ki = 0.02;
+  c.P = Kp * e;
+  let u = c.P + c.I + c.ff;
+  if (!((u >= 100 && e > 0) || (u <= -100 && e < 0))) c.I = clamp(c.I + Ki * e * dtS, -60, 60); // conditional integration (anti-windup)
+  u = clamp(c.P + c.I + c.ff, -100, 100);
+  c.u = u;
+  let comp = u > 3 ? u : 0, heat = u < -3 ? -u : 0;
+  if (c.heatEmerg) { comp = 100; heat = 0; }
+  if (c.winPause) { comp = 0; heat = 0; }
+
+  // 7.7 Blower command
+  let fan = (comp > 0 || heat > 0) ? 30 + 0.6 * Math.max(comp, heat) : 22;
+  if (c.purge && !c.smokeLock) fan = Math.max(fan, 85);
+  if (c.smokeLock) fan = Math.max(fan, 70);
+
+  // 7.8 Duct diagnostics: tachometer + FS3000 airflow + static pressure
+  if (c.fanCmd > 15 && S.rpm < 100) {
+    c.blowerMis += dtR;
+    if (c.blowerMis > 1.5 && !c.blowerFault) { c.blowerFault = true; log('crit', 'Blower commanded but tach = 0 RPM and FS3000 = 0 m/s. Heater and compressor interlocked OFF.'); }
+  } else if (S.rpm > 200) {
+    if (c.blowerFault) log('ok', 'Blower rotation confirmed. Interlock released.');
+    c.blowerFault = false; c.blowerMis = 0;
+  }
+  c.ratio = S.fanAct > 15 ? S.vel / (P.vMax * S.fanAct / 100) : 1;
+  const prevLvl = c.clogLevel;
+  if (c.clogLevel === 0 && c.ratio < 0.8) c.clogLevel = 1;
