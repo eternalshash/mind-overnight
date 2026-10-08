@@ -598,3 +598,103 @@ const xAxis = () => ({ ticks: Object.assign({ maxTicksLimit: 8, maxRotation: 0 }
 const yAxis = (title, o) => Object.assign({ title: { display: true, text: title, color: '#7f97b8', font: { family: MONO, size: 9 } },
   ticks: Object.assign({ maxTicksLimit: 6 }, tick9), grid: { color: 'rgba(56,189,248,.10)' } }, o || {});
 const ds = (label, data, color, o) => Object.assign({ label, data, borderColor: color, backgroundColor: color + '40', borderWidth: 1.6, pointRadius: 0, tension: .25, fill: false }, o || {});
+function buildChart() {
+  if (chart) chart.destroy();
+  let data, scales;
+  if (view === 'power') {
+    data = { labels: H.lab, datasets: [
+      ds('Compressor', H.comp, '#60a5fa', { fill: 'origin', stack: 'p' }),
+      ds('Heater', H.heat, '#f87171', { fill: '-1', stack: 'p' }),
+      ds('Blower', H.fan, '#a78bfa', { fill: '-1', stack: 'p' }),
+      ds('Plug loads', H.plugs, '#fbbf24', { fill: '-1', stack: 'p' }),
+      ds('Controls', H.ctrl, '#10b981', { fill: '-1', stack: 'p' }),
+      ds('Demand limit', H.limit, '#ef4444', { borderDash: [5, 4], borderWidth: 1.2, stack: 'lim' }) ] };
+    scales = { x: xAxis(), y: yAxis('WATTS (STACKED)', { stacked: true, min: 0 }) };
+  } else if (view === 'forecast') {
+    data = { labels: F.lab, datasets: [
+      { type: 'bar', label: 'Predicted avg load per 15 min (W)', data: F.W, backgroundColor: 'rgba(251,191,36,.45)', borderColor: '#fbbf24', borderWidth: 1, yAxisID: 'y' },
+      { type: 'line', label: 'Forecast outdoor temp (C)', data: F.To, borderColor: '#f87171', borderWidth: 1.6, pointRadius: 0, tension: .3, yAxisID: 'y1' } ] };
+    scales = { x: xAxis(), y: yAxis('WATTS', { min: 0 }), y1: yAxis('OUTDOOR F', { position: 'right', grid: { drawOnChartArea: false } }) };
+  } else if (view === 'thermal') {
+    data = { labels: H.lab, datasets: [
+      ds('Room (true)', H.T, '#ffffff', { borderWidth: 2 }),
+      ds('TS-A (BME280)', H.TA, '#f59e0b', { borderDash: [3, 3] }),
+      ds('TS-B (SHT31)', H.TB, '#38bdf8', { borderDash: [1, 2] }),
+      ds('Setpoint', H.SP, '#10b981', { borderDash: [6, 4], tension: 0 }),
+      ds('Feels like', H.AT, '#c084fc'),
+      ds('Outdoor', H.Tout, '#f87171', { borderWidth: 1 }) ] };
+    scales = { x: xAxis(), y: yAxis('DEG F', { suggestedMin: 16, suggestedMax: 32 }) };
+  } else if (view === 'airflow') {
+    data = { labels: H.lab, datasets: [
+      ds('FS3000 velocity (m/s)', H.vel, '#00e5ff', { fill: 'origin', yAxisID: 'y' }),
+      ds('Blower cmd (%)', H.fanCmd, '#a78bfa', { borderDash: [4, 3], yAxisID: 'y1' }),
+      ds('Blower actual (%)', H.fanAct, '#c4b5fd', { yAxisID: 'y1' }),
+      ds('Filter health (%)', H.filt, '#10b981', { yAxisID: 'y1' }) ] };
+    scales = { x: xAxis(), y: yAxis('M/S', { min: 0, max: 4 }), y1: yAxis('PERCENT', { position: 'right', min: 0, max: 100, grid: { drawOnChartArea: false } }) };
+  } else {
+    data = { labels: H.lab, datasets: [
+      ds('VOC (ppb)', H.voc, '#f59e0b', { fill: 'origin', yAxisID: 'y' }),
+      ds('CO2 (ppm)', H.co2, '#10b981', { yAxisID: 'y' }),
+      ds('PM2.5 (ug/m3)', H.pm, '#94a3b8', { yAxisID: 'y1', borderWidth: 2 }),
+      ds('OA damper (%)', H.dmp, '#38bdf8', { yAxisID: 'y1', borderDash: [4, 3] }) ] };
+    scales = { x: xAxis(), y: yAxis('PPB / PPM', { min: 0, suggestedMax: 1500 }), y1: yAxis('UG/M3 / %', { position: 'right', min: 0, suggestedMax: 100, grid: { drawOnChartArea: false } }) };
+  }
+  chart = new Chart($('chart'), { type: view === 'forecast' ? 'bar' : 'line', data, options: {
+    responsive: true, maintainAspectRatio: false, animation: false, interaction: { intersect: false, mode: 'index' }, scales,
+    plugins: { legend: { labels: { color: '#dbe7f5', font: { family: MONO, size: 9 }, boxWidth: 10, boxHeight: 8 } },
+               tooltip: { backgroundColor: 'rgba(7,21,43,.95)', borderColor: '#1f3d6b', borderWidth: 1, titleFont: { family: MONO }, bodyFont: { family: MONO, size: 10 } } } } });
+}
+document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('on'));
+  b.classList.add('on'); view = b.dataset.v; buildChart(); updateCards();
+}));
+
+/* =====================================================================
+   12. RIGHT PANEL UI
+   ===================================================================== */
+function buildFaultUI() {
+  const root = $('faultGroups');
+  FAULT_DEFS.forEach(g => {
+    const wrap = document.createElement('div'); wrap.className = 'grp';
+    wrap.innerHTML = `<div class="grp-h">${g.grp}</div>`;
+    g.items.forEach(it => {
+      const row = document.createElement('div');
+      row.className = 'frow'; row.id = 'f_' + it.id;
+      row.innerHTML = `<div><div class="nm">${it.nm}</div><div class="ds">${it.ds}</div><div class="st" id="fs_${it.id}">INJECTED</div></div><div class="sw"></div>`;
+      row.addEventListener('click', () => setFault(it.id, !S.inj[it.id]));
+      wrap.appendChild(row);
+    });
+    root.appendChild(wrap);
+  });
+}
+function setFault(id, on) {
+  S.inj[id] = on;
+  $('f_' + id).classList.toggle('on', on);
+  log('sim', `[SIM] ${on ? 'Injected' : 'Removed'} fault: ${FAULT_NAME[id]}`);
+  if (!on && id === 'clog') { S.filterH = 0.96; log('sim', '[SIM] Filter replaced with new MERV-13 media.'); }
+  const n = Object.values(S.inj).filter(Boolean).length;
+  $('injCount').textContent = `${n} INJECTED`; $('injCount').className = 'badge' + (n ? ' warn' : '');
+}
+$('clearAll').addEventListener('click', () => {
+  Object.keys(S.inj).forEach(k => { if (S.inj[k]) setFault(k, false); });
+  S.setpoint = 23; S.ToutSet = 28; S.demandLimit = 1000;
+  $('sSp').value = 73; $('sOut').value = 82; $('sLim').value = 1000; readSliders();
+  log('sim', '[SIM] Baseline restored. Controller recovering on its own.');
+});
+function readSliders() {
+  S.setpoint = (+$('sSp').value - 32) * 5/9; S.ToutSet = (+$('sOut').value - 32) * 5/9; S.demandLimit = +$('sLim').value; S.speed = +$('sSpd').value;
+  $('lSp').textContent = fF(S.setpoint) + ' F';
+  $('lOut').textContent = S.inj.heatwave ? 'HEATWAVE 102.2 F' : fF(S.ToutSet) + ' F';
+  $('lLim').textContent = S.demandLimit + ' W';
+  $('lSpd').textContent = 'x' + S.speed; $('speedLbl').textContent = 'x' + S.speed;
+}
+['sSp', 'sOut', 'sLim', 'sSpd'].forEach(id => $(id).addEventListener('input', readSliders));
+
+function card(l, v, u, s, cls) { return `<div class="card ${cls || ''}"><div class="l">${l}</div><div class="v">${v}<small>${u}</small></div><div class="s">${s}</div></div>`; }
+function updateCards() {
+  const c = S.ctl, d = S.diag; let h = '';
+  if (view === 'power') {
+    const hv = S.pw.comp + S.pw.heat + S.pw.fan;
+    h += card('TOTAL DRAW', f0(S.pw.total), 'W', `HVAC ${f0(hv)} W | PLUGS ${f0(S.pw.plugs)} W`, S.pw.total > S.demandLimit ? 'warn' : '');
+    h += card('ENERGY (SIM)', f2(S.kWh), 'kWh', `COST $${f2(S.kWh * P.price)} @ $${P.price}/kWh`);
+    h += card('HVAC MODE', c.mode.split(' ')[0], '', `COMP ${f0(c.comp)}% | HTR ${f0(c.heat)}% | FAN ${f0(S.fanAct)}%`, d['E-302'] || d['E-403'] ? 'crit' : '');
