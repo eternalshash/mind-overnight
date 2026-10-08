@@ -1098,3 +1098,58 @@ function render(now) {
     lbl(t1, boxX + 8, ly + 12, col, 'left', 9, true); lbl(t2, boxX + 8, ly + 23, '#cbd5e1', 'left', 8);
   });
   // injected but not yet detected
+  Object.entries(S.inj).forEach(([id, on]) => {
+    if (!on) return; const [code, tk] = INJ_MAP[id];
+    let diag = code ? S.diag[code] : null;
+    if (id === 'heatwave' && S.ctl.heatEmerg) diag = S.diag['E-403'];
+    const [mx, my] = ctr(TGT[tk]);
+    ctx.strokeStyle = diag ? (diag.sev === 'crit' ? '#ef4444' : diag.sev === 'warn' ? '#f59e0b' : '#38bdf8') : 'rgba(203,213,225,.6)';
+    ctx.setLineDash([2, 4]); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(mx, my, 26, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+    
+    if (diag) {
+      lbl(`DETECTED: ${diag.title}`, mx, my - 44, ctx.strokeStyle, 'center', 8, true);
+      const words = diag.act.split(' ');
+      let line = 'SOLVING: ', y = my - 32;
+      for (let w of words) {
+        if (line.length + w.length > 36) { lbl(line, mx, y, '#cbd5e1', 'center', 8); line = w + ' '; y += 11; }
+        else line += w + ' ';
+      }
+      lbl(line, mx, y, '#cbd5e1', 'center', 8);
+    } else {
+      lbl(id === 'heatwave' ? `OUTDOOR HEATWAVE ${fF(S.Tout)} F` : `INJECTED: ${FAULT_NAME[id].toUpperCase()} - DETECTING...`, mx, my - 32, '#cbd5e1', 'center', 8);
+    }
+  });
+
+  // inspect highlight
+  if (S.inspect && now < S.inspectUntil) { const o = DEV[S.inspect].o;
+    ctx.strokeStyle = '#00e5ff'; ctx.lineWidth = 2; ctx.setLineDash([6, 3]); ctx.strokeRect(X(o.x) - 5, Y(o.y) - 5, Dd(o.w) + 10, Dd(o.h) + 10); ctx.setLineDash([]); }
+
+  // title block
+  lbl('SHEET M-101  HVAC CONTROLS PLAN', W - 14, Hh - 72, 'rgba(125,211,252,.55)', 'right', 9, true);
+  requestAnimationFrame(render);
+}
+
+/* =====================================================================
+   15. BOOT
+   ===================================================================== */
+buildFaultUI(); readSliders(); resize();
+for (let i = 0; i < HLEN * 5; i++) tick();   // warm-up: fill telemetry history quietly
+S.kWh = 0; S.quiet = false;
+// optional test hook: #inject=clog,mcu&warm=200&tab=airflow
+(() => {
+  const q = new URLSearchParams(location.hash.slice(1));
+  if (q.get('speed')) { $('sSpd').value = q.get('speed'); readSliders(); }
+  (q.get('inject') || '').split(',').filter(Boolean).forEach(id => setFault(id, true));
+  const warm = +q.get('warm') || 0; for (let i = 0; i < warm; i++) tick();
+  if (q.get('tab')) { const b = document.querySelector(`.tab[data-v="${q.get('tab')}"]`); if (b) { document.querySelectorAll('.tab').forEach(x => x.classList.remove('on')); b.classList.add('on'); view = b.dataset.v; } }
+})();
+log('ok', 'MCU-B hot standby: heartbeat mirror active, watchdog armed (1.6 s).');
+log('ok', 'FS3000 airflow baseline captured. TS-A / TS-B cross-check enabled.');
+log('', 'ESP32 boot complete. Split-range PID: Kp=55 %/C, Ki=0.02 %/(C s), smart-plug feed-forward ON.');
+buildChart(); updateCards(); updatePanel();
+setInterval(tick, 200);
+requestAnimationFrame(render);
+</script>
+</body>
+</html>
