@@ -198,3 +198,103 @@ const P = {
   COP: 3.2,       // cooling coefficient of performance
   fanMax: 120,    // blower power at 100% (W)
   vMax: 3.4,      // FS3000 duct velocity at 100% fan, clean filter (m/s)
+  kVent: 13.4,    // rho*cp*V/3600 for a 40 m3 room (W/K per ACH)
+  price: 0.15     // $/kWh
+};
+
+/* =====================================================================
+   2. FAULT CATALOGUE
+   ===================================================================== */
+const FAULT_DEFS = [
+  { grp: 'INDOOR AIR QUALITY', items: [
+    { id: 'voc',   nm: 'VOC / CO2 buildup',            ds: 'Indoor pollutant source (cooking, cleaning, occupancy)' },
+    { id: 'smoke', nm: 'Outdoor wildfire smoke',       ds: 'Outdoor PM2.5 climbs to 160 ug/m3' } ] },
+  { grp: 'MCU FAIL-SAFE AND HARDWARE REDUNDANCY', items: [
+    { id: 'mcu',    nm: 'Primary ESP32 crash',         ds: 'Core panic / brownout on MCU-A' },
+    { id: 'sensor', nm: 'Primary temp sensor failure', ds: 'BME280 (TS-A) output stuck at 63.0 F' },
+    { id: 'wifi',   nm: 'Wi-Fi / cloud outage',        ds: 'MQTT broker unreachable' } ] },
+  { grp: 'AIR DUCT DYNAMICS AND FILTER', items: [
+    { id: 'clog',   nm: 'Progressive filter clogging', ds: 'Filter media loads with dust over time' },
+    { id: 'blower', nm: 'Blower motor failure',        ds: 'Fan seized - tachometer reads 0 RPM' } ] },
+  { grp: 'ENERGY AND POWER', items: [
+    { id: 'surge',    nm: 'Workstation load surge',    ds: 'PC smart plug jumps 95 W to 380 W' },
+    { id: 'window',   nm: 'Window left open',          ds: 'Envelope breach, infiltration x15' },
+    { id: 'heatwave', nm: 'Heatwave',                  ds: 'Outdoor temperature ramps to 102.2 F' } ] }
+];
+const FAULT_NAME = {};
+FAULT_DEFS.forEach(g => g.items.forEach(i => FAULT_NAME[i.id] = i.nm));
+// injected fault -> diagnostic code that should catch it, and where it is in the room
+const INJ_MAP = {
+  voc: ['E-101', 'iaq'], smoke: ['E-102', 'damper'], mcu: ['E-201', 'thermostat'], sensor: ['E-202', 'thermostat'],
+  wifi: ['E-203', 'thermostat'], clog: ['E-301', 'ret'], blower: ['E-302', 'ahu'], surge: ['E-404', 'desk'],
+  window: ['E-402', 'window'], heatwave: [null, 'window']
+};
+
+/* =====================================================================
+   3. STATE
+   ===================================================================== */
+const S = {
+  t: 14 * 3600, speed: 40,
+  T: 24.0, RH: 48, Tout: 28, ToutSet: 28, setpoint: 23, demandLimit: 1000,
+  VOC: 140, CO2: 700, PM: 3, PMout: 8,
+  filterH: 0.96, fanAct: 30, damperAct: 0, vel: 2.4, dP: 10, rpm: 840, SAT: 18,
+  sensA: 24, sensB: 24,
+  inj: {},
+  ctl: { I: 0, P: 0, comp: 0, heat: 0, fanCmd: 30, damper: 0, mode: 'IDLE', sp: 23, u: 0,
+         purge: false, smokeLock: false, shed: false, shedTimer: 0, compCap: 100,
+         winTimer: 0, winPause: false, safety: false, heatEmerg: false,
+         sensorAOk: true, sensorMis: 0, blowerFault: false, blowerMis: 0,
+         clogLevel: 0, boost: 0, ratio: 1, ff: 0, Tctl: 24, AT: 24, buffered: 0 },
+  mcu: { active: 'A', a: 'RUN', b: 'STANDBY', wd: 0, rebootTimer: 0, rebootTry: 0, syncT: 0, failMs: 0 },
+  plugs: { wrk: 95, tv: 45, lamp: 10 },
+  pw: { comp: 0, heat: 0, fan: 0, plugs: 150, ctrl: 1.5, total: 150 },
+  kWh: 0, diag: {}, quiet: true, inspect: null, inspectUntil: 0, wifiPrev: false
+};
+
+/* =====================================================================
+   4. LOGGING / TOASTS
+   ===================================================================== */
+function clockStr(t) {
+  const s = Math.floor(t) % 86400;
+  return [s / 3600, (s % 3600) / 60, s % 60].map(v => String(Math.floor(v)).padStart(2, '0')).join(':');
+}
+function log(cls, msg) {
+  if (S.quiet) return;
+  const el = document.createElement('div');
+  el.className = cls;
+  el.textContent = `[${clockStr(S.t)}] ${msg}`;
+  const box = $('log');
+  box.insertBefore(el, box.firstChild);
+  while (box.children.length > 120) box.removeChild(box.lastChild);
+}
+function toast(cls, head, title, msg, act) {
+  if (S.quiet) return;
+  const box = $('toasts');
+  const el = document.createElement('div');
+  el.className = 'toast ' + cls;
+  el.innerHTML = `<div class="t0">${head}</div><div class="t1">${title}</div>` +
+    (msg ? `<div class="t2">${msg}</div>` : '') + (act ? `<div class="t3">${act}</div>` : '');
+  box.insertBefore(el, box.firstChild);
+  while (box.children.length > 4) box.removeChild(box.lastChild);
+  setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 500); }, cls === 'crit' ? 9000 : 6500);
+}
+
+/* =====================================================================
+   5. DUAL-MCU SUPERVISOR (watchdog, failover, reboot)
+   ===================================================================== */
+function mcuStep(dtR) {
+  const m = S.mcu;
+  if (S.inj.mcu && m.a === 'RUN') {
+    m.a = 'CRASHED'; m.wd = 0; m.rebootTimer = 0; m.rebootTry = 0;
+    log('crit', 'MCU-A core panic / brownout. Heartbeat lost. Hardware fail-safe gated heater relay OFF.');
+  }
+  if (m.a === 'CRASHED' && m.active === 'A') {
+    m.wd += dtR;
+    if (m.wd >= 1.6) {
+      m.active = 'B'; m.b = 'ACTIVE'; m.failMs = Math.round(m.wd * 1000);
+      log('crit', `Watchdog timeout after ${m.failMs} ms. MCU-B assumed control with bumpless transfer (PID integrator restored).`);
+    }
+  }
+  if (m.a === 'CRASHED' && m.active === 'B') {
+    m.rebootTimer += dtR;
+    if (m.rebootTimer > 3.5) {
