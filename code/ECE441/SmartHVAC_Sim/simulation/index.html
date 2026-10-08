@@ -685,9 +685,103 @@ function setFault(id, on) {
   }
   log('sim', `[SIM] ${on ? 'Injected' : 'Removed'} fault: ${FAULT_NAME[id]}`);
   if (!on) {
-    if (id === 'clog') { S.filterH = 0.96; log('sim', '[SIM] Filter replaced with new MERV-13 media.'); }
-    if (id === 'smoke') { S.PMout = 8; }
-    if (id === 'heatwave') { S.Tout = S.ToutSet; }
+    const c = S.ctl, m = S.mcu;
+    if (id === 'smoke') {
+      S.PMout = 8;
+      S.PM = 3;
+      c.smokeLock = false;
+      c.damper = 0;
+      S.damperAct = 0;
+      delete S.diag['E-102'];
+    }
+    if (id === 'voc') {
+      S.VOC = 140;
+      S.CO2 = 700;
+      c.purge = false;
+      c.damper = 0;
+      S.damperAct = 0;
+      delete S.diag['E-101'];
+    }
+    if (id === 'mcu') {
+      m.a = 'RUN';
+      m.b = 'STANDBY';
+      m.active = 'A';
+      m.wd = 0;
+      m.rebootTimer = 0;
+      m.rebootTry = 0;
+      m.syncT = 0;
+      delete S.diag['E-201'];
+    }
+    if (id === 'sensor') {
+      S.sensA = S.T - 0.04;
+      c.sensorAOk = true;
+      c.sensorMis = 0;
+      delete S.diag['E-202'];
+    }
+    if (id === 'wifi') {
+      c.buffered = 0;
+      S.wifiPrev = false;
+      delete S.diag['E-203'];
+    }
+    if (id === 'clog') {
+      S.filterH = 0.96;
+      c.clogLevel = 0;
+      c.boost = 0;
+      S.dP = 10;
+      delete S.diag['E-301'];
+      log('sim', '[SIM] Filter replaced with new MERV-13 media.');
+    }
+    if (id === 'blower') {
+      c.blowerFault = false;
+      c.blowerMis = 0;
+      S.fanAct = Math.max(S.fanAct, 30);
+      S.rpm = S.fanAct * 28;
+      delete S.diag['E-302'];
+    }
+    if (id === 'surge') {
+      S.plugs.wrk = 95;
+      c.ff = 0;
+      delete S.diag['E-404'];
+    }
+    if (id === 'window') {
+      c.winTimer = 0;
+      c.winPause = false;
+      delete S.diag['E-402'];
+    }
+    if (id === 'heatwave') {
+      S.Tout = S.ToutSet;
+      c.heatEmerg = false;
+      delete S.diag['E-403'];
+    }
+
+    // When no faults remain, restore clean nominal operational baseline
+    const remaining = Object.values(S.inj).filter(Boolean).length;
+    if (remaining === 0) {
+      c.heatEmerg = false;
+      c.smokeLock = false;
+      c.purge = false;
+      c.winPause = false;
+      c.blowerFault = false;
+      c.clogLevel = 0;
+      c.boost = 0;
+      c.compCap = 100;
+      c.I = clamp(c.I, -10, 10);
+      const e = (c.sensorAOk ? S.sensA : S.sensB) - c.sp;
+      c.P = 55 * e;
+      const u = clamp(c.P + c.I, -100, 100);
+      c.u = u;
+      c.comp = u > 3 ? u : 0;
+      c.heat = u < -3 ? -u : 0;
+      c.fanCmd = (c.comp > 0 || c.heat > 0) ? 30 + 0.6 * Math.max(c.comp, c.heat) : 22;
+      S.fanAct = c.fanCmd;
+      S.rpm = S.fanAct * 28;
+      c.damper = 0;
+      S.damperAct = 0;
+      c.mode = c.comp > 0 ? 'COOLING' : c.heat > 0 ? 'HEATING' : 'IDLE';
+      S.diag = {};
+    }
+    updateCards();
+    updatePanel();
   }
   const n = Object.values(S.inj).filter(Boolean).length;
   $('injCount').textContent = `${n} INJECTED`; $('injCount').className = 'badge' + (n ? ' warn' : '');
@@ -818,8 +912,15 @@ $('autoSolveBadge').addEventListener('click', () => {
 $('clearAll').addEventListener('click', () => {
   Object.keys(S.inj).forEach(k => { if (S.inj[k]) setFault(k, false); });
   S.setpoint = 23; S.ToutSet = 28; S.demandLimit = 1000;
+  S.T = 23.5; S.RH = 48; S.VOC = 140; S.CO2 = 700; S.PM = 3; S.PMout = 8;
+  S.filterH = 0.96; S.vel = 2.4; S.dP = 10;
+  S.ctl.I = 0; S.ctl.P = 0; S.ctl.comp = 0; S.ctl.heat = 0; S.ctl.fanCmd = 22; S.ctl.damper = 0;
+  S.fanAct = 22; S.damperAct = 0; S.rpm = 616; S.ctl.mode = 'IDLE';
+  S.mcu.a = 'RUN'; S.mcu.b = 'STANDBY'; S.mcu.active = 'A';
+  S.diag = {};
   $('sSp').value = 73; $('sOut').value = 82; $('sLim').value = 1000; readSliders();
-  log('sim', '[SIM] Baseline restored. Controller recovering on its own.');
+  updateCards(); updatePanel();
+  log('sim', '[SIM] Baseline restored. Controller returned to normal state.');
 });
 function readSliders() {
   S.setpoint = (+$('sSp').value - 32) * 5/9; S.ToutSet = (+$('sOut').value - 32) * 5/9; S.demandLimit = +$('sLim').value; S.speed = +$('sSpd').value;
