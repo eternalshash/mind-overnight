@@ -898,3 +898,103 @@ function render(now) {
   ctx.fillRect(rx, ry, rw, rh);
 
   // walls with hatch
+  ctx.save(); ctx.beginPath(); ctx.rect(rx - wt, ry - wt, rw + 2 * wt, rh + 2 * wt); ctx.rect(rx, ry, rw, rh); ctx.clip('evenodd');
+  ctx.fillStyle = '#0c2141'; ctx.fillRect(rx - wt, ry - wt, rw + 2 * wt, rh + 2 * wt);
+  ctx.strokeStyle = 'rgba(56,189,248,.35)'; ctx.lineWidth = 1;
+  for (let i = -rh; i < rw + rh; i += 9) { ctx.beginPath(); ctx.moveTo(rx - wt + i, ry - wt); ctx.lineTo(rx - wt + i - rh - 2 * wt, ry + rh + wt); ctx.stroke(); }
+  ctx.restore();
+  ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.2; ctx.strokeRect(rx - wt, ry - wt, rw + 2 * wt, rh + 2 * wt);
+  ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 1.4; ctx.strokeRect(rx, ry, rw, rh);
+
+  // door opening + swing
+  const dy = Y(R.door.y), dh = Dd(R.door.h);
+  ctx.fillStyle = '#08172e'; ctx.fillRect(rx - wt - 2, dy, wt + 4, dh);
+  ctx.strokeStyle = 'rgba(56,189,248,.6)'; ctx.lineWidth = 1.1; ctx.setLineDash([3, 3]);
+  ctx.beginPath(); ctx.arc(rx, dy + dh, dh, -Math.PI / 2, 0); ctx.stroke(); ctx.setLineDash([]);
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(rx, dy + dh); ctx.lineTo(rx + dh, dy + dh); ctx.stroke();
+  lbl('DR-01 36"', rx + 6, dy + dh - 6, '#94a3b8', 'left', 8);
+
+  // window (shaded bar as in sketch)
+  const [wx, wy, ww, wh] = rect(R.window, inj.window ? 'rgba(56,189,248,.30)' : '#0f294d', inj.window ? '#00e5ff' : '#ffffff', 2);
+  ctx.save(); ctx.beginPath(); ctx.rect(wx, wy, ww, wh); ctx.clip();
+  ctx.strokeStyle = inj.window ? 'rgba(0,229,255,.5)' : 'rgba(148,197,255,.5)'; ctx.lineWidth = 1.1;
+  for (let i = -wh; i < ww + wh; i += 6) { ctx.beginPath(); ctx.moveTo(wx + i, wy + wh); ctx.lineTo(wx + i + wh, wy); ctx.stroke(); }
+  ctx.restore();
+  if (inj.window) { // sash open + infiltration arrows
+    ctx.fillStyle = '#08172e'; ctx.fillRect(wx + ww * .55, wy + 1, ww * .4, wh - 2);
+    ctx.strokeStyle = '#00e5ff'; ctx.lineWidth = 1.4;
+    for (let i = 0; i < 6; i++) { const ax = wx + ww * (.58 + i * .065), t = ((now / 900) + i * .17) % 1, ay = wy - 6 - t * 40;
+      ctx.globalAlpha = 1 - t; ctx.beginPath(); ctx.moveTo(ax, ay + 10); ctx.lineTo(ax, ay); ctx.lineTo(ax - 3, ay + 4); ctx.moveTo(ax, ay); ctx.lineTo(ax + 3, ay + 4); ctx.stroke(); }
+    ctx.globalAlpha = 1;
+  }
+  lbl(inj.window ? 'WIN-01  OPEN - CONTACT SENSOR TRIPPED' : 'WIN-01  72" INSULATED WINDOW', wx + ww / 2, wy - 6, inj.window ? '#00e5ff' : '#7dd3fc', 'center', 8);
+  ctx.fillStyle = inj.window ? '#ef4444' : '#10b981'; ctx.fillRect(wx + ww - 6, wy - 3, 5, 5); // contact sensor
+
+  // OA damper
+  const [qx, qy, qw, qh] = rect(R.damper, '#0b203d', c.smokeLock ? '#ef4444' : S.damperAct > 5 ? '#00e5ff' : '#38bdf8', 1.6);
+  ctx.save(); ctx.translate(qx + qw / 2, qy + qh / 2); ctx.rotate((1 - S.damperAct / 100) * Math.PI / 2);
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-qh * .45, 0); ctx.lineTo(qh * .45, 0); ctx.stroke(); ctx.restore();
+  if (S.damperAct > 5) { ctx.strokeStyle = inj.smoke ? '#94a3b8' : '#00e5ff'; ctx.lineWidth = 1.2;
+    for (let i = 0; i < 3; i++) { const t = ((now / 700) + i / 3) % 1, ax = qx + qw * (.25 + i * .25), ay = qy - t * 30 * S.damperAct / 100;
+      ctx.globalAlpha = 1 - t; ctx.beginPath(); ctx.moveTo(ax, ay + 8); ctx.lineTo(ax, ay); ctx.lineTo(ax - 3, ay + 4); ctx.moveTo(ax, ay); ctx.lineTo(ax + 3, ay + 4); ctx.stroke(); }
+    ctx.globalAlpha = 1; }
+  lbl(`OA DMPR ${f0(S.damperAct)}%${c.smokeLock ? ' LOCK' : ''}`, qx + qw / 2, qy + qh + 11, c.smokeLock ? '#ef4444' : '#7dd3fc', 'center', 8);
+
+  // bed
+  const [bx, by, bw, bh] = rect(R.bed, '#0e2342', '#fff', 2);
+  ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 1.4;
+  ctx.strokeRect(bx + bw * .07, by + bh * .05, bw * .4, bh * .18); ctx.strokeRect(bx + bw * .53, by + bh * .05, bw * .4, bh * .18);
+  const wv = by + bh * .33; ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(bx, wv);
+  ctx.bezierCurveTo(bx + bw * .25, wv + 12, bx + bw * .35, wv - 8, bx + bw * .62, wv + 12); ctx.bezierCurveTo(bx + bw * .85, wv - 6, bx + bw * .95, wv + 4, bx + bw, wv); ctx.stroke();
+  lbl('QUEEN BED - OCCUPANCY ZONE', bx + bw / 2, by + bh * .68, '#7dd3fc', 'center');
+  lbl(`FEELS LIKE ${fF(apparentTemp(S.T, S.RH, S.vel))} F`, bx + bw / 2, by + bh * .68 + 13, c.heatEmerg ? '#ef4444' : '#94a3b8', 'center', 8);
+
+  // nightstand + lamp
+  const [nx, ny, nw, nh] = rect(R.nightstand, '#0f2444', '#fff', 1.4);
+  ctx.strokeStyle = '#fbbf24'; ctx.beginPath(); ctx.arc(nx + nw / 2, ny + nh / 2, Math.min(nw, nh) * .3, 0, Math.PI * 2); ctx.stroke();
+
+  // desk / workstation
+  const [dx, dyy, dw, dh2] = rect(R.desk, '#0e2342', inj.surge ? '#fbbf24' : '#fff', 2);
+  if (S.plugs.wrk > 120) { const g = ctx.createRadialGradient(dx + dw / 2, dyy + dh2 / 2, 5, dx + dw / 2, dyy + dh2 / 2, dw * 1.4);
+    g.addColorStop(0, `rgba(251,146,60,${clamp((S.plugs.wrk - 95) / 600, 0, .45)})`); g.addColorStop(1, 'rgba(251,146,60,0)'); ctx.fillStyle = g; ctx.fillRect(dx - dw, dyy - dw * .5, dw * 3, dh2 + dw); }
+  ctx.fillStyle = '#1e3a66'; ctx.fillRect(dx + dw * .62, dyy + dh2 * .2, dw * .2, dh2 * .55); ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 1.4; ctx.strokeRect(dx + dw * .62, dyy + dh2 * .2, dw * .2, dh2 * .55);
+  ctx.strokeRect(dx + dw * .32, dyy + dh2 * .3, dw * .16, dh2 * .4);
+  ctx.fillStyle = '#09182d'; ctx.fillRect(dx + dw * .08, dyy + dh2 * .06, dw * .35, dh2 * .15); ctx.strokeStyle = '#00e5ff'; ctx.strokeRect(dx + dw * .08, dyy + dh2 * .06, dw * .35, dh2 * .15);
+  ctx.fillStyle = inj.surge ? '#ef4444' : '#00e5ff'; ctx.beginPath(); ctx.arc(dx + dw * .15, dyy + dh2 * .13, 2.5, 0, Math.PI * 2); ctx.fill();
+  const chx = dx - dw * .25, chy = dyy + dh2 * .5; ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(chx, chy, 14, -Math.PI / 2, Math.PI / 2); ctx.stroke();
+  for (let a = -Math.PI / 2; a <= Math.PI / 2 + .01; a += Math.PI / 4) { ctx.beginPath(); ctx.moveTo(chx + Math.cos(a) * 14, chy + Math.sin(a) * 14); ctx.lineTo(chx + Math.cos(a) * 20, chy + Math.sin(a) * 20); ctx.stroke(); }
+  lbl(`WRK-01 ${f0(S.plugs.wrk)} W`, dx + dw - 4, dyy + dh2 - 6, inj.surge ? '#fbbf24' : '#7dd3fc', 'right', 8);
+
+  // side table
+  const [tx, ty, tw, th] = rect(R.table, '#0e2342', '#fff', 1.4);
+  ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.arc(tx + tw * .4, ty + th * .5, 6, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.arc(tx + tw * .72, ty + th * .5, 5, 0, Math.PI * 2); ctx.stroke();
+  lbl('TBL-02', tx + 4, ty + th - 4, '#94a3b8', 'left', 8);
+
+  // TV console
+  const tvOn = !c.shed;
+  const [ex, ey, ew, eh] = rect(R.tvc, '#0e2342', '#fff', 1.8);
+  ctx.fillStyle = tvOn ? '#1e3a66' : '#0a1528'; ctx.fillRect(ex + ew * .45, ey + eh * .12, ew * .35, eh * .76);
+  ctx.strokeStyle = tvOn ? '#38bdf8' : '#475569'; ctx.lineWidth = 1.4; ctx.strokeRect(ex + ew * .45, ey + eh * .12, ew * .35, eh * .76);
+  ctx.beginPath(); ctx.arc(ex + ew * .2, ey + eh * .3, 4, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.arc(ex + ew * .2, ey + eh * .7, 4, 0, Math.PI * 2); ctx.stroke();
+  lbl(tvOn ? 'ENT-01 45 W' : 'ENT-01 SHED', ex + 5, ey + eh - 6, tvOn ? '#cbd5e1' : '#f59e0b', 'left', 8);
+
+  // AHU in mechanical closet
+  const [ax, ay, aw, ah] = rect(R.ahu, '#0f2444', c.blowerFault ? '#ef4444' : '#fff', 1.6);
+  ctx.strokeStyle = 'rgba(56,189,248,.35)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(ax + aw, ay + ah); ctx.moveTo(ax + aw, ay); ctx.lineTo(ax, ay + ah); ctx.stroke();
+  const fx = ax + aw / 2, fy = ay + ah * .28, fr = Math.min(aw, ah) * .32;
+  ctx.fillStyle = '#0b1b34'; ctx.beginPath(); ctx.arc(fx, fy, fr + 2, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = c.blowerFault ? '#ef4444' : '#a78bfa'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(fx, fy, fr, 0, Math.PI * 2); ctx.stroke();
+  S.fanAng = (S.fanAng || 0) + dt * S.fanAct * .25;
+  for (let i = 0; i < 4; i++) { const a = S.fanAng + i * Math.PI / 2; ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx + Math.cos(a) * fr * .85, fy + Math.sin(a) * fr * .85); ctx.stroke(); }
+  ctx.fillStyle = 'rgba(8,23,46,.85)'; ctx.fillRect(ax + 2, ay + ah * .5, aw - 4, ah * .48);
+  lbl('AHU-01', ax + aw / 2, ay + ah * .58, '#fff', 'center', 8, true);
+  lbl(`FAN ${f0(S.fanAct)}%`, ax + aw / 2, ay + ah * .70, c.blowerFault ? '#ef4444' : '#c4b5fd', 'center', 8);
+  lbl(`CMP ${f0(c.comp)}%`, ax + aw / 2, ay + ah * .81, '#60a5fa', 'center', 8);
+  lbl(`HTR ${f0(c.heat)}%`, ax + aw / 2, ay + ah * .92, '#f87171', 'center', 8);
+
+  // ceiling ductwork (dashed hidden lines) + flow particles
+  const flowSpeed = S.vel / P.vMax;
+  const supCol = c.comp > 0 ? '#60a5fa' : c.heat > 0 ? '#f87171' : '#94a3b8';
+  const retCol = c.clogLevel ? '#f59e0b' : '#94a3b8';
