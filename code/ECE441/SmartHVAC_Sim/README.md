@@ -6,9 +6,9 @@ The simulation models real-world thermodynamics, indoor air quality (IAQ), duct 
 
 ## View the Simulation
 
-**[Click Here to Run the Simulation Live](https://raw.githack.com/eternalshash/mind-overnight/main/code/ECE441/SmartHVAC_Sim/simulation/index.html)** 
+**[Click Here to Run the Simulation Live](https://eternalshash.github.io/mind-overnight/code/ECE441/SmartHVAC_Sim/simulation/index.html)** 
 
-*(Note: The above link securely renders the raw HTML file directly through your browser so you can view and interact with the simulation without needing to download it or leave GitHub.)*
+*(Note: To make this link work, you must enable GitHub Pages on your repository. Go to Settings > Pages, set the source to "Deploy from a branch", select `main`, and click Save. The link will be live after 1 minute!)*
 
 ## How to Interact With It
 
