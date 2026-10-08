@@ -18,7 +18,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:12
 header{height:44px;flex:0 0 44px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:2px solid var(--cyan);background:#081a33}
 .title{display:flex;gap:12px;align-items:center}
 .badge{border:1px solid var(--cyan);color:var(--accent);padding:2px 8px;font-size:10px;letter-spacing:1px;white-space:nowrap}
-.badge.warn{border-color:var(--amber);color:var(--amber)} .badge.crit{border-color:var(--red);color:var(--red)}
+.badge.warn{border-color:var(--amber);color:var(--amber)} .badge.crit{border-color:var(--red);color:var(--red)} .badge.ok{border-color:var(--green);color:var(--green)}
 .title h1{font-size:14px;letter-spacing:1px;color:#fff}
 .hstat{display:flex;gap:18px;font-size:11px;align-items:center}
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle;background:var(--green);box-shadow:0 0 6px currentColor}
@@ -72,8 +72,10 @@ main{flex:1;display:flex;min-height:0}
 .frow .nm{font-size:11px;color:#fff}
 .frow .ds{font-size:9px;color:var(--muted);margin-top:1px}
 .frow.on{background:rgba(245,158,11,.10);border-color:var(--amber)}
+.frow.solved{background:rgba(16,185,129,.12);border-color:var(--green)}
 .frow .st{font-size:8px;color:var(--amber);letter-spacing:1px;margin-top:2px;display:none}
 .frow.on .st{display:block}
+.frow.solved .st{display:block;color:var(--green)}
 .sw{flex:0 0 30px;height:14px;border:1px solid var(--muted);position:relative}
 .sw::after{content:'';position:absolute;top:2px;left:2px;width:8px;height:8px;background:var(--muted);transition:left .15s}
 .frow.on .sw{border-color:var(--amber)} .frow.on .sw::after{left:18px;background:var(--amber)}
@@ -147,7 +149,7 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px}
 
     <div id="bottom">
       <div class="col">
-        <div class="pane-h"><span class="pane-t">Fault Injection</span><span id="injCount" class="badge">0 INJECTED</span></div>
+        <div class="pane-h"><span class="pane-t">Fault Injection</span><div style="display:flex;gap:6px;align-items:center"><span id="autoSolveBadge" class="badge ok" style="cursor:pointer;user-select:none" title="Faults automatically switch to OFF once solved by ESP32 response">AUTO-CLEAR: ON</span><span id="injCount" class="badge">0 INJECTED</span></div></div>
         <div id="faultGroups"></div>
         <button class="btn" id="clearAll">CLEAR ALL FAULTS / RESTORE BASELINE</button>
         <div class="grp-h" style="margin-top:10px">ENVIRONMENT AND CONTROL PARAMETERS</div>
@@ -239,7 +241,7 @@ const S = {
   VOC: 140, CO2: 700, PM: 3, PMout: 8,
   filterH: 0.96, fanAct: 30, damperAct: 0, vel: 2.4, dP: 10, rpm: 840, SAT: 18,
   sensA: 24, sensB: 24,
-  inj: {},
+  inj: {}, faultSolve: {}, autoSolve: true,
   ctl: { I: 0, P: 0, comp: 0, heat: 0, fanCmd: 30, damper: 0, mode: 'IDLE', sp: 23, u: 0,
          purge: false, smokeLock: false, shed: false, shedTimer: 0, compCap: 100,
          winTimer: 0, winPause: false, safety: false, heatEmerg: false,
@@ -349,7 +351,7 @@ function controller(dtS, dtR) {
   // 7.2 Smoke detection: cloud outdoor AQI (needs Wi-Fi) OR indoor PM2.5 node
   const smoke = (!inj.wifi && S.PMout > 55) || S.PM > 25;
   if (smoke && !c.smokeLock) { c.smokeLock = true; log('crit', 'Smoke event detected. Outdoor-air damper locked CLOSED, recirculating through filter.'); }
-  if (c.smokeLock && !smoke && S.PM < 12 && (inj.wifi || S.PMout < 35)) { c.smokeLock = false; log('ok', 'Smoke cleared. Outdoor-air damper unlocked.'); }
+  if (c.smokeLock && !smoke && S.PM < 18 && (inj.wifi || S.PMout < 35)) { c.smokeLock = false; log('ok', 'Smoke cleared. Outdoor-air damper unlocked.'); }
 
   // 7.3 IAQ purge with hysteresis
   if (!c.purge && (S.VOC > 350 || S.CO2 > 1100)) { c.purge = true; log('warn', `IAQ threshold exceeded (VOC ${f0(S.VOC)} ppb, CO2 ${f0(S.CO2)} ppm). Starting ventilation purge.`); }
@@ -669,12 +671,150 @@ function buildFaultUI() {
 }
 function setFault(id, on) {
   S.inj[id] = on;
-  $('f_' + id).classList.toggle('on', on);
+  const row = $('f_' + id);
+  const stEl = $('fs_' + id);
+  if (row) {
+    row.classList.toggle('on', on);
+    if (on) {
+      row.classList.remove('solved');
+      if (stEl) stEl.textContent = 'INJECTED';
+      S.faultSolve[id] = { activeT: 0, mitT: 0 };
+    } else {
+      delete S.faultSolve[id];
+    }
+  }
   log('sim', `[SIM] ${on ? 'Injected' : 'Removed'} fault: ${FAULT_NAME[id]}`);
-  if (!on && id === 'clog') { S.filterH = 0.96; log('sim', '[SIM] Filter replaced with new MERV-13 media.'); }
+  if (!on) {
+    if (id === 'clog') { S.filterH = 0.96; log('sim', '[SIM] Filter replaced with new MERV-13 media.'); }
+    if (id === 'smoke') { S.PMout = 8; }
+    if (id === 'heatwave') { S.Tout = S.ToutSet; }
+  }
   const n = Object.values(S.inj).filter(Boolean).length;
   $('injCount').textContent = `${n} INJECTED`; $('injCount').className = 'badge' + (n ? ' warn' : '');
 }
+
+function solveFault(id, reason) {
+  if (!S.inj[id]) return;
+  log('ok', `[SOLVED] ${FAULT_NAME[id]}: ${reason}`);
+  setFault(id, false);
+  const row = $('f_' + id);
+  const stEl = $('fs_' + id);
+  if (row && stEl) {
+    row.classList.add('solved');
+    stEl.textContent = 'SOLVED';
+    setTimeout(() => {
+      row.classList.remove('solved');
+      if (!S.inj[id]) stEl.textContent = 'INJECTED';
+    }, 2800);
+  }
+}
+
+function checkFaultAutoSolve(dtR) {
+  if (!S.autoSolve) return;
+  const c = S.ctl, m = S.mcu;
+
+  Object.keys(S.inj).forEach(id => {
+    if (!S.inj[id]) return;
+    if (!S.faultSolve[id]) S.faultSolve[id] = { activeT: 0, mitT: 0 };
+    const fs = S.faultSolve[id];
+    fs.activeT += dtR;
+
+    const [code] = INJ_MAP[id] || [];
+    const isMitigating = !!(code && S.diag[code]) ||
+      (id === 'smoke' && c.smokeLock) ||
+      (id === 'voc' && c.purge) ||
+      (id === 'mcu' && m.active === 'B') ||
+      (id === 'sensor' && !c.sensorAOk) ||
+      (id === 'wifi' && c.buffered > 0) ||
+      (id === 'clog' && c.clogLevel > 0) ||
+      (id === 'blower' && c.blowerFault) ||
+      (id === 'surge' && c.ff > 1) ||
+      (id === 'window' && c.winPause) ||
+      (id === 'heatwave' && c.heatEmerg);
+
+    if (isMitigating) {
+      fs.mitT += dtR;
+      const stEl = $('fs_' + id);
+      if (stEl && S.inj[id]) stEl.textContent = 'SOLVING...';
+    }
+
+    let isSolved = false;
+    let reason = '';
+
+    if (id === 'smoke') {
+      if (c.smokeLock && S.PM <= 18 && (fs.mitT >= 6 || fs.activeT >= 10)) {
+        isSolved = true;
+        reason = `Damper locked & MERV-13 recirc filtered indoor PM2.5 to safe ${f1(S.PM)} ug/m3. Plume cleared.`;
+      }
+    } else if (id === 'voc') {
+      if (c.purge && S.VOC < 230 && S.CO2 < 820 && (fs.mitT >= 4 || fs.activeT >= 10)) {
+        isSolved = true;
+        reason = `Ventilation purge flushed room (VOC ${f0(S.VOC)} ppb, CO2 ${f0(S.CO2)} ppm).`;
+      }
+    } else if (id === 'mcu') {
+      if (m.active === 'B' && m.b === 'ACTIVE' && (fs.mitT >= 4 || fs.activeT >= 6)) {
+        isSolved = true;
+        reason = 'MCU-B assumed control with bumpless transfer. MCU-A safe to reboot.';
+      }
+    } else if (id === 'sensor') {
+      if (!c.sensorAOk && (fs.mitT >= 5 || fs.activeT >= 8)) {
+        isSolved = true;
+        reason = 'Redundant TS-B maintained control loop. Sensor recalibrated & restored.';
+      }
+    } else if (id === 'wifi') {
+      if (fs.activeT >= 7) {
+        isSolved = true;
+        reason = 'Edge autonomy preserved PID regulation. Wi-Fi reconnection established.';
+      }
+    } else if (id === 'clog') {
+      if (c.clogLevel >= 1 && (fs.mitT >= 6 || fs.activeT >= 10)) {
+        isSolved = true;
+        reason = 'Maintenance alert resolved. Filter replaced with new MERV-13 media.';
+      }
+    } else if (id === 'blower') {
+      if (c.blowerFault && (fs.mitT >= 5 || fs.activeT >= 8)) {
+        isSolved = true;
+        reason = 'Safety interlock protected heating coils. Blower motor serviced & restarted.';
+      }
+    } else if (id === 'surge') {
+      if (c.ff > 1 && Math.abs(c.Tctl - c.sp) < 0.4 && (fs.mitT >= 5 || fs.activeT >= 8)) {
+        isSolved = true;
+        reason = 'Feed-forward cooling rejected heat surge. Workstation returned to baseline.';
+      }
+    } else if (id === 'window') {
+      if (fs.activeT >= 8) {
+        isSolved = true;
+        reason = 'Open window notification acknowledged. Window closed and envelope sealed.';
+      }
+    } else if (id === 'heatwave') {
+      if (fs.activeT >= 10 && (c.AT < 28 || fs.activeT >= 14)) {
+        isSolved = true;
+        reason = 'Maximum emergency cooling mitigated thermal spike. Heatwave peak passed.';
+      }
+    }
+
+    if (isSolved) {
+      if (id === 'smoke') { S.PM = Math.min(S.PM, 14); }
+      if (id === 'voc') { S.VOC = Math.min(S.VOC, 210); S.CO2 = Math.min(S.CO2, 780); }
+      if (id === 'sensor') { S.sensA = S.T - 0.04; c.sensorMis = 0; c.sensorAOk = true; }
+      if (id === 'mcu') { m.rebootTimer = 3.6; }
+      if (id === 'clog') { S.filterH = 0.96; c.clogLevel = 0; c.boost = 0; }
+      if (id === 'blower') { c.blowerFault = false; c.blowerMis = 0; }
+      if (id === 'surge') { S.plugs.wrk = 95; c.ff = 0; }
+      if (id === 'window') { c.winTimer = 0; c.winPause = false; }
+      if (id === 'heatwave') { S.Tout = S.ToutSet; c.heatEmerg = false; }
+      solveFault(id, reason);
+    }
+  });
+}
+
+$('autoSolveBadge').addEventListener('click', () => {
+  S.autoSolve = !S.autoSolve;
+  $('autoSolveBadge').textContent = S.autoSolve ? 'AUTO-CLEAR: ON' : 'AUTO-CLEAR: OFF';
+  $('autoSolveBadge').className = 'badge ' + (S.autoSolve ? 'ok' : '');
+  log('sim', `[SIM] Automatic fault clearing on resolution turned ${S.autoSolve ? 'ON' : 'OFF'}.`);
+});
+
 $('clearAll').addEventListener('click', () => {
   Object.keys(S.inj).forEach(k => { if (S.inj[k]) setFault(k, false); });
   S.setpoint = 23; S.ToutSet = 28; S.demandLimit = 1000;
@@ -792,6 +932,7 @@ function tick() {
   const alive = controllerAlive();
   if (alive) controller(dtS, dtR); else { S.ctl.heat = 0; S.ctl.mode = 'FAILOVER HOLD'; }
   plant(dtS);
+  checkFaultAutoSolve(dtR);
   diffDiag(diagnose(alive));
   if (S.wifiPrev && !S.inj.wifi) { log('ok', `Cloud link restored. Flushed ${S.ctl.buffered} buffered telemetry samples to MQTT broker.`); S.ctl.buffered = 0; }
   S.wifiPrev = !!S.inj.wifi;
