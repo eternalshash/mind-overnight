@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ECE 441 Smart HVAC - Blueprint Digital Twin</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#07152b; --grid1:rgba(56,189,248,.20); --grid2:rgba(56,189,248,.06);
+  --cyan:#38bdf8; --accent:#00e5ff; --panel:#0b1b34; --card:#11264a; --border:#1f3d6b;
+  --text:#dbe7f5; --muted:#7f97b8; --red:#ef4444; --amber:#f59e0b; --green:#10b981;
+  --mono:'SF Mono',Menlo,Consolas,'Courier New',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:12px;display:flex;flex-direction:column;overflow:hidden}
+header{height:44px;flex:0 0 44px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:2px solid var(--cyan);background:#081a33}
+.title{display:flex;gap:12px;align-items:center}
+.badge{border:1px solid var(--cyan);color:var(--accent);padding:2px 8px;font-size:10px;letter-spacing:1px;white-space:nowrap}
+.badge.warn{border-color:var(--amber);color:var(--amber)} .badge.crit{border-color:var(--red);color:var(--red)}
+.title h1{font-size:14px;letter-spacing:1px;color:#fff}
+.hstat{display:flex;gap:18px;font-size:11px;align-items:center}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle;background:var(--green);box-shadow:0 0 6px currentColor}
+main{flex:1;display:flex;min-height:0}
+
+/* LEFT: ROOM */
+#roomSec{flex:1 1 50%;position:relative;border-right:2px solid var(--border);min-width:0;background-color:var(--bg);
+  background-image:linear-gradient(var(--grid1) 1px,transparent 1px),linear-gradient(90deg,var(--grid1) 1px,transparent 1px),linear-gradient(var(--grid2) 1px,transparent 1px),linear-gradient(90deg,var(--grid2) 1px,transparent 1px);
+  background-size:100px 100px,100px 100px,20px 20px,20px 20px}
+#bp{position:absolute;inset:0;width:100%;height:100%;cursor:crosshair}
+.toolbar{position:absolute;top:10px;left:12px;z-index:3;background:rgba(7,21,43,.9);border:1px solid var(--border);padding:5px 10px;font-size:10px;color:var(--cyan)}
+#toasts{position:absolute;top:44px;right:12px;z-index:6;width:330px;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{background:rgba(9,20,40,.97);border:1px solid var(--border);border-left:4px solid var(--cyan);padding:8px 10px;animation:tin .25s ease-out;transition:opacity .5s}
+.toast.crit{border-left-color:var(--red);box-shadow:0 0 16px rgba(239,68,68,.35)}
+.toast.warn{border-left-color:var(--amber)} .toast.ok{border-left-color:var(--green)}
+.toast .t0{font-size:9px;letter-spacing:1px;color:var(--muted)}
+.toast .t1{font-weight:bold;font-size:11px;margin-top:2px}
+.toast.crit .t1{color:#fca5a5} .toast.warn .t1{color:#fcd34d} .toast.ok .t1{color:#6ee7b7}
+.toast .t2{color:var(--muted);font-size:10px;margin-top:3px;line-height:1.35}
+.toast .t3{color:var(--accent);font-size:10px;margin-top:3px;line-height:1.35}
+@keyframes tin{from{transform:translateX(30px);opacity:0}to{transform:none;opacity:1}}
+#statusBar{position:absolute;left:12px;right:12px;bottom:10px;z-index:3;background:rgba(9,20,40,.95);border:1px solid var(--border);border-left:4px solid var(--green);padding:7px 12px;display:flex;justify-content:space-between;gap:12px;font-size:11px}
+#statusBar.warn{border-left-color:var(--amber)} #statusBar.crit{border-left-color:var(--red)} #statusBar.info{border-left-color:var(--cyan)}
+#sbD{color:var(--muted);font-size:10px;margin-top:2px}
+#sbR{text-align:right;font-size:10px;color:var(--muted);line-height:1.5;white-space:nowrap}
+
+/* RIGHT */
+#side{flex:1 1 50%;display:flex;flex-direction:column;min-width:0;background:var(--panel)}
+.pane-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px}
+.pane-t{color:var(--accent);letter-spacing:1px;font-size:11px;text-transform:uppercase;white-space:nowrap}
+#tele{flex:0 0 auto;padding:10px 14px;border-bottom:2px solid var(--border)}
+.tabs{display:flex;gap:2px;border:1px solid var(--border);padding:2px;background:#081629}
+.tab{background:none;border:0;color:var(--muted);font-family:var(--mono);font-size:10px;padding:4px 9px;cursor:pointer;letter-spacing:.5px}
+.tab:hover{color:#fff} .tab.on{background:var(--cyan);color:#06142a;font-weight:bold}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px}
+.card{background:var(--card);border:1px solid var(--border);padding:6px 8px;min-width:0}
+.card .l{font-size:9px;color:var(--muted);letter-spacing:.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .v{font-size:18px;font-weight:bold;color:#fff;margin-top:2px;white-space:nowrap}
+.card .v small{font-size:10px;color:var(--cyan);font-weight:normal;margin-left:3px}
+.card .s{font-size:9px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card.warn{border-color:var(--amber)} .card.crit{border-color:var(--red)}
+.card.warn .v{color:#fcd34d} .card.crit .v{color:#fca5a5}
+.chartbox{position:relative;height:210px;background:#081629;border:1px solid var(--border);padding:6px}
+#bottom{flex:1;display:grid;grid-template-columns:1fr 1fr;min-height:0}
+.col{padding:10px 12px;overflow-y:auto;min-height:0}
+.col+.col{border-left:1px solid var(--border)}
+.grp{margin-bottom:8px}
+.grp-h{font-size:9px;color:var(--muted);letter-spacing:1px;border-bottom:1px solid var(--border);padding-bottom:3px;margin:4px 0}
+.frow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 6px;border:1px solid transparent;cursor:pointer;user-select:none}
+.frow:hover{background:rgba(56,189,248,.07);border-color:var(--border)}
+.frow .nm{font-size:11px;color:#fff}
+.frow .ds{font-size:9px;color:var(--muted);margin-top:1px}
+.frow.on{background:rgba(245,158,11,.10);border-color:var(--amber)}
+.frow .st{font-size:8px;color:var(--amber);letter-spacing:1px;margin-top:2px;display:none}
+.frow.on .st{display:block}
+.sw{flex:0 0 30px;height:14px;border:1px solid var(--muted);position:relative}
+.sw::after{content:'';position:absolute;top:2px;left:2px;width:8px;height:8px;background:var(--muted);transition:left .15s}
+.frow.on .sw{border-color:var(--amber)} .frow.on .sw::after{left:18px;background:var(--amber)}
+.btn{width:100%;margin-top:4px;background:var(--card);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:10px;padding:6px;cursor:pointer;letter-spacing:1px}
+.btn:hover{border-color:var(--cyan);color:#fff}
+.sl{margin-top:6px}
+.sl .h{display:flex;justify-content:space-between;font-size:9px;color:var(--muted)}
+.sl .h b{color:var(--cyan)}
+input[type=range]{width:100%;accent-color:var(--cyan);height:14px}
+.mcu{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px}
+.mbox{border:1px solid var(--border);padding:6px;background:var(--card)}
+.mbox .n{font-size:9px;color:var(--muted)}
+.mbox .st{font-size:12px;font-weight:bold;margin-top:2px}
+.mbox .hb{font-size:9px;color:var(--muted);margin-top:2px}
+.mbox.ok{border-color:var(--green)} .mbox.bad{border-color:var(--red)} .mbox.stby{border-color:var(--amber)}
+.bar{display:grid;grid-template-columns:96px 1fr 70px;align-items:center;gap:6px;font-size:10px;margin:3px 0}
+.bar .tr{height:8px;background:#081629;border:1px solid var(--border);position:relative}
+.bar .fl{position:absolute;left:0;top:0;bottom:0;background:var(--cyan);transition:width .2s}
+.bar .vv{text-align:right;color:#fff;white-space:nowrap}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:10px;margin-top:4px}
+.kv span:nth-child(odd){color:var(--muted)}
+.kv span:nth-child(even){color:#fff;text-align:right}
+.fi{border:1px solid var(--border);border-left:3px solid var(--amber);padding:5px 7px;margin-bottom:5px;background:rgba(17,38,74,.6)}
+.fi.crit{border-left-color:var(--red)} .fi.info{border-left-color:var(--cyan)}
+.fi .c{font-size:10px;font-weight:bold}
+.fi.crit .c{color:#fca5a5} .fi.warn .c{color:#fcd34d} .fi.info .c{color:#7dd3fc}
+.fi .m{font-size:9px;color:var(--muted);margin-top:2px}
+.fi .a{font-size:9px;color:var(--accent);margin-top:2px}
+.none{font-size:10px;color:var(--green);padding:4px 0}
+#log{height:130px;overflow-y:auto;background:#050d1a;border:1px solid var(--border);padding:5px 7px;font-size:9.5px;line-height:1.45}
+#log div{color:#7dd3fc;word-break:break-word}
+#log .warn{color:#fcd34d} #log .crit{color:#f87171} #log .ok{color:#6ee7b7} #log .sim{color:#c4b5fd}
+.red{color:var(--red)} .amb{color:var(--amber)} .grn{color:var(--green)} .cy{color:var(--accent)}
+</style>
+</head>
+<body>
+<header>
+  <div class="title"><span class="badge">ECE 441 / CAD-2D</span><h1>SMART HVAC CONTROL - RESIDENTIAL DIGITAL TWIN</h1></div>
+  <div class="hstat">
+    <span><i class="dot" id="hA"></i>MCU-A <b id="hAt">RUN</b></span>
+    <span><i class="dot" id="hB"></i>MCU-B <b id="hBt">STANDBY</b></span>
+    <span><i class="dot" id="hW"></i>CLOUD <b id="hWt">ONLINE</b></span>
+    <span>SIM <b id="clock" class="cy">14:00:00</b> <span id="speedLbl" style="color:var(--muted)">x40</span></span>
+  </div>
+</header>
+<main>
+  <section id="roomSec">
+    <canvas id="bp"></canvas>
+    <div class="toolbar">PLAN: ZONE-A RESIDENTIAL SUITE 14'-0" x 14'-0" &nbsp;|&nbsp; CEILING DUCTWORK SHOWN DASHED &nbsp;|&nbsp; CLICK A DEVICE TO INSPECT</div>
+    <div id="toasts"></div>
+    <div id="statusBar">
+      <div><b id="sbT" class="grn">SYSTEM NOMINAL</b><div id="sbD">All diagnostics passing. Closed-loop PID regulating zone temperature.</div></div>
+      <div id="sbR"></div>
+    </div>
+  </section>
+
+  <section id="side">
+    <div id="tele">
+      <div class="pane-h"><span class="pane-t">Live Telemetry</span>
+        <div class="tabs" id="tabs">
+          <button class="tab on" data-v="power">POWER</button>
+          <button class="tab" data-v="forecast">6H FORECAST</button>
+          <button class="tab" data-v="thermal">THERMAL</button>
+          <button class="tab" data-v="airflow">AIRFLOW</button>
+          <button class="tab" data-v="iaq">AIR QUALITY</button>
+        </div>
+      </div>
+      <div class="cards" id="cards"></div>
+      <div class="chartbox"><canvas id="chart"></canvas></div>
+    </div>
+
+    <div id="bottom">
+      <div class="col">
+        <div class="pane-h"><span class="pane-t">Fault Injection</span><span id="injCount" class="badge">0 INJECTED</span></div>
+        <div id="faultGroups"></div>
+        <button class="btn" id="clearAll">CLEAR ALL FAULTS / RESTORE BASELINE</button>
+        <div class="grp-h" style="margin-top:10px">ENVIRONMENT AND CONTROL PARAMETERS</div>
+        <div class="sl"><div class="h"><span>THERMOSTAT SETPOINT</span><b id="lSp">73.4 F</b></div><input type="range" id="sSp" min="64" max="82" step="1" value="73"></div>
+        <div class="sl"><div class="h"><span>OUTDOOR TEMPERATURE</span><b id="lOut">82.4 F</b></div><input type="range" id="sOut" min="23" max="108" step="1" value="82"></div>
+        <div class="sl"><div class="h"><span>DEMAND LIMIT (LOAD SHEDDING)</span><b id="lLim">1000 W</b></div><input type="range" id="sLim" min="300" max="2000" step="50" value="1000"></div>
+        <div class="sl"><div class="h"><span>SIMULATION SPEED</span><b id="lSpd">x40</b></div><input type="range" id="sSpd" min="5" max="120" step="5" value="40"></div>
+      </div>
+
+      <div class="col">
+        <div class="pane-h"><span class="pane-t">ESP32 Controller Response</span><span id="modeBadge" class="badge">IDLE</span></div>
+        <div class="mcu">
+          <div class="mbox ok" id="mA"><div class="n">MCU-A / PRIMARY ESP32</div><div class="st" id="mAs">RUN - IN CONTROL</div><div class="hb" id="mAh">Heartbeat OK</div></div>
+          <div class="mbox stby" id="mB"><div class="n">MCU-B / REDUNDANT ESP32</div><div class="st" id="mBs">HOT STANDBY</div><div class="hb" id="mBh">Mirroring PID state</div></div>
+        </div>
+        <div class="grp-h">ACTUATOR OUTPUTS</div>
+        <div id="bars"></div>
+        <div class="kv" id="kv"></div>
+        <div class="grp-h" style="margin-top:8px">DIAGNOSTICS / ACTIVE FAULTS</div>
+        <div id="flist"></div>
+        <div class="grp-h" style="margin-top:8px">FIRMWARE EVENT LOG (NEWEST FIRST)</div>
+        <div id="log"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+/* =====================================================================
+   0. HELPERS
+   ===================================================================== */
+const $ = id => document.getElementById(id);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const noise = a => (Math.random() * 2 - 1) * a;
+const MONO = 'Menlo, Consolas, monospace';
+const f1 = v => v.toFixed(1), f0 = v => v.toFixed(0), f2 = v => v.toFixed(2), fF = v => (v * 9/5 + 32).toFixed(1), fD = v => (v * 9/5).toFixed(1);
+
+/* =====================================================================
+   1. PHYSICAL PARAMETERS (scaled residential zone)
+   ===================================================================== */
+const P = {
+  C: 120000,      // effective zone thermal capacitance (J/K)
+  UA: 22,         // envelope conductance, window closed (W/K)
+  UAwin: 120,     // extra conductance when window open (W/K)
+  capCool: 2600,  // cooling capacity, thermal (W)
+  capHeat: 2200,  // PTC heater capacity (W)
+  COP: 3.2,       // cooling coefficient of performance
+  fanMax: 120,    // blower power at 100% (W)
+  vMax: 3.4,      // FS3000 duct velocity at 100% fan, clean filter (m/s)
+  kVent: 13.4,    // rho*cp*V/3600 for a 40 m3 room (W/K per ACH)
+  price: 0.15     // $/kWh
+};
+
+/* =====================================================================
+   2. FAULT CATALOGUE
+   ===================================================================== */
+const FAULT_DEFS = [
+  { grp: 'INDOOR AIR QUALITY', items: [
+    { id: 'voc',   nm: 'VOC / CO2 buildup',            ds: 'Indoor pollutant source (cooking, cleaning, occupancy)' },
+    { id: 'smoke', nm: 'Outdoor wildfire smoke',       ds: 'Outdoor PM2.5 climbs to 160 ug/m3' } ] },
+  { grp: 'MCU FAIL-SAFE AND HARDWARE REDUNDANCY', items: [
+    { id: 'mcu',    nm: 'Primary ESP32 crash',         ds: 'Core panic / brownout on MCU-A' },
+    { id: 'sensor', nm: 'Primary temp sensor failure', ds: 'BME280 (TS-A) output stuck at 63.0 F' },
+    { id: 'wifi',   nm: 'Wi-Fi / cloud outage',        ds: 'MQTT broker unreachable' } ] },
+  { grp: 'AIR DUCT DYNAMICS AND FILTER', items: [
+    { id: 'clog',   nm: 'Progressive filter clogging', ds: 'Filter media loads with dust over time' },
+    { id: 'blower', nm: 'Blower motor failure',        ds: 'Fan seized - tachometer reads 0 RPM' } ] },
+  { grp: 'ENERGY AND POWER', items: [
+    { id: 'surge',    nm: 'Workstation load surge',    ds: 'PC smart plug jumps 95 W to 380 W' },
+    { id: 'window',   nm: 'Window left open',          ds: 'Envelope breach, infiltration x15' },
+    { id: 'heatwave', nm: 'Heatwave',                  ds: 'Outdoor temperature ramps to 102.2 F' } ] }
+];
+const FAULT_NAME = {};
+FAULT_DEFS.forEach(g => g.items.forEach(i => FAULT_NAME[i.id] = i.nm));
+// injected fault -> diagnostic code that should catch it, and where it is in the room
+const INJ_MAP = {
+  voc: ['E-101', 'iaq'], smoke: ['E-102', 'damper'], mcu: ['E-201', 'thermostat'], sensor: ['E-202', 'thermostat'],
+  wifi: ['E-203', 'thermostat'], clog: ['E-301', 'ret'], blower: ['E-302', 'ahu'], surge: ['E-404', 'desk'],
+  window: ['E-402', 'window'], heatwave: [null, 'window']
+};
+
+/* =====================================================================
+   3. STATE
+   ===================================================================== */
+const S = {
+  t: 14 * 3600, speed: 40,
+  T: 24.0, RH: 48, Tout: 28, ToutSet: 28, setpoint: 23, demandLimit: 1000,
+  VOC: 140, CO2: 700, PM: 3, PMout: 8,
+  filterH: 0.96, fanAct: 30, damperAct: 0, vel: 2.4, dP: 10, rpm: 840, SAT: 18,
+  sensA: 24, sensB: 24,
+  inj: {},
+  ctl: { I: 0, P: 0, comp: 0, heat: 0, fanCmd: 30, damper: 0, mode: 'IDLE', sp: 23, u: 0,
+         purge: false, smokeLock: false, shed: false, shedTimer: 0, compCap: 100,
+         winTimer: 0, winPause: false, safety: false, heatEmerg: false,
+         sensorAOk: true, sensorMis: 0, blowerFault: false, blowerMis: 0,
+         clogLevel: 0, boost: 0, ratio: 1, ff: 0, Tctl: 24, AT: 24, buffered: 0 },
+  mcu: { active: 'A', a: 'RUN', b: 'STANDBY', wd: 0, rebootTimer: 0, rebootTry: 0, syncT: 0, failMs: 0 },
+  plugs: { wrk: 95, tv: 45, lamp: 10 },
+  pw: { comp: 0, heat: 0, fan: 0, plugs: 150, ctrl: 1.5, total: 150 },
+  kWh: 0, diag: {}, quiet: true, inspect: null, inspectUntil: 0, wifiPrev: false
+};
+
+/* =====================================================================
+   4. LOGGING / TOASTS
+   ===================================================================== */
+function clockStr(t) {
+  const s = Math.floor(t) % 86400;
+  return [s / 3600, (s % 3600) / 60, s % 60].map(v => String(Math.floor(v)).padStart(2, '0')).join(':');
+}
+function log(cls, msg) {
+  if (S.quiet) return;
+  const el = document.createElement('div');
+  el.className = cls;
+  el.textContent = `[${clockStr(S.t)}] ${msg}`;
+  const box = $('log');
+  box.insertBefore(el, box.firstChild);
+  while (box.children.length > 120) box.removeChild(box.lastChild);
+}
+function toast(cls, head, title, msg, act) {
+  if (S.quiet) return;
+  const box = $('toasts');
+  const el = document.createElement('div');
+  el.className = 'toast ' + cls;
+  el.innerHTML = `<div class="t0">${head}</div><div class="t1">${title}</div>` +
+    (msg ? `<div class="t2">${msg}</div>` : '') + (act ? `<div class="t3">${act}</div>` : '');
+  box.insertBefore(el, box.firstChild);
+  while (box.children.length > 4) box.removeChild(box.lastChild);
+  setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 500); }, cls === 'crit' ? 9000 : 6500);
+}
+
+/* =====================================================================
+   5. DUAL-MCU SUPERVISOR (watchdog, failover, reboot)
+   ===================================================================== */
+function mcuStep(dtR) {
+  const m = S.mcu;
+  if (S.inj.mcu && m.a === 'RUN') {
+    m.a = 'CRASHED'; m.wd = 0; m.rebootTimer = 0; m.rebootTry = 0;
+    log('crit', 'MCU-A core panic / brownout. Heartbeat lost. Hardware fail-safe gated heater relay OFF.');
+  }
+  if (m.a === 'CRASHED' && m.active === 'A') {
+    m.wd += dtR;
+    if (m.wd >= 1.6) {
+      m.active = 'B'; m.b = 'ACTIVE'; m.failMs = Math.round(m.wd * 1000);
+      log('crit', `Watchdog timeout after ${m.failMs} ms. MCU-B assumed control with bumpless transfer (PID integrator restored).`);
+    }
+  }
+  if (m.a === 'CRASHED' && m.active === 'B') {
+    m.rebootTimer += dtR;
+    if (m.rebootTimer > 3.5) {
+      m.rebootTimer = 0; m.rebootTry++;
+      if (S.inj.mcu) log('warn', `MCU-A reboot attempt ${m.rebootTry} failed (boot loop). Remaining on MCU-B.`);
+      else { m.a = 'SYNC'; m.syncT = 0; log('ok', 'MCU-A rebooted cleanly. Synchronizing state from MCU-B.'); }
+    }
+  }
+  if (m.a === 'SYNC') {
+    m.syncT += dtR;
+    if (m.syncT > 1.5) {
+      m.a = 'RUN'; m.active = 'A'; m.b = 'STANDBY'; m.rebootTry = 0;
+      log('ok', 'MCU-A restored as primary controller. MCU-B returned to hot standby.');
+    }
+  }
+}
+const controllerAlive = () => (S.mcu.active === 'A' && S.mcu.a === 'RUN') || S.mcu.active === 'B';
+
+/* =====================================================================
+   6. SENSORS
+   ===================================================================== */
+function sensors() {
+  S.sensB = S.T + 0.05 + noise(0.03);
+  S.sensA = S.inj.sensor ? 17.2 + noise(0.01) : S.T - 0.04 + noise(0.03);
+}
+function apparentTemp(T, RH, vDuct) {
+  // Steadman apparent temperature: AT = Ta + 0.33e - 0.70v - 4.00 (v = room air speed)
+  const e = RH / 100 * 6.105 * Math.exp(17.27 * T / (237.7 + T));
+  const vRoom = 0.05 + 0.06 * vDuct;
+  return T + 0.33 * e - 0.70 * vRoom - 4.0;
+}
+
+/* =====================================================================
+   7. ESP32 CONTROL FIRMWARE (runs on whichever MCU is active)
+   ===================================================================== */
+function controller(dtS, dtR) {
+  const c = S.ctl, inj = S.inj;
+
+  // 7.1 Redundant temperature sensor cross-check (TS-A BME280 vs TS-B SHT31)
+  const dA = Math.abs(S.sensA - S.sensB);
+  if (c.sensorAOk) {
+    if (dA > 1.5) { c.sensorMis += dtR; if (c.sensorMis > 2.0) { c.sensorAOk = false; c.sensorMis = 0; log('warn', `TS-A/TS-B disagree by ${fF(dA)} F. TS-A voted out, switching loop to TS-B.`); } }
+    else c.sensorMis = 0;
+  } else {
+    if (dA < 0.4) { c.sensorMis += dtR; if (c.sensorMis > 2.0) { c.sensorAOk = true; c.sensorMis = 0; log('ok', 'TS-A agrees with TS-B again. TS-A restored to control loop.'); } }
+    else c.sensorMis = 0;
+  }
+  c.Tctl = c.sensorAOk ? S.sensA : S.sensB;
+  const T = c.Tctl;
+  c.AT = apparentTemp(T, S.RH, S.vel);
+
+  // 7.2 Smoke detection: cloud outdoor AQI (needs Wi-Fi) OR indoor PM2.5 node
+  const smoke = (!inj.wifi && S.PMout > 55) || S.PM > 25;
+  if (smoke && !c.smokeLock) { c.smokeLock = true; log('crit', 'Smoke event detected. Outdoor-air damper locked CLOSED, recirculating through filter.'); }
+  if (c.smokeLock && !smoke && S.PM < 12 && (inj.wifi || S.PMout < 35)) { c.smokeLock = false; log('ok', 'Smoke cleared. Outdoor-air damper unlocked.'); }
+
+  // 7.3 IAQ purge with hysteresis
+  if (!c.purge && (S.VOC > 350 || S.CO2 > 1100)) { c.purge = true; log('warn', `IAQ threshold exceeded (VOC ${f0(S.VOC)} ppb, CO2 ${f0(S.CO2)} ppm). Starting ventilation purge.`); }
+  if (c.purge && S.VOC < 220 && S.CO2 < 800) { c.purge = false; log('ok', 'IAQ back in range. Purge stopped, damper returning to minimum.'); }
+  let damper = c.purge ? 100 : 0;
+  if (c.smokeLock) damper = 0;
+
+  // 7.4 Window contact sensor + safety band (heat-vulnerable occupant protection)
+  if (inj.window) c.winTimer += dtS; else c.winTimer = 0;
+  c.safety = T > 29.5 || T < 12;
+  const wasPaused = c.winPause;
+  c.winPause = c.winTimer > 60 && !c.safety;
+  if (c.winPause && !wasPaused) log('warn', 'Window open > 60 s. HVAC paused to avoid conditioning outdoors.');
+  if (!c.winPause && wasPaused && inj.window) log('crit', 'Room left safe band with window open. Safety override: HVAC resumed.');
+
+  // 7.5 Heat-stress emergency with hysteresis
+  if (!c.heatEmerg && (T > 29 || c.AT > 31)) { c.heatEmerg = true; log('crit', `Heat stress risk: room ${fF(T)} F, feels like ${fF(c.AT)} F. Max cooling. ${inj.wifi ? 'Caregiver alert QUEUED (offline).' : 'Caregiver push alert sent.'}`); }
+  if (c.heatEmerg && T < 27.5 && c.AT < 29) { c.heatEmerg = false; log('ok', 'Heat stress condition cleared.'); }
+
+  // 7.6 PID with smart-plug feed-forward (positive output = cooling)
+  c.sp = S.setpoint + (c.shed ? 1.0 : 0);
+  c.ff = Math.max(0, S.plugs.wrk - 95) * 0.95 / P.capCool * 100;
+  const e = T - c.sp, Kp = 55, Ki = 0.02;
+  c.P = Kp * e;
+  let u = c.P + c.I + c.ff;
+  if (!((u >= 100 && e > 0) || (u <= -100 && e < 0))) c.I = clamp(c.I + Ki * e * dtS, -60, 60); // conditional integration (anti-windup)
+  u = clamp(c.P + c.I + c.ff, -100, 100);
+  c.u = u;
+  let comp = u > 3 ? u : 0, heat = u < -3 ? -u : 0;
+  if (c.heatEmerg) { comp = 100; heat = 0; }
+  if (c.winPause) { comp = 0; heat = 0; }
+
+  // 7.7 Blower command
+  let fan = (comp > 0 || heat > 0) ? 30 + 0.6 * Math.max(comp, heat) : 22;
+  if (c.purge && !c.smokeLock) fan = Math.max(fan, 85);
+  if (c.smokeLock) fan = Math.max(fan, 70);
+
+  // 7.8 Duct diagnostics: tachometer + FS3000 airflow + static pressure
+  if (c.fanCmd > 15 && S.rpm < 100) {
+    c.blowerMis += dtR;
+    if (c.blowerMis > 1.5 && !c.blowerFault) { c.blowerFault = true; log('crit', 'Blower commanded but tach = 0 RPM and FS3000 = 0 m/s. Heater and compressor interlocked OFF.'); }
+  } else if (S.rpm > 200) {
+    if (c.blowerFault) log('ok', 'Blower rotation confirmed. Interlock released.');
+    c.blowerFault = false; c.blowerMis = 0;
+  }
+  c.ratio = S.fanAct > 15 ? S.vel / (P.vMax * S.fanAct / 100) : 1;
+  const prevLvl = c.clogLevel;
+  if (c.clogLevel === 0 && c.ratio < 0.8) c.clogLevel = 1;
+  if (c.clogLevel >= 1 && S.dP > 280) c.clogLevel = 2;
+  if (c.clogLevel === 2 && S.dP < 240) c.clogLevel = 1;
+  if (c.clogLevel >= 1 && c.ratio > 0.88 && S.dP < 240) c.clogLevel = 0;
+  if (c.clogLevel !== prevLvl) {
+    if (c.clogLevel === 1 && prevLvl === 0) log('warn', `Airflow ${f0(c.ratio * 100)}% of expected. Boosting blower, filter maintenance alert issued.`);
+    if (c.clogLevel === 2) log('crit', `Static pressure ${f0(S.dP)} Pa. Compressor capped at 50% to prevent evaporator icing.`);
+  }
+  c.boost = c.clogLevel >= 1 ? clamp((0.95 - c.ratio) * 100, 0, 30) : 0;
+  fan += c.boost;
+  if (c.clogLevel === 2) comp = Math.min(comp, 50);
+  if (c.blowerFault) { comp = 0; heat = 0; fan = 40; }
+
+  // 7.9 Demand limiting / load shedding via smart plugs
+  const total = S.pw.total;
+  if (!c.shed) {
+    if (total > S.demandLimit) { c.shedTimer += dtS; if (c.shedTimer > 30) { c.shed = true; c.shedTimer = 0; log('warn', `Demand ${f0(total)} W > limit ${S.demandLimit} W. Shedding TV plug, setpoint +1.8 F.`); } }
+    else c.shedTimer = 0;
+  } else {
+    if (total < S.demandLimit - 150) { c.shedTimer += dtS; if (c.shedTimer > 300) { c.shed = false; c.shedTimer = 0; log('ok', 'Demand back under limit. TV plug restored, setpoint restored.'); } }
+    else c.shedTimer = 0;
+  }
+  c.compCap = 100;
+  if (c.shed && !c.heatEmerg) {
+    const avail = S.demandLimit - (total - S.pw.comp);
+    c.compCap = clamp(avail / (P.capCool / P.COP) * 100, 30, 100);
+    comp = Math.min(comp, c.compCap);
+  }
+
+  c.comp = comp; c.heat = heat; c.fanCmd = clamp(fan, 0, 100); c.damper = damper;
+  c.mode = c.blowerFault ? 'INTERLOCK' : c.heatEmerg ? 'HEAT EMERGENCY' : c.winPause ? 'WINDOW PAUSE' :
+           c.smokeLock ? 'SMOKE RECIRC' : c.purge ? 'IAQ PURGE' : comp > 0 ? 'COOLING' : heat > 0 ? 'HEATING' : 'IDLE';
+}
+
+/* =====================================================================
+   8. PLANT MODEL (room, duct, filter, IAQ, power)
+   ===================================================================== */
+function plant(dtS) {
+  const c = S.ctl, inj = S.inj, k = x => Math.min(1, dtS / x);
+  S.Tout += ((inj.heatwave ? 39 : S.ToutSet) - S.Tout) * k(900);
+  S.PMout += ((inj.smoke ? 160 : 8) - S.PMout) * k(600);
+  if (inj.clog) S.filterH = Math.max(0.12, S.filterH - 0.015 / 60 * dtS);
+
+  // actuators
+  S.fanAct += ((inj.blower ? 0 : c.fanCmd) - S.fanAct) * k(20);
+  S.damperAct += (c.damper - S.damperAct) * k(30);
+  const h = S.filterH, hf = 0.2 + 0.8 * Math.pow(h, 1.5);
+  const flow = S.fanAct / 100 * hf;
+  S.vel = P.vMax * flow + noise(0.02) * (flow > 0.01 ? 1 : 0);
+  S.vel = Math.max(0, S.vel);
+  S.dP = 100 * Math.pow(S.fanAct / 100, 2) * (1 + 5 * (1 - h));
+  S.rpm = inj.blower ? 0 : S.fanAct * 28;
+  const capF = Math.min(1, flow / 0.45);
+  const Qc = c.comp / 100 * P.capCool * capF;
+  const htrF = flow > 0.05 ? 1 : 0.25;  // PTC self-limits without airflow
+  const Qh = c.heat / 100 * P.capHeat * htrF;
+  const airM3s = flow * 0.25;
+  S.SAT = airM3s > 0.01 ? clamp(S.T + (Qh - Qc) / (1206 * airM3s), 6, 60) : S.T;
+
+  // electrical power
+  S.plugs.wrk = lerp(S.plugs.wrk, inj.surge ? 380 : 95, k(20));
+  S.plugs.tv = c.shed ? 0 : 45;
+  S.pw.comp = c.comp / 100 * P.capCool / P.COP;
+  S.pw.heat = Qh;
+  S.pw.fan = P.fanMax * Math.pow(S.fanAct / 100, 3) * (1 + 0.8 * (1 - h));
+  S.pw.plugs = S.plugs.wrk + S.plugs.tv + S.plugs.lamp;
+  S.pw.ctrl = (S.mcu.a === 'RUN' ? 0.8 : 0.15) + (S.mcu.b === 'ACTIVE' ? 0.8 : 0.25) + 0.45;
+  S.pw.total = S.pw.comp + S.pw.heat + S.pw.fan + S.pw.plugs + S.pw.ctrl;
+  S.kWh += S.pw.total * dtS / 3.6e6;
+
+  // thermal balance
+  const achInf = inj.window ? 6 : 0.4, achOA = S.damperAct / 100 * 4;
+  const UA = P.UA + (inj.window ? P.UAwin : 0);
+  const gains = S.plugs.wrk * 0.95 + S.plugs.tv * 0.9 + S.plugs.lamp + 80 + S.pw.fan * 0.9 + S.pw.ctrl;
+  const Q = Qh - Qc + gains + (UA + P.kVent * (achInf + achOA)) * (S.Tout - S.T);
+  S.T += Q / P.C * dtS;
+
+  // humidity
+  const rhT = clamp(50 + (achInf + achOA) * 1.5 - c.comp * 0.12 - c.heat * 0.08, 25, 75);
+  S.RH += (rhT - S.RH) * k(1200);
+
+  // IAQ mass balance (rates per hour)
+  const ach = achInf + achOA, hr = dtS / 3600;
+  S.VOC += ((inj.voc ? 750 : 40) - ach * (S.VOC - 40)) * hr;
+  S.CO2 += ((inj.voc ? 700 : 115) - ach * (S.CO2 - 420)) * hr;
+  const recirc = flow * 5 * 0.85;
+  S.PM += (achInf * (0.8 * S.PMout - S.PM) + achOA * (0.5 * S.PMout - S.PM) - recirc * S.PM - 0.2 * S.PM + 4) * hr;
+  S.PM = Math.max(0, S.PM);
+}
+
+/* =====================================================================
+   9. DIAGNOSTICS (what the ESP32 reports)
+   ===================================================================== */
+function diagnose(alive) {
+  const c = S.ctl, m = S.mcu, inj = S.inj, d = {};
+  if (m.a !== 'RUN') d['E-201'] = { sev: 'crit', title: 'MCU-A WATCHDOG TIMEOUT', target: 'thermostat',
+    short: m.active === 'A' ? 'FAILOVER...' : m.a === 'SYNC' ? 'RESYNC' : 'ON MCU-B',
+    msg: m.active === 'A' ? 'Heartbeat lost. Hardware fail-safe holding outputs, heater gated OFF.' :
+         m.a === 'SYNC' ? 'MCU-A rebooted, synchronizing state from MCU-B.' : `MCU-A in boot loop (reboot attempts: ${m.rebootTry}).`,
+    act: m.active === 'B' ? `MCU-B in control (failover ${m.failMs} ms). PID state transferred bumplessly.` : 'Awaiting watchdog failover to MCU-B...' };
+  if (!alive) { for (const k in S.diag) if (k !== 'E-201') d[k] = S.diag[k]; return d; }
+
+  if (!c.sensorAOk) d['E-202'] = { sev: 'warn', title: 'TEMP SENSOR TS-A FAULT', target: 'thermostat', short: `TS-A ${f1(S.sensA)} / TS-B ${f1(S.sensB)}`,
+    msg: `TS-A reads ${fF(S.sensA)} F, TS-B reads ${fF(S.sensB)} F. Cross-check failed.`, act: 'TS-A voted out. Control loop running on redundant TS-B.' };
+  if (inj.wifi) d['E-203'] = { sev: 'info', title: 'CLOUD LINK LOST', target: 'thermostat', short: `${c.buffered} BUFFERED`,
+    msg: 'MQTT broker unreachable. Remote dashboard offline.', act: `Edge autonomy: local PID unaffected. ${c.buffered} telemetry samples buffered.` };
+  if (c.purge) d['E-101'] = { sev: 'warn', title: 'POOR INDOOR AIR QUALITY', target: 'iaq', short: `VOC ${f0(S.VOC)} CO2 ${f0(S.CO2)}`,
+    msg: `VOC ${f0(S.VOC)} ppb, CO2 ${f0(S.CO2)} ppm.`,
+    act: c.smokeLock ? 'Purge INHIBITED by smoke lockout. Recirculating only.' : 'Ventilation purge: OA damper 100%, blower 85%.' };
+  if (c.smokeLock) d['E-102'] = { sev: 'crit', title: 'OUTDOOR SMOKE / PM2.5', target: 'damper', short: `PM2.5 ${f0(S.PM)}`,
+    msg: `Indoor PM2.5 ${f0(S.PM)} ug/m3, outdoor ${inj.wifi ? 'n/a (offline)' : f0(S.PMout) + ' ug/m3'}.`,
+    act: 'OA damper locked CLOSED. Blower 70% recirculation through MERV-13 filter.' };
+  if (c.clogLevel > 0) d['E-301'] = { sev: c.clogLevel === 2 ? 'crit' : 'warn', title: 'FILTER RESTRICTION', target: 'ret', short: `dP ${f0(S.dP)} Pa`,
+    msg: `FS3000 ${f2(S.vel)} m/s (${f0(c.ratio * 100)}% of expected), static dP ${f0(S.dP)} Pa, filter ~${f0(S.filterH * 100)}%.`,
+    act: c.clogLevel === 2 ? 'Compressor capped 50% (coil freeze protection). Replace filter now.' : `Blower boost +${f0(c.boost)}% to hold airflow. Maintenance alert sent.` };
+  if (c.blowerFault) d['E-302'] = { sev: 'crit', title: 'BLOWER MOTOR FAILURE', target: 'ahu', short: '0 RPM',
+    msg: `Commanded ${f0(c.fanCmd)}% but tach 0 RPM, FS3000 ${f2(S.vel)} m/s.`, act: 'Safety interlock: heater and compressor OFF. Service alert sent.' };
+  if (c.shed) d['E-401'] = { sev: 'warn', title: 'DEMAND LIMIT EXCEEDED', target: 'tv', short: `${f0(S.pw.total)} / ${S.demandLimit} W`,
+    msg: `Total draw ${f0(S.pw.total)} W vs limit ${S.demandLimit} W.`,
+    act: `TV smart plug shed, setpoint +1.8 F${c.compCap < 100 ? `, compressor capped ${f0(c.compCap)}%` : ''}.` };
+  if (c.winTimer > 0) d['E-402'] = { sev: 'warn', title: 'WINDOW OPEN', target: 'window', short: c.winPause ? 'HVAC PAUSED' : c.safety ? 'OVERRIDE' : 'TIMER',
+    msg: `Contact sensor open for ${f1(c.winTimer / 60)} min.`,
+    act: c.safety ? 'Safety override: room outside safe band, HVAC resumed.' : c.winPause ? 'HVAC paused to avoid conditioning outdoors.' : `HVAC pause in ${f0(60 - c.winTimer)} s.` };
+  if (c.heatEmerg) d['E-403'] = { sev: 'crit', title: 'HEAT STRESS RISK', target: 'bed', short: `FEELS ${fF(c.AT)} F`,
+    msg: `Room ${fF(c.Tctl)} F, feels like ${fF(c.AT)} F.`,
+    act: (c.blowerFault ? 'Cooling unavailable (blower interlock). ' : 'Max cooling. ') + (inj.wifi ? 'Caregiver alert QUEUED (offline), local alarm ON.' : 'Push alert sent to caregiver.') };
+  if (c.ff > 1) d['E-404'] = { sev: 'info', title: 'HIGH PLUG LOAD', target: 'desk', short: `${f0(S.plugs.wrk)} W`,
+    msg: `Workstation smart plug reports ${f0(S.plugs.wrk)} W.`, act: `Feed-forward +${f1(c.ff)}% cooling ahead of temperature rise.` };
+  return d;
+}
+const SEVRANK = { crit: 3, warn: 2, info: 1 };
+function diffDiag(d) {
+  for (const k in d) {
+    const o = S.diag[k];
+    if (!o) {
+      toast(d[k].sev, 'ESP32 FAULT DETECTED', `${k}  ${d[k].title}`, d[k].msg, 'RESPONSE: ' + d[k].act);
+      log(d[k].sev, `${k} DETECTED: ${d[k].title}. ${d[k].act}`);
+    } else if (SEVRANK[d[k].sev] > SEVRANK[o.sev]) {
+      toast(d[k].sev, 'FAULT ESCALATED', `${k}  ${d[k].title}`, d[k].msg, 'RESPONSE: ' + d[k].act);
+    }
+  }
+  for (const k in S.diag) if (!d[k]) {
+    toast('ok', 'FAULT CLEARED', `${k}  ${S.diag[k].title}`, 'Condition resolved. Normal control resumed.', '');
+    log('ok', `${k} CLEARED: ${S.diag[k].title}.`);
+  }
+  S.diag = d;
+}
+
+/* =====================================================================
+   10. TELEMETRY BUFFERS + FORECAST
+   ===================================================================== */
+const HLEN = 150;
+const H = { lab: [], comp: [], heat: [], fan: [], plugs: [], ctrl: [], limit: [], T: [], TA: [], TB: [], SP: [], AT: [], Tout: [],
+            vel: [], fanCmd: [], fanAct: [], filt: [], dP: [], voc: [], co2: [], pm: [], dmp: [] };
+const F = { lab: [], W: [], To: [], kWh: 0, peakW: 0, peakT: '', avgTo: 0 };
+function push(a, v) { a.push(v); if (a.length > HLEN) a.shift(); }
+function sample() {
+  const c = S.ctl;
+  push(H.lab, clockStr(S.t).slice(0, 5));
+  push(H.comp, +f1(S.pw.comp)); push(H.heat, +f1(S.pw.heat)); push(H.fan, +f1(S.pw.fan));
+  push(H.plugs, +f1(S.pw.plugs)); push(H.ctrl, +f2(S.pw.ctrl)); push(H.limit, S.demandLimit);
+  push(H.T, +f2(S.T)); push(H.TA, +f2(S.sensA)); push(H.TB, +f2(S.sensB)); push(H.SP, c.sp);
+  push(H.AT, +f2(apparentTemp(S.T, S.RH, S.vel))); push(H.Tout, +f2(S.Tout));
+  push(H.vel, +f2(S.vel)); push(H.fanCmd, +f1(c.fanCmd)); push(H.fanAct, +f1(S.fanAct)); push(H.filt, +f1(S.filterH * 100)); push(H.dP, +f0(S.dP));
+  push(H.voc, +f0(S.VOC)); push(H.co2, +f0(S.CO2)); push(H.pm, +f1(S.PM)); push(H.dmp, +f0(S.damperAct));
+  if (S.inj.wifi) c.buffered++;
+  forecast();
+}
+function forecast() {
+  // 6 h ahead in 15 min steps: diurnal outdoor model + envelope load + current plug loads
+  const c = S.ctl, inj = S.inj;
+  const di = t => 4 * Math.cos((t / 3600 - 15) / 24 * 2 * Math.PI);
+  const off = S.Tout - di(S.t);
+  const sp = S.setpoint + (c.shed ? 1 : 0);
+  const UAeff = P.UA + (inj.window && !c.winPause ? P.UAwin : 0) + P.kVent * ((inj.window ? 6 : 0.4) + S.damperAct / 100 * 4);
+  F.lab.length = 0; F.W.length = 0; F.To.length = 0; F.kWh = 0; F.peakW = 0; let sumTo = 0;
+  for (let i = 1; i <= 24; i++) {
+    const t = S.t + i * 900, To = off + di(t);
+    const Q = UAeff * (To - sp) + S.pw.plugs * 0.95 + 95;
+    let hv = Q > 0 ? Q / P.COP : -Q;
+    const duty = clamp(Math.abs(Q) / (Q > 0 ? P.capCool : P.capHeat) * 100, 0, 100);
+    let fanW = P.fanMax * Math.pow((30 + 0.6 * duty) / 100, 3);
+    if (inj.blower) { hv = 0; fanW = 0; }
+    if (c.winPause) hv = 0;
+    const W = hv + fanW + S.pw.plugs + S.pw.ctrl;
+    F.lab.push(clockStr(t).slice(0, 5)); F.W.push(+f0(W)); F.To.push(+f1(To));
+    F.kWh += W * 0.25 / 1000; sumTo += To;
+    if (W > F.peakW) { F.peakW = W; F.peakT = clockStr(t).slice(0, 5); }
+  }
+  F.avgTo = sumTo / 24;
+}
+
+/* =====================================================================
+   11. CHARTS
+   ===================================================================== */
+let chart = null, view = 'power';
+const tick9 = { color: '#7f97b8', font: { family: MONO, size: 9 } };
+const xAxis = () => ({ ticks: Object.assign({ maxTicksLimit: 8, maxRotation: 0 }, tick9), grid: { color: 'rgba(56,189,248,.06)' } });
+const yAxis = (title, o) => Object.assign({ title: { display: true, text: title, color: '#7f97b8', font: { family: MONO, size: 9 } },
+  ticks: Object.assign({ maxTicksLimit: 6 }, tick9), grid: { color: 'rgba(56,189,248,.10)' } }, o || {});
+const ds = (label, data, color, o) => Object.assign({ label, data, borderColor: color, backgroundColor: color + '40', borderWidth: 1.6, pointRadius: 0, tension: .25, fill: false }, o || {});
+function buildChart() {
+  if (chart) chart.destroy();
+  let data, scales;
+  if (view === 'power') {
+    data = { labels: H.lab, datasets: [
+      ds('Compressor', H.comp, '#60a5fa', { fill: 'origin', stack: 'p' }),
+      ds('Heater', H.heat, '#f87171', { fill: '-1', stack: 'p' }),
+      ds('Blower', H.fan, '#a78bfa', { fill: '-1', stack: 'p' }),
+      ds('Plug loads', H.plugs, '#fbbf24', { fill: '-1', stack: 'p' }),
+      ds('Controls', H.ctrl, '#10b981', { fill: '-1', stack: 'p' }),
+      ds('Demand limit', H.limit, '#ef4444', { borderDash: [5, 4], borderWidth: 1.2, stack: 'lim' }) ] };
+    scales = { x: xAxis(), y: yAxis('WATTS (STACKED)', { stacked: true, min: 0 }) };
+  } else if (view === 'forecast') {
+    data = { labels: F.lab, datasets: [
+      { type: 'bar', label: 'Predicted avg load per 15 min (W)', data: F.W, backgroundColor: 'rgba(251,191,36,.45)', borderColor: '#fbbf24', borderWidth: 1, yAxisID: 'y' },
+      { type: 'line', label: 'Forecast outdoor temp (C)', data: F.To, borderColor: '#f87171', borderWidth: 1.6, pointRadius: 0, tension: .3, yAxisID: 'y1' } ] };
+    scales = { x: xAxis(), y: yAxis('WATTS', { min: 0 }), y1: yAxis('OUTDOOR F', { position: 'right', grid: { drawOnChartArea: false } }) };
+  } else if (view === 'thermal') {
+    data = { labels: H.lab, datasets: [
+      ds('Room (true)', H.T, '#ffffff', { borderWidth: 2 }),
+      ds('TS-A (BME280)', H.TA, '#f59e0b', { borderDash: [3, 3] }),
+      ds('TS-B (SHT31)', H.TB, '#38bdf8', { borderDash: [1, 2] }),
+      ds('Setpoint', H.SP, '#10b981', { borderDash: [6, 4], tension: 0 }),
+      ds('Feels like', H.AT, '#c084fc'),
+      ds('Outdoor', H.Tout, '#f87171', { borderWidth: 1 }) ] };
+    scales = { x: xAxis(), y: yAxis('DEG F', { suggestedMin: 16, suggestedMax: 32 }) };
+  } else if (view === 'airflow') {
+    data = { labels: H.lab, datasets: [
+      ds('FS3000 velocity (m/s)', H.vel, '#00e5ff', { fill: 'origin', yAxisID: 'y' }),
+      ds('Blower cmd (%)', H.fanCmd, '#a78bfa', { borderDash: [4, 3], yAxisID: 'y1' }),
+      ds('Blower actual (%)', H.fanAct, '#c4b5fd', { yAxisID: 'y1' }),
+      ds('Filter health (%)', H.filt, '#10b981', { yAxisID: 'y1' }) ] };
+    scales = { x: xAxis(), y: yAxis('M/S', { min: 0, max: 4 }), y1: yAxis('PERCENT', { position: 'right', min: 0, max: 100, grid: { drawOnChartArea: false } }) };
+  } else {
+    data = { labels: H.lab, datasets: [
+      ds('VOC (ppb)', H.voc, '#f59e0b', { fill: 'origin', yAxisID: 'y' }),
+      ds('CO2 (ppm)', H.co2, '#10b981', { yAxisID: 'y' }),
+      ds('PM2.5 (ug/m3)', H.pm, '#94a3b8', { yAxisID: 'y1', borderWidth: 2 }),
+      ds('OA damper (%)', H.dmp, '#38bdf8', { yAxisID: 'y1', borderDash: [4, 3] }) ] };
+    scales = { x: xAxis(), y: yAxis('PPB / PPM', { min: 0, suggestedMax: 1500 }), y1: yAxis('UG/M3 / %', { position: 'right', min: 0, suggestedMax: 100, grid: { drawOnChartArea: false } }) };
+  }
+  chart = new Chart($('chart'), { type: view === 'forecast' ? 'bar' : 'line', data, options: {
+    responsive: true, maintainAspectRatio: false, animation: false, interaction: { intersect: false, mode: 'index' }, scales,
+    plugins: { legend: { labels: { color: '#dbe7f5', font: { family: MONO, size: 9 }, boxWidth: 10, boxHeight: 8 } },
+               tooltip: { backgroundColor: 'rgba(7,21,43,.95)', borderColor: '#1f3d6b', borderWidth: 1, titleFont: { family: MONO }, bodyFont: { family: MONO, size: 10 } } } } });
+}
+document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('on'));
+  b.classList.add('on'); view = b.dataset.v; buildChart(); updateCards();
+}));
+
+/* =====================================================================
+   12. RIGHT PANEL UI
+   ===================================================================== */
+function buildFaultUI() {
+  const root = $('faultGroups');
+  FAULT_DEFS.forEach(g => {
+    const wrap = document.createElement('div'); wrap.className = 'grp';
+    wrap.innerHTML = `<div class="grp-h">${g.grp}</div>`;
+    g.items.forEach(it => {
+      const row = document.createElement('div');
+      row.className = 'frow'; row.id = 'f_' + it.id;
+      row.innerHTML = `<div><div class="nm">${it.nm}</div><div class="ds">${it.ds}</div><div class="st" id="fs_${it.id}">INJECTED</div></div><div class="sw"></div>`;
+      row.addEventListener('click', () => setFault(it.id, !S.inj[it.id]));
+      wrap.appendChild(row);
+    });
+    root.appendChild(wrap);
+  });
+}
+function setFault(id, on) {
+  S.inj[id] = on;
+  $('f_' + id).classList.toggle('on', on);
+  log('sim', `[SIM] ${on ? 'Injected' : 'Removed'} fault: ${FAULT_NAME[id]}`);
+  if (!on && id === 'clog') { S.filterH = 0.96; log('sim', '[SIM] Filter replaced with new MERV-13 media.'); }
+  const n = Object.values(S.inj).filter(Boolean).length;
+  $('injCount').textContent = `${n} INJECTED`; $('injCount').className = 'badge' + (n ? ' warn' : '');
+}
+$('clearAll').addEventListener('click', () => {
+  Object.keys(S.inj).forEach(k => { if (S.inj[k]) setFault(k, false); });
+  S.setpoint = 23; S.ToutSet = 28; S.demandLimit = 1000;
+  $('sSp').value = 73; $('sOut').value = 82; $('sLim').value = 1000; readSliders();
+  log('sim', '[SIM] Baseline restored. Controller recovering on its own.');
+});
+function readSliders() {
+  S.setpoint = (+$('sSp').value - 32) * 5/9; S.ToutSet = (+$('sOut').value - 32) * 5/9; S.demandLimit = +$('sLim').value; S.speed = +$('sSpd').value;
+  $('lSp').textContent = fF(S.setpoint) + ' F';
+  $('lOut').textContent = S.inj.heatwave ? 'HEATWAVE 102.2 F' : fF(S.ToutSet) + ' F';
+  $('lLim').textContent = S.demandLimit + ' W';
+  $('lSpd').textContent = 'x' + S.speed; $('speedLbl').textContent = 'x' + S.speed;
+}
+['sSp', 'sOut', 'sLim', 'sSpd'].forEach(id => $(id).addEventListener('input', readSliders));
+
+function card(l, v, u, s, cls) { return `<div class="card ${cls || ''}"><div class="l">${l}</div><div class="v">${v}<small>${u}</small></div><div class="s">${s}</div></div>`; }
+function updateCards() {
+  const c = S.ctl, d = S.diag; let h = '';
+  if (view === 'power') {
+    const hv = S.pw.comp + S.pw.heat + S.pw.fan;
+    h += card('TOTAL DRAW', f0(S.pw.total), 'W', `HVAC ${f0(hv)} W | PLUGS ${f0(S.pw.plugs)} W`, S.pw.total > S.demandLimit ? 'warn' : '');
+    h += card('ENERGY (SIM)', f2(S.kWh), 'kWh', `COST $${f2(S.kWh * P.price)} @ $${P.price}/kWh`);
+    h += card('HVAC MODE', c.mode.split(' ')[0], '', `COMP ${f0(c.comp)}% | HTR ${f0(c.heat)}% | FAN ${f0(S.fanAct)}%`, d['E-302'] || d['E-403'] ? 'crit' : '');
+    h += card('DEMAND LIMIT', S.demandLimit, 'W', c.shed ? 'SHEDDING: TV PLUG OFF, SP +1.8 F' : 'NO LOAD SHED ACTIVE', c.shed ? 'warn' : '');
+  } else if (view === 'forecast') {
+    h += card('NEXT 6 H ENERGY', f2(F.kWh), 'kWh', 'DIURNAL + ENVELOPE + PLUG MODEL');
+    h += card('NEXT 6 H COST', '$' + f2(F.kWh * P.price), '', `AVG ${f0(F.kWh / 6 * 1000)} W`);
+    h += card('PREDICTED PEAK', f0(F.peakW), 'W', `AT ${F.peakT}${F.peakW > S.demandLimit ? ' - OVER LIMIT' : ''}`, F.peakW > S.demandLimit ? 'warn' : '');
+    h += card('AVG OUTDOOR (FCST)', f1(F.avgTo), 'C', S.inj.heatwave ? 'HEATWAVE ACTIVE' : 'PEAK AT 15:00');
+  } else if (view === 'thermal') {
+    h += card('ROOM (CONTROL)', fF(c.Tctl), 'F', `SENSOR IN USE: ${c.sensorAOk ? 'TS-A' : 'TS-B (TS-A VOTED OUT)'}`, d['E-202'] ? 'warn' : '');
+    h += card('EFFECTIVE SETPOINT', fF(c.sp), 'F', `ERROR ${fD(c.Tctl - c.sp)} F | PID ${f0(c.u)}%`);
+    h += card('FEELS LIKE', fF(c.AT), 'F', `STEADMAN | RH ${f0(S.RH)}%`, c.heatEmerg ? 'crit' : '');
+    h += card('OUTDOOR', fF(S.Tout), 'F', S.inj.window ? 'WINDOW OPEN' : 'ENVELOPE SEALED');
+  } else if (view === 'airflow') {
+    h += card('FS3000 VELOCITY', f2(S.vel), 'm/s', `${f0(c.ratio * 100)}% OF EXPECTED`, c.blowerFault ? 'crit' : c.clogLevel ? 'warn' : '');
+    h += card('STATIC PRESSURE', f0(S.dP), 'Pa', S.dP > 280 ? 'CRITICAL (>280 Pa)' : S.dP > 180 ? 'ELEVATED' : 'NORMAL', S.dP > 280 ? 'crit' : S.dP > 180 ? 'warn' : '');
+    h += card('BLOWER', f0(S.fanAct), '%', `CMD ${f0(c.fanCmd)}% | ${f0(S.rpm)} RPM`, c.blowerFault ? 'crit' : '');
+    h += card('FILTER HEALTH', f0(S.filterH * 100), '%', S.filterH < 0.4 ? 'REPLACE FILTER' : S.filterH < 0.7 ? 'LOADING' : 'CLEAN', S.filterH < 0.4 ? 'crit' : S.filterH < 0.7 ? 'warn' : '');
+  } else {
+    h += card('VOC INDEX', f0(S.VOC), 'ppb', S.VOC > 350 ? 'POOR' : S.VOC > 220 ? 'MODERATE' : 'GOOD', S.VOC > 350 ? 'warn' : '');
+    h += card('CO2', f0(S.CO2), 'ppm', S.CO2 > 1100 ? 'STALE' : S.CO2 > 800 ? 'MODERATE' : 'FRESH', S.CO2 > 1100 ? 'warn' : '');
+    h += card('PM2.5 INDOOR', f1(S.PM), 'ug/m3', `OUTDOOR ${S.inj.wifi ? 'N/A (OFFLINE)' : f0(S.PMout)}`, S.PM > 25 ? 'crit' : S.PM > 12 ? 'warn' : '');
+    h += card('OA DAMPER', f0(S.damperAct), '%', c.smokeLock ? 'LOCKED CLOSED (SMOKE)' : c.purge ? 'PURGE OPEN' : 'MINIMUM', c.smokeLock ? 'crit' : '');
+  }
+  $('cards').innerHTML = h;
+}
+function bar(label, pct, val, color) {
+  return `<div class="bar"><span>${label}</span><div class="tr"><div class="fl" style="width:${clamp(pct, 0, 100)}%;background:${color}"></div></div><span class="vv">${val}</span></div>`;
+}
+function updatePanel() {
+  const c = S.ctl, m = S.mcu, alive = controllerAlive();
+  // MCU boxes
+  const aTxt = { RUN: m.active === 'A' ? 'RUN - IN CONTROL' : 'RUN', CRASHED: 'CRASHED', SYNC: 'REBOOTED - SYNCING' }[m.a];
+  $('mAs').textContent = aTxt; $('mAs').className = 'st ' + (m.a === 'RUN' ? 'grn' : m.a === 'SYNC' ? 'amb' : 'red');
+  $('mA').className = 'mbox ' + (m.a === 'RUN' ? 'ok' : m.a === 'SYNC' ? 'stby' : 'bad');
+  $('mAh').textContent = m.a === 'RUN' ? 'Heartbeat OK (1 Hz)' : m.a === 'SYNC' ? 'State sync in progress' : `Heartbeat LOST | reboot tries ${m.rebootTry}`;
+  $('mBs').textContent = m.b === 'ACTIVE' ? 'ACTIVE - IN CONTROL' : 'HOT STANDBY';
+  $('mBs').className = 'st ' + (m.b === 'ACTIVE' ? 'grn' : 'amb');
+  $('mB').className = 'mbox ' + (m.b === 'ACTIVE' ? 'ok' : 'stby');
+  $('mBh').textContent = m.b === 'ACTIVE' ? `Took over in ${m.failMs} ms` : !alive ? 'Watchdog counting...' : 'Mirroring PID state';
+  // header
+  const setDot = (id, col) => { $(id).style.background = col; $(id).style.color = col; };
+  setDot('hA', m.a === 'RUN' ? '#10b981' : m.a === 'SYNC' ? '#f59e0b' : '#ef4444'); $('hAt').textContent = m.a;
+  setDot('hB', m.b === 'ACTIVE' ? '#10b981' : '#f59e0b'); $('hBt').textContent = m.b;
+  setDot('hW', S.inj.wifi ? '#ef4444' : '#10b981'); $('hWt').textContent = S.inj.wifi ? 'OFFLINE' : 'ONLINE';
+  $('clock').textContent = clockStr(S.t);
+  // mode
+  const mode = alive ? c.mode : 'FAILOVER HOLD';
+  const modeCls = /INTERLOCK|EMERGENCY|SMOKE|FAILOVER/.test(mode) ? ' crit' : /PAUSE|PURGE/.test(mode) ? ' warn' : '';
+  $('modeBadge').textContent = mode; $('modeBadge').className = 'badge' + modeCls;
+  // bars
+  $('bars').innerHTML =
+    bar('COMPRESSOR', c.comp, `${f0(c.comp)}%${c.compCap < 100 || c.clogLevel === 2 ? ' CAP' : ''}`, c.blowerFault ? '#ef4444' : '#60a5fa') +
+    bar('PTC HEATER', c.heat, alive ? `${f0(c.heat)}%` : 'GATED', '#f87171') +
+    bar('BLOWER CMD', c.fanCmd, `${f0(c.fanCmd)}%${c.boost > 0.5 ? ' +' + f0(c.boost) : ''}`, '#a78bfa') +
+    bar('BLOWER TACH', S.fanAct, `${f0(S.rpm)} RPM`, c.blowerFault ? '#ef4444' : '#c4b5fd') +
+    bar('OA DAMPER', S.damperAct, c.smokeLock ? 'LOCKED' : `${f0(S.damperAct)}%`, c.smokeLock ? '#ef4444' : '#38bdf8');
+  $('kv').innerHTML =
+    `<span>Control sensor</span><span>${c.sensorAOk ? 'TS-A' : 'TS-B'} ${fF(c.Tctl)} F</span>` +
+    `<span>PID (P / I / FF)</span><span>${f1(c.P)} / ${f1(c.I)} / ${f1(c.ff)} %</span>` +
+    `<span>Supply air temp</span><span>${fF(S.SAT)} F</span>` +
+    `<span>Smart plugs</span><span>WRK ${f0(S.plugs.wrk)} W | TV ${c.shed ? 'SHED' : '45 W'}</span>`;
+  // faults
+  const list = Object.entries(S.diag).sort((a, b) => SEVRANK[b[1].sev] - SEVRANK[a[1].sev]);
+  $('flist').innerHTML = list.length ? list.map(([k, f]) =>
+    `<div class="fi ${f.sev}"><div class="c">${k}  ${f.title}</div><div class="m">${f.msg}</div><div class="a">RESPONSE: ${f.act}</div></div>`).join('')
+    : '<div class="none">No active faults. All diagnostics passing.</div>';
+  // status bar
+  const sb = $('statusBar');
+  if (S.inspect && performance.now() < S.inspectUntil) {
+    const o = DEV[S.inspect];
+    sb.className = 'info'; $('sbT').className = 'cy'; $('sbT').textContent = 'INSPECT: ' + o.name; $('sbD').textContent = o.info();
+  } else if (list.length) {
+    const [k, f] = list[0];
+    sb.className = f.sev; $('sbT').className = f.sev === 'crit' ? 'red' : f.sev === 'warn' ? 'amb' : 'cy';
+    $('sbT').textContent = `${k} ${f.title}${list.length > 1 ? `  (+${list.length - 1} more)` : ''}`; $('sbD').textContent = 'ESP32 RESPONSE: ' + f.act;
+  } else {
+    sb.className = ''; $('sbT').className = 'grn'; $('sbT').textContent = 'SYSTEM NOMINAL';
+    $('sbD').textContent = 'All diagnostics passing. Closed-loop PID regulating zone temperature.';
+  }
+  $('sbR').innerHTML = `CONTROLLER: MCU-${m.active} | ${mode}<br>T ${fF(c.Tctl)} F -> SP ${fF(c.sp)} F | ${f0(S.pw.total)} W`;
+  $('lOut').textContent = S.inj.heatwave ? 'HEATWAVE 102.2 F' : fF(S.ToutSet) + ' F';
+}
+
+/* =====================================================================
+   13. MAIN LOOP
+   ===================================================================== */
+let tickN = 0;
+function tick() {
+  const dtR = 0.2, dtS = S.speed * dtR;
+  S.t += dtS;
+  mcuStep(dtR);
+  sensors();
+  const alive = controllerAlive();
+  if (alive) controller(dtS, dtR); else { S.ctl.heat = 0; S.ctl.mode = 'FAILOVER HOLD'; }
+  plant(dtS);
+  diffDiag(diagnose(alive));
+  if (S.wifiPrev && !S.inj.wifi) { log('ok', `Cloud link restored. Flushed ${S.ctl.buffered} buffered telemetry samples to MQTT broker.`); S.ctl.buffered = 0; }
+  S.wifiPrev = !!S.inj.wifi;
+  if (++tickN % 5 === 0) { sample(); if (chart) chart.update('none'); }
+  if (!S.quiet) { updateCards(); updatePanel(); }
+}
+
+/* =====================================================================
+   14. BLUEPRINT RENDERER
+   ===================================================================== */
+const cv = $('bp'), ctx = cv.getContext('2d');
+let W = 0, Hh = 0, size = 0, ox = 0, oy = 0;
+function resize() {
+  const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  W = r.width; Hh = r.height; cv.width = W * dpr; cv.height = Hh * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const top = 40, bot = 62;
+  size = Math.max(200, Math.min(W - 30, Hh - top - bot));
+  ox = (W - size) / 2; oy = top + (Hh - top - bot - size) / 2;
+}
+window.addEventListener('resize', resize);
+const X = n => ox + n * size, Y = n => oy + n * size, Dd = n => n * size;
+
+const R = {
+  room: { x: .08, y: .08, w: .84, h: .84 },
+  bed: { x: .10, y: .10, w: .32, h: .36 }, nightstand: { x: .43, y: .10, w: .08, h: .08 },
+  desk: { x: .74, y: .11, w: .16, h: .28 }, table: { x: .77, y: .42, w: .13, h: .11 }, tvc: { x: .74, y: .56, w: .16, h: .26 },
+  ahu: { x: .10, y: .49, w: .09, h: .23 }, door: { x: .10, y: .78, w: .12, h: .14 }, window: { x: .26, y: .895, w: .52, h: .04 },
+  supply: { x: .46, y: .30, w: .14, h: .08 }, ret: { x: .50, y: .71, w: .14, h: .08 },
+  thermostat: { x: .104, y: .733, w: .042, h: .04 }, iaq: { x: .55, y: .103, w: .05, h: .04 }, tsb: { x: .655, y: .103, w: .03, h: .03 },
+  damper: { x: .81, y: .893, w: .07, h: .035 }, plugDesk: { x: .913, y: .18, w: .012, h: .03 }, plugTv: { x: .913, y: .66, w: .012, h: .03 }
+};
+const ctr = o => [X(o.x + o.w / 2), Y(o.y + o.h / 2)];
+const TGT = { thermostat: R.thermostat, iaq: R.iaq, damper: R.damper, ret: R.ret, ahu: R.ahu, window: R.window, tv: R.plugTv, desk: R.desk, bed: R.bed, tsb: R.tsb };
+const DEV = {
+  thermostat: { o: R.thermostat, name: 'CTRL-HUB dual ESP32 + TS-A (BME280)', info: () => `MCU-A ${S.mcu.a}, MCU-B ${S.mcu.b}. TS-A ${fF(S.sensA)} F ${S.ctl.sensorAOk ? '(in loop)' : '(voted out)'}. RH ${f0(S.RH)}%.` },
+  iaq: { o: R.iaq, name: 'IAQ node (SGP30 VOC/CO2 + PM2.5)', info: () => `VOC ${f0(S.VOC)} ppb, CO2 ${f0(S.CO2)} ppm, PM2.5 ${f1(S.PM)} ug/m3.` },
+  tsb: { o: R.tsb, name: 'TS-B redundant temp sensor (SHT31)', info: () => `${fF(S.sensB)} F. Used for cross-check voting against TS-A.` },
+  supply: { o: R.supply, name: 'Ceiling supply diffuser', info: () => `Supply air ${fF(S.SAT)} F, duct velocity ${f2(S.vel)} m/s.` },
+  ret: { o: R.ret, name: 'Return grille + MERV-13 filter + FS3000', info: () => `FS3000 ${f2(S.vel)} m/s, dP ${f0(S.dP)} Pa, filter ${f0(S.filterH * 100)}%.` },
+  ahu: { o: R.ahu, name: 'AHU-01 blower / evaporator coil / PTC heater', info: () => `Blower ${f0(S.fanAct)}% (${f0(S.rpm)} RPM), compressor ${f0(S.ctl.comp)}%, heater ${f0(S.ctl.heat)}%.` },
+  damper: { o: R.damper, name: 'Outdoor-air damper actuator', info: () => `Position ${f0(S.damperAct)}%${S.ctl.smokeLock ? ', LOCKED closed (smoke)' : ''}. Outdoor PM2.5 ${f0(S.PMout)}.` },
+  window: { o: R.window, name: 'Exterior window + contact sensor', info: () => `${S.inj.window ? 'OPEN' : 'Closed'}. Outdoor ${fF(S.Tout)} F.` },
+  desk: { o: R.desk, name: 'PC workstation on smart plug', info: () => `${f0(S.plugs.wrk)} W. Feed-forward ${f1(S.ctl.ff)}%.` },
+  tvc: { o: R.tvc, name: 'Entertainment center on smart plug', info: () => S.ctl.shed ? 'Plug OFF (shed by demand limiter).' : 'Plug ON, 45 W.' },
+  bed: { o: R.bed, name: 'Bed / occupancy zone', info: () => `Feels like ${fF(apparentTemp(S.T, S.RH, S.vel))} F at occupant.` },
+  table: { o: R.table, name: 'Side table / audio hub', info: () => 'Passive furniture.' },
+  nightstand: { o: R.nightstand, name: 'Nightstand + lamp (10 W)', info: () => 'Lamp 10 W on lighting circuit.' }
+};
+cv.addEventListener('click', e => {
+  const r = cv.getBoundingClientRect(), nx = (e.clientX - r.left - ox) / size, ny = (e.clientY - r.top - oy) / size;
+  for (const k of ['thermostat', 'iaq', 'tsb', 'damper', 'supply', 'ret', 'ahu', 'window', 'desk', 'tvc', 'table', 'nightstand', 'bed']) {
+    const o = DEV[k].o;
+    if (nx >= o.x - .01 && nx <= o.x + o.w + .01 && ny >= o.y - .01 && ny <= o.y + o.h + .01) { S.inspect = k; S.inspectUntil = performance.now() + 6000; updatePanel(); return; }
+  }
+  S.inspect = null;
+});
+
+// duct polylines (normalized) and flow particles
+const DUCT = { sup: [[.19, .545], [.53, .545], [.53, .38]], ret: [[.57, .71], [.57, .645], [.19, .645]] };
+function polyLen(p) { let L = 0; for (let i = 1; i < p.length; i++) L += Math.hypot(p[i][0] - p[i - 1][0], p[i][1] - p[i - 1][1]); return L; }
+function along(p, s) {
+  let target = s * polyLen(p);
+  for (let i = 1; i < p.length; i++) {
+    const seg = Math.hypot(p[i][0] - p[i - 1][0], p[i][1] - p[i - 1][1]);
+    if (target <= seg) { const t = target / seg; return [X(lerp(p[i - 1][0], p[i][0], t)), Y(lerp(p[i - 1][1], p[i][1], t))]; }
+    target -= seg;
+  }
+  const l = p[p.length - 1]; return [X(l[0]), Y(l[1])];
+}
+const parts = { sup: Array.from({ length: 16 }, (_, i) => i / 16), ret: Array.from({ length: 16 }, (_, i) => i / 16) };
+const diffuse = Array.from({ length: 30 }, () => ({ a: Math.random() * Math.PI * 2, r: Math.random(), sp: .3 + Math.random() * .7 }));
+const blobs = Array.from({ length: 26 }, () => ({ x: .12 + Math.random() * .6, y: .15 + Math.random() * .65, r: .03 + Math.random() * .05, ph: Math.random() * 6 }));
+
+function lbl(s, x, y, col, align, sz, bold) {
+  ctx.fillStyle = col || '#7dd3fc'; ctx.font = `${bold ? 'bold ' : ''}${sz || 9}px ${MONO}`; ctx.textAlign = align || 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillText(s, x, y);
+}
+function rect(o, fill, stroke, lw) {
+  const x = X(o.x), y = Y(o.y), w = Dd(o.w), h = Dd(o.h);
+  if (fill) { ctx.fillStyle = fill; ctx.fillRect(x, y, w, h); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw || 1.5; ctx.strokeRect(x, y, w, h); }
+  return [x, y, w, h];
+}
+
+let lastFrame = performance.now();
+function render(now) {
+  const dt = Math.min(0.05, (now - lastFrame) / 1000); lastFrame = now;
+  const c = S.ctl, inj = S.inj;
+  ctx.clearRect(0, 0, W, Hh);
+  const rm = R.room, rx = X(rm.x), ry = Y(rm.y), rw = Dd(rm.w), rh = Dd(rm.h), wt = 10;
+
+  // dimension strings
+  ctx.save(); ctx.strokeStyle = 'rgba(56,189,248,.45)'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(rx, ry - 24); ctx.lineTo(rx + rw, ry - 24); ctx.moveTo(rx - 24, ry); ctx.lineTo(rx - 24, ry + rh); ctx.stroke();
+  ctx.setLineDash([]);
+  [[rx, ry - 30, rx, ry - 16], [rx + rw, ry - 30, rx + rw, ry - 16], [rx - 30, ry, rx - 16, ry], [rx - 30, ry + rh, rx - 16, ry + rh]].forEach(([a, b, c2, d]) => { ctx.beginPath(); ctx.moveTo(a, b); ctx.lineTo(c2, d); ctx.stroke(); });
+  lbl(`14'-0" [4.27 m]`, rx + rw / 2, ry - 28, '#38bdf8', 'center');
+  ctx.translate(rx - 28, ry + rh / 2); ctx.rotate(-Math.PI / 2); lbl(`14'-0" [4.27 m]`, 0, 0, '#38bdf8', 'center'); ctx.restore();
+
+  // floor + temperature tint
+  ctx.fillStyle = '#08172e'; ctx.fillRect(rx, ry, rw, rh);
+  const dev = S.T - c.sp;
+  ctx.fillStyle = dev > 0 ? `rgba(239,68,68,${Math.min(.28, dev * .05)})` : `rgba(59,130,246,${Math.min(.28, -dev * .05)})`;
+  ctx.fillRect(rx, ry, rw, rh);
+
+  // walls with hatch
+  ctx.save(); ctx.beginPath(); ctx.rect(rx - wt, ry - wt, rw + 2 * wt, rh + 2 * wt); ctx.rect(rx, ry, rw, rh); ctx.clip('evenodd');
+  ctx.fillStyle = '#0c2141'; ctx.fillRect(rx - wt, ry - wt, rw + 2 * wt, rh + 2 * wt);
+  ctx.strokeStyle = 'rgba(56,189,248,.35)'; ctx.lineWidth = 1;
+  for (let i = -rh; i < rw + rh; i += 9) { ctx.beginPath(); ctx.moveTo(rx - wt + i, ry - wt); ctx.lineTo(rx - wt + i - rh - 2 * wt, ry + rh + wt); ctx.stroke(); }
+  ctx.restore();
+  ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.2; ctx.strokeRect(rx - wt, ry - wt, rw + 2 * wt, rh + 2 * wt);
+  ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 1.4; ctx.strokeRect(rx, ry, rw, rh);
+
+  // door opening + swing
+  const dy = Y(R.door.y), dh = Dd(R.door.h);
+  ctx.fillStyle = '#08172e'; ctx.fillRect(rx - wt - 2, dy, wt + 4, dh);
+  ctx.strokeStyle = 'rgba(56,189,248,.6)'; ctx.lineWidth = 1.1; ctx.setLineDash([3, 3]);
+  ctx.beginPath(); ctx.arc(rx, dy + dh, dh, -Math.PI / 2, 0); ctx.stroke(); ctx.setLineDash([]);
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(rx, dy + dh); ctx.lineTo(rx + dh, dy + dh); ctx.stroke();
+  lbl('DR-01 36"', rx + 6, dy + dh - 6, '#94a3b8', 'left', 8);
+
+  // window (shaded bar as in sketch)
+  const [wx, wy, ww, wh] = rect(R.window, inj.window ? 'rgba(56,189,248,.30)' : '#0f294d', inj.window ? '#00e5ff' : '#ffffff', 2);
+  ctx.save(); ctx.beginPath(); ctx.rect(wx, wy, ww, wh); ctx.clip();
+  ctx.strokeStyle = inj.window ? 'rgba(0,229,255,.5)' : 'rgba(148,197,255,.5)'; ctx.lineWidth = 1.1;
+  for (let i = -wh; i < ww + wh; i += 6) { ctx.beginPath(); ctx.moveTo(wx + i, wy + wh); ctx.lineTo(wx + i + wh, wy); ctx.stroke(); }
+  ctx.restore();
+  if (inj.window) { // sash open + infiltration arrows
+    ctx.fillStyle = '#08172e'; ctx.fillRect(wx + ww * .55, wy + 1, ww * .4, wh - 2);
+    ctx.strokeStyle = '#00e5ff'; ctx.lineWidth = 1.4;
+    for (let i = 0; i < 6; i++) { const ax = wx + ww * (.58 + i * .065), t = ((now / 900) + i * .17) % 1, ay = wy - 6 - t * 40;
+      ctx.globalAlpha = 1 - t; ctx.beginPath(); ctx.moveTo(ax, ay + 10); ctx.lineTo(ax, ay); ctx.lineTo(ax - 3, ay + 4); ctx.moveTo(ax, ay); ctx.lineTo(ax + 3, ay + 4); ctx.stroke(); }
+    ctx.globalAlpha = 1;
+  }
+  lbl(inj.window ? 'WIN-01  OPEN - CONTACT SENSOR TRIPPED' : 'WIN-01  72" INSULATED WINDOW', wx + ww / 2, wy - 6, inj.window ? '#00e5ff' : '#7dd3fc', 'center', 8);
+  ctx.fillStyle = inj.window ? '#ef4444' : '#10b981'; ctx.fillRect(wx + ww - 6, wy - 3, 5, 5); // contact sensor
+
+  // OA damper
+  const [qx, qy, qw, qh] = rect(R.damper, '#0b203d', c.smokeLock ? '#ef4444' : S.damperAct > 5 ? '#00e5ff' : '#38bdf8', 1.6);
+  ctx.save(); ctx.translate(qx + qw / 2, qy + qh / 2); ctx.rotate((1 - S.damperAct / 100) * Math.PI / 2);
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-qh * .45, 0); ctx.lineTo(qh * .45, 0); ctx.stroke(); ctx.restore();
+  if (S.damperAct > 5) { ctx.strokeStyle = inj.smoke ? '#94a3b8' : '#00e5ff'; ctx.lineWidth = 1.2;
+    for (let i = 0; i < 3; i++) { const t = ((now / 700) + i / 3) % 1, ax = qx + qw * (.25 + i * .25), ay = qy - t * 30 * S.damperAct / 100;
+      ctx.globalAlpha = 1 - t; ctx.beginPath(); ctx.moveTo(ax, ay + 8); ctx.lineTo(ax, ay); ctx.lineTo(ax - 3, ay + 4); ctx.moveTo(ax, ay); ctx.lineTo(ax + 3, ay + 4); ctx.stroke(); }
+    ctx.globalAlpha = 1; }
+  lbl(`OA DMPR ${f0(S.damperAct)}%${c.smokeLock ? ' LOCK' : ''}`, qx + qw / 2, qy + qh + 11, c.smokeLock ? '#ef4444' : '#7dd3fc', 'center', 8);
+
+  // bed
+  const [bx, by, bw, bh] = rect(R.bed, '#0e2342', '#fff', 2);
+  ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 1.4;
+  ctx.strokeRect(bx + bw * .07, by + bh * .05, bw * .4, bh * .18); ctx.strokeRect(bx + bw * .53, by + bh * .05, bw * .4, bh * .18);
+  const wv = by + bh * .33; ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(bx, wv);
+  ctx.bezierCurveTo(bx + bw * .25, wv + 12, bx + bw * .35, wv - 8, bx + bw * .62, wv + 12); ctx.bezierCurveTo(bx + bw * .85, wv - 6, bx + bw * .95, wv + 4, bx + bw, wv); ctx.stroke();
+  lbl('QUEEN BED - OCCUPANCY ZONE', bx + bw / 2, by + bh * .68, '#7dd3fc', 'center');
+  lbl(`FEELS LIKE ${fF(apparentTemp(S.T, S.RH, S.vel))} F`, bx + bw / 2, by + bh * .68 + 13, c.heatEmerg ? '#ef4444' : '#94a3b8', 'center', 8);
+
+  // nightstand + lamp
+  const [nx, ny, nw, nh] = rect(R.nightstand, '#0f2444', '#fff', 1.4);
+  ctx.strokeStyle = '#fbbf24'; ctx.beginPath(); ctx.arc(nx + nw / 2, ny + nh / 2, Math.min(nw, nh) * .3, 0, Math.PI * 2); ctx.stroke();
+
+  // desk / workstation
+  const [dx, dyy, dw, dh2] = rect(R.desk, '#0e2342', inj.surge ? '#fbbf24' : '#fff', 2);
+  if (S.plugs.wrk > 120) { const g = ctx.createRadialGradient(dx + dw / 2, dyy + dh2 / 2, 5, dx + dw / 2, dyy + dh2 / 2, dw * 1.4);
+    g.addColorStop(0, `rgba(251,146,60,${clamp((S.plugs.wrk - 95) / 600, 0, .45)})`); g.addColorStop(1, 'rgba(251,146,60,0)'); ctx.fillStyle = g; ctx.fillRect(dx - dw, dyy - dw * .5, dw * 3, dh2 + dw); }
+  ctx.fillStyle = '#1e3a66'; ctx.fillRect(dx + dw * .62, dyy + dh2 * .2, dw * .2, dh2 * .55); ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 1.4; ctx.strokeRect(dx + dw * .62, dyy + dh2 * .2, dw * .2, dh2 * .55);
+  ctx.strokeRect(dx + dw * .32, dyy + dh2 * .3, dw * .16, dh2 * .4);
+  ctx.fillStyle = '#09182d'; ctx.fillRect(dx + dw * .08, dyy + dh2 * .06, dw * .35, dh2 * .15); ctx.strokeStyle = '#00e5ff'; ctx.strokeRect(dx + dw * .08, dyy + dh2 * .06, dw * .35, dh2 * .15);
+  ctx.fillStyle = inj.surge ? '#ef4444' : '#00e5ff'; ctx.beginPath(); ctx.arc(dx + dw * .15, dyy + dh2 * .13, 2.5, 0, Math.PI * 2); ctx.fill();
+  const chx = dx - dw * .25, chy = dyy + dh2 * .5; ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(chx, chy, 14, -Math.PI / 2, Math.PI / 2); ctx.stroke();
+  for (let a = -Math.PI / 2; a <= Math.PI / 2 + .01; a += Math.PI / 4) { ctx.beginPath(); ctx.moveTo(chx + Math.cos(a) * 14, chy + Math.sin(a) * 14); ctx.lineTo(chx + Math.cos(a) * 20, chy + Math.sin(a) * 20); ctx.stroke(); }
+  lbl(`WRK-01 ${f0(S.plugs.wrk)} W`, dx + dw - 4, dyy + dh2 - 6, inj.surge ? '#fbbf24' : '#7dd3fc', 'right', 8);
+
+  // side table
+  const [tx, ty, tw, th] = rect(R.table, '#0e2342', '#fff', 1.4);
+  ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.arc(tx + tw * .4, ty + th * .5, 6, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.arc(tx + tw * .72, ty + th * .5, 5, 0, Math.PI * 2); ctx.stroke();
+  lbl('TBL-02', tx + 4, ty + th - 4, '#94a3b8', 'left', 8);
+
+  // TV console
+  const tvOn = !c.shed;
+  const [ex, ey, ew, eh] = rect(R.tvc, '#0e2342', '#fff', 1.8);
+  ctx.fillStyle = tvOn ? '#1e3a66' : '#0a1528'; ctx.fillRect(ex + ew * .45, ey + eh * .12, ew * .35, eh * .76);
+  ctx.strokeStyle = tvOn ? '#38bdf8' : '#475569'; ctx.lineWidth = 1.4; ctx.strokeRect(ex + ew * .45, ey + eh * .12, ew * .35, eh * .76);
+  ctx.beginPath(); ctx.arc(ex + ew * .2, ey + eh * .3, 4, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.arc(ex + ew * .2, ey + eh * .7, 4, 0, Math.PI * 2); ctx.stroke();
+  lbl(tvOn ? 'ENT-01 45 W' : 'ENT-01 SHED', ex + 5, ey + eh - 6, tvOn ? '#cbd5e1' : '#f59e0b', 'left', 8);
+
+  // AHU in mechanical closet
+  const [ax, ay, aw, ah] = rect(R.ahu, '#0f2444', c.blowerFault ? '#ef4444' : '#fff', 1.6);
+  ctx.strokeStyle = 'rgba(56,189,248,.35)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(ax + aw, ay + ah); ctx.moveTo(ax + aw, ay); ctx.lineTo(ax, ay + ah); ctx.stroke();
+  const fx = ax + aw / 2, fy = ay + ah * .28, fr = Math.min(aw, ah) * .32;
+  ctx.fillStyle = '#0b1b34'; ctx.beginPath(); ctx.arc(fx, fy, fr + 2, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = c.blowerFault ? '#ef4444' : '#a78bfa'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(fx, fy, fr, 0, Math.PI * 2); ctx.stroke();
+  S.fanAng = (S.fanAng || 0) + dt * S.fanAct * .25;
+  for (let i = 0; i < 4; i++) { const a = S.fanAng + i * Math.PI / 2; ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx + Math.cos(a) * fr * .85, fy + Math.sin(a) * fr * .85); ctx.stroke(); }
+  ctx.fillStyle = 'rgba(8,23,46,.85)'; ctx.fillRect(ax + 2, ay + ah * .5, aw - 4, ah * .48);
+  lbl('AHU-01', ax + aw / 2, ay + ah * .58, '#fff', 'center', 8, true);
+  lbl(`FAN ${f0(S.fanAct)}%`, ax + aw / 2, ay + ah * .70, c.blowerFault ? '#ef4444' : '#c4b5fd', 'center', 8);
+  lbl(`CMP ${f0(c.comp)}%`, ax + aw / 2, ay + ah * .81, '#60a5fa', 'center', 8);
+  lbl(`HTR ${f0(c.heat)}%`, ax + aw / 2, ay + ah * .92, '#f87171', 'center', 8);
+
+  // ceiling ductwork (dashed hidden lines) + flow particles
+  const flowSpeed = S.vel / P.vMax;
+  const supCol = c.comp > 0 ? '#60a5fa' : c.heat > 0 ? '#f87171' : '#94a3b8';
+  const retCol = c.clogLevel ? '#f59e0b' : '#94a3b8';
+  [['sup', supCol], ['ret', retCol]].forEach(([k, col]) => {
+    const p = DUCT[k];
+    ctx.strokeStyle = 'rgba(56,189,248,.10)'; ctx.lineWidth = Dd(.024); ctx.lineJoin = 'round';
+    ctx.beginPath(); p.forEach((q, i) => i ? ctx.lineTo(X(q[0]), Y(q[1])) : ctx.moveTo(X(q[0]), Y(q[1]))); ctx.stroke();
+    ctx.strokeStyle = 'rgba(148,197,255,.55)'; ctx.lineWidth = 1; ctx.setLineDash([6, 4]); ctx.stroke(); ctx.setLineDash([]);
+    parts[k] = parts[k].map(s => (s + dt * .18 * flowSpeed) % 1);
+    ctx.fillStyle = col; parts[k].forEach(s => { const [px, py] = along(p, s); ctx.globalAlpha = .85; ctx.beginPath(); ctx.arc(px, py, 2, 0, Math.PI * 2); ctx.fill(); });
+    ctx.globalAlpha = 1;
+  });
+  lbl('SA DUCT', X(.30), Y(.545) - 6, '#7dd3fc', 'left', 8); lbl('RA DUCT', X(.30), Y(.645) + 12, '#7dd3fc', 'left', 8);
+
+  // supply diffuser + room throw
+  const [sx, sy, sw, sh] = rect(R.supply, '#091e3b', c.purge ? '#00e5ff' : '#38bdf8', 1.8);
+  ctx.strokeStyle = 'rgba(56,189,248,.6)'; ctx.lineWidth = 1;
+  for (let i = 1; i < 4; i++) { ctx.strokeRect(sx + sw * i * .12, sy + sh * i * .12, sw * (1 - i * .24), sh * (1 - i * .24)); }
+  const scx = sx + sw / 2, scy = sy + sh / 2;
+  diffuse.forEach(p => { p.r += dt * .35 * p.sp * (0.2 + flowSpeed); if (p.r > 1) { p.r = 0; p.a = Math.random() * Math.PI * 2; }
+    const rr = 10 + p.r * Dd(.16) * (0.3 + flowSpeed); ctx.globalAlpha = (1 - p.r) * .7 * Math.min(1, flowSpeed * 3); ctx.fillStyle = supCol;
+    ctx.beginPath(); ctx.arc(scx + Math.cos(p.a) * rr, scy + Math.sin(p.a) * rr * .8, 1.6, 0, Math.PI * 2); ctx.fill(); });
+  ctx.globalAlpha = 1;
+  lbl(`SUPPLY DIFFUSER  SA ${fF(S.SAT)} F`, scx, sy - 5, '#7dd3fc', 'center', 8);
+
+  // return grille + filter + FS3000
+  const filtCol = S.filterH < .4 ? '#ef4444' : S.filterH < .7 ? '#f59e0b' : '#10b981';
+  const [gx, gy, gw, gh] = rect(R.ret, c.clogLevel ? 'rgba(245,158,11,.12)' : '#091e3b', c.clogLevel === 2 ? '#ef4444' : c.clogLevel ? '#f59e0b' : '#38bdf8', 1.8);
+  ctx.strokeStyle = filtCol; ctx.lineWidth = 1; ctx.setLineDash([2, 2]);
+  for (let yy = 4; yy < gh; yy += 4) { ctx.beginPath(); ctx.moveTo(gx + 3, gy + yy); ctx.lineTo(gx + gw - 3, gy + yy); ctx.stroke(); }
+  ctx.setLineDash([]);
+  ctx.fillStyle = `rgba(120,90,40,${(1 - S.filterH) * .7})`; ctx.fillRect(gx + 1, gy + 1, gw - 2, gh - 2); // dust loading
+  ctx.fillStyle = '#00e5ff'; ctx.beginPath(); ctx.arc(gx + gw * .85, gy + gh / 2, 3.5, 0, Math.PI * 2); ctx.fill();
+  lbl(`RETURN + FS3000  ${f2(S.vel)} m/s`, gx + gw / 2, gy + gh + 11, c.clogLevel ? '#f59e0b' : '#7dd3fc', 'center', 8);
+  lbl(`FILTER ${f0(S.filterH * 100)}%  dP ${f0(S.dP)} Pa`, gx + gw / 2, gy + gh + 21, filtCol, 'center', 8);
+
+  // pollutant hazes
+  if (S.VOC > 250) blobs.slice(0, 14).forEach(b => { ctx.fillStyle = `rgba(245,158,11,${clamp((S.VOC - 250) / 2000, 0, .12)})`;
+    ctx.beginPath(); ctx.arc(X(b.x + Math.sin(now / 2000 + b.ph) * .01), Y(b.y), Dd(b.r), 0, Math.PI * 2); ctx.fill(); });
+  if (S.PM > 10) blobs.slice(12).forEach(b => { ctx.fillStyle = `rgba(160,170,185,${clamp((S.PM - 10) / 200, 0, .16)})`;
+    ctx.beginPath(); ctx.arc(X(b.x), Y(b.y + Math.sin(now / 2500 + b.ph) * .01), Dd(b.r), 0, Math.PI * 2); ctx.fill(); });
+
+  // wireless / wired signal links from CTRL-HUB
+  const [hx, hy] = ctr(R.thermostat);
+  const links = [['iaq', R.iaq], ['tsb', R.tsb], ['ahu', R.ahu], ['damper', R.damper], ['window', { x: R.window.x + R.window.w - .01, y: R.window.y, w: .01, h: .01 }],
+                 ['desk', R.plugDesk], ['tv', R.plugTv], ['ret', R.ret]];
+  const alive = controllerAlive();
+  links.forEach(([k, o], i) => {
+    const [tx2, ty2] = ctr(o);
+    const bad = Object.values(S.diag).some(f => f.target === k && f.sev !== 'info');
+    ctx.strokeStyle = bad ? 'rgba(239,68,68,.45)' : 'rgba(0,229,255,.16)'; ctx.lineWidth = 1; ctx.setLineDash([1, 4]);
+    ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(tx2, ty2); ctx.stroke(); ctx.setLineDash([]);
+    if (alive) { const t = ((now / 1600) + i * .137) % 1; ctx.fillStyle = bad ? '#ef4444' : '#00e5ff';
+      ctx.beginPath(); ctx.arc(lerp(hx, tx2, t), lerp(hy, ty2, t), 1.8, 0, Math.PI * 2); ctx.fill(); }
+  });
+
+  // devices
+  const [ix, iy, iw, ih] = rect(R.iaq, '#0b203d', c.purge || c.smokeLock ? '#f59e0b' : '#38bdf8', 1.6);
+  ctx.fillStyle = S.VOC > 350 || S.PM > 25 ? '#ef4444' : S.VOC > 220 || S.PM > 12 ? '#f59e0b' : '#10b981';
+  ctx.beginPath(); ctx.arc(ix + iw / 2, iy + ih / 2, 3.5, 0, Math.PI * 2); ctx.fill();
+  lbl(`IAQ VOC ${f0(S.VOC)} CO2 ${f0(S.CO2)} PM ${f0(S.PM)}`, ix + iw / 2, iy + ih + 11, c.purge || c.smokeLock ? '#f59e0b' : '#7dd3fc', 'center', 8);
+  const [bx2, by2, bw2, bh2] = rect(R.tsb, '#0b203d', '#38bdf8', 1.4);
+  lbl(`TS-B ${f1(S.sensB)}`, bx2 + bw2 / 2, by2 + bh2 + 22, '#7dd3fc', 'center', 8);
+  [[R.plugDesk, S.plugs.wrk, true], [R.plugTv, S.plugs.tv, tvOn]].forEach(([o, w, on]) => {
+    const [px, py, pw2, ph] = rect(o, on ? '#fbbf24' : '#475569', null);
+    ctx.strokeStyle = 'rgba(251,191,36,.4)'; ctx.setLineDash([2, 2]); ctx.beginPath(); ctx.moveTo(px, py + ph / 2); ctx.lineTo(px - Dd(.02), py + ph / 2); ctx.stroke(); ctx.setLineDash([]);
+    lbl(on ? `${f0(w)}W` : 'OFF', px + pw2 + 3, py + ph / 2 + 3, on ? '#fbbf24' : '#f59e0b', 'left', 8);
+  });
+
+  // thermostat / dual-MCU hub
+  const [cx2, cy2, cw, ch] = rect(R.thermostat, '#0b203d', S.mcu.a !== 'RUN' ? '#ef4444' : '#00e5ff', 1.8);
+  const chipW = cw * .36, chipH = ch * .6;
+  ctx.fillStyle = S.mcu.a === 'RUN' ? '#10b981' : S.mcu.a === 'SYNC' ? '#f59e0b' : ((now / 250 | 0) % 2 ? '#ef4444' : '#7f1d1d'); ctx.fillRect(cx2 + 3, cy2 + ch * .2, chipW, chipH);
+  ctx.fillStyle = S.mcu.b === 'ACTIVE' ? '#10b981' : '#f59e0b'; ctx.fillRect(cx2 + cw - chipW - 3, cy2 + ch * .2, chipW, chipH);
+  lbl('A', cx2 + 3 + chipW / 2, cy2 + ch * .2 + chipH - 2, '#06142a', 'center', 7, true); lbl('B', cx2 + cw - 3 - chipW / 2, cy2 + ch * .2 + chipH - 2, '#06142a', 'center', 7, true);
+  lbl(`CTRL-HUB  MCU-${S.mcu.active}`, cx2 + cw + 6, cy2 + 9, S.mcu.a !== 'RUN' ? '#ef4444' : '#00e5ff', 'left', 8, true);
+  lbl(`TS-A ${f1(S.sensA)}${c.sensorAOk ? '' : ' X'}  ${alive ? c.mode : 'FAILOVER'}`, cx2 + cw + 6, cy2 + 20, c.sensorAOk ? '#7dd3fc' : '#f59e0b', 'left', 8);
+
+  // fault markers + callouts
+  const pulse = (Math.sin(now / 180) + 1) / 2, perT = {};
+  const entries = Object.entries(S.diag).sort((a, b) => SEVRANK[b[1].sev] - SEVRANK[a[1].sev]);
+  entries.forEach(([code, f]) => {
+    const o = TGT[f.target]; if (!o) return;
+    const [mx, my] = ctr(o), idx = perT[f.target] = (perT[f.target] === undefined ? 0 : perT[f.target] + 1);
+    const col = f.sev === 'crit' ? '#ef4444' : f.sev === 'warn' ? '#f59e0b' : '#38bdf8';
+    if (idx === 0) {
+      ctx.strokeStyle = col; ctx.lineWidth = 1.6; ctx.setLineDash([4, 3]);
+      ctx.beginPath(); ctx.arc(mx, my, 18 + pulse * 10, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+      ctx.globalAlpha = .4 + .4 * (1 - pulse); ctx.beginPath(); ctx.arc(mx, my, 30 + pulse * 14, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1;
+      ctx.beginPath(); ctx.moveTo(mx - 40, my); ctx.lineTo(mx - 24, my); ctx.moveTo(mx + 24, my); ctx.lineTo(mx + 40, my);
+      ctx.moveTo(mx, my - 40); ctx.lineTo(mx, my - 24); ctx.moveTo(mx, my + 24); ctx.lineTo(mx, my + 40); ctx.stroke();
+    }
+    let vx = X(.5) - mx, vy = Y(.5) - my; const L = Math.hypot(vx, vy) || 1; vx /= L; vy /= L;
+    const t1 = `${code} ${f.title}`, t2 = f.short || '';
+    ctx.font = `bold 9px ${MONO}`; const bw3 = Math.max(ctx.measureText(t1).width, ctx.measureText(t2).width) + 14, bh3 = 28;
+    let lx = mx + vx * 75, ly = my + vy * 75 + idx * (bh3 + 4);
+    let boxX = vx < 0 ? lx - bw3 : lx; boxX = clamp(boxX, 4, W - bw3 - 4); ly = clamp(ly, 44, Hh - 100);
+    ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(mx + vx * 20, my + vy * 20); ctx.lineTo(vx < 0 ? boxX + bw3 : boxX, ly + bh3 / 2); ctx.stroke();
+    ctx.fillStyle = 'rgba(7,18,36,.95)'; ctx.fillRect(boxX, ly, bw3, bh3); ctx.strokeRect(boxX, ly, bw3, bh3);
+    ctx.fillStyle = col; ctx.fillRect(boxX, ly, 3, bh3);
+    lbl(t1, boxX + 8, ly + 12, col, 'left', 9, true); lbl(t2, boxX + 8, ly + 23, '#cbd5e1', 'left', 8);
+  });
+  // injected but not yet detected
+  Object.entries(S.inj).forEach(([id, on]) => {
+    if (!on) return; const [code, tk] = INJ_MAP[id];
+    let diag = code ? S.diag[code] : null;
+    if (id === 'heatwave' && S.ctl.heatEmerg) diag = S.diag['E-403'];
+    const [mx, my] = ctr(TGT[tk]);
+    ctx.strokeStyle = diag ? (diag.sev === 'crit' ? '#ef4444' : diag.sev === 'warn' ? '#f59e0b' : '#38bdf8') : 'rgba(203,213,225,.6)';
+    ctx.setLineDash([2, 4]); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(mx, my, 26, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+    
+    if (diag) {
+      lbl(`DETECTED: ${diag.title}`, mx, my - 44, ctx.strokeStyle, 'center', 8, true);
+      const words = diag.act.split(' ');
+      let line = 'SOLVING: ', y = my - 32;
+      for (let w of words) {
+        if (line.length + w.length > 36) { lbl(line, mx, y, '#cbd5e1', 'center', 8); line = w + ' '; y += 11; }
+        else line += w + ' ';
+      }
+      lbl(line, mx, y, '#cbd5e1', 'center', 8);
+    } else {
+      lbl(id === 'heatwave' ? `OUTDOOR HEATWAVE ${fF(S.Tout)} F` : `INJECTED: ${FAULT_NAME[id].toUpperCase()} - DETECTING...`, mx, my - 32, '#cbd5e1', 'center', 8);
+    }
+  });
+
+  // inspect highlight
+  if (S.inspect && now < S.inspectUntil) { const o = DEV[S.inspect].o;
+    ctx.strokeStyle = '#00e5ff'; ctx.lineWidth = 2; ctx.setLineDash([6, 3]); ctx.strokeRect(X(o.x) - 5, Y(o.y) - 5, Dd(o.w) + 10, Dd(o.h) + 10); ctx.setLineDash([]); }
+
+  // title block
+  lbl('SHEET M-101  HVAC CONTROLS PLAN', W - 14, Hh - 72, 'rgba(125,211,252,.55)', 'right', 9, true);
+  requestAnimationFrame(render);
+}
+
+/* =====================================================================
+   15. BOOT
+   ===================================================================== */
+buildFaultUI(); readSliders(); resize();
+for (let i = 0; i < HLEN * 5; i++) tick();   // warm-up: fill telemetry history quietly
+S.kWh = 0; S.quiet = false;
+// optional test hook: #inject=clog,mcu&warm=200&tab=airflow
+(() => {
+  const q = new URLSearchParams(location.hash.slice(1));
+  if (q.get('speed')) { $('sSpd').value = q.get('speed'); readSliders(); }
+  (q.get('inject') || '').split(',').filter(Boolean).forEach(id => setFault(id, true));
+  const warm = +q.get('warm') || 0; for (let i = 0; i < warm; i++) tick();
+  if (q.get('tab')) { const b = document.querySelector(`.tab[data-v="${q.get('tab')}"]`); if (b) { document.querySelectorAll('.tab').forEach(x => x.classList.remove('on')); b.classList.add('on'); view = b.dataset.v; } }
+})();
+log('ok', 'MCU-B hot standby: heartbeat mirror active, watchdog armed (1.6 s).');
+log('ok', 'FS3000 airflow baseline captured. TS-A / TS-B cross-check enabled.');
+log('', 'ESP32 boot complete. Split-range PID: Kp=55 %/C, Ki=0.02 %/(C s), smart-plug feed-forward ON.');
+buildChart(); updateCards(); updatePanel();
+setInterval(tick, 200);
+requestAnimationFrame(render);
+</script>
+</body>
+</html>
