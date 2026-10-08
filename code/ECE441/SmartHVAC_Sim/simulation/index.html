@@ -498,3 +498,103 @@ function diagnose(alive) {
          m.a === 'SYNC' ? 'MCU-A rebooted, synchronizing state from MCU-B.' : `MCU-A in boot loop (reboot attempts: ${m.rebootTry}).`,
     act: m.active === 'B' ? `MCU-B in control (failover ${m.failMs} ms). PID state transferred bumplessly.` : 'Awaiting watchdog failover to MCU-B...' };
   if (!alive) { for (const k in S.diag) if (k !== 'E-201') d[k] = S.diag[k]; return d; }
+
+  if (!c.sensorAOk) d['E-202'] = { sev: 'warn', title: 'TEMP SENSOR TS-A FAULT', target: 'thermostat', short: `TS-A ${f1(S.sensA)} / TS-B ${f1(S.sensB)}`,
+    msg: `TS-A reads ${fF(S.sensA)} F, TS-B reads ${fF(S.sensB)} F. Cross-check failed.`, act: 'TS-A voted out. Control loop running on redundant TS-B.' };
+  if (inj.wifi) d['E-203'] = { sev: 'info', title: 'CLOUD LINK LOST', target: 'thermostat', short: `${c.buffered} BUFFERED`,
+    msg: 'MQTT broker unreachable. Remote dashboard offline.', act: `Edge autonomy: local PID unaffected. ${c.buffered} telemetry samples buffered.` };
+  if (c.purge) d['E-101'] = { sev: 'warn', title: 'POOR INDOOR AIR QUALITY', target: 'iaq', short: `VOC ${f0(S.VOC)} CO2 ${f0(S.CO2)}`,
+    msg: `VOC ${f0(S.VOC)} ppb, CO2 ${f0(S.CO2)} ppm.`,
+    act: c.smokeLock ? 'Purge INHIBITED by smoke lockout. Recirculating only.' : 'Ventilation purge: OA damper 100%, blower 85%.' };
+  if (c.smokeLock) d['E-102'] = { sev: 'crit', title: 'OUTDOOR SMOKE / PM2.5', target: 'damper', short: `PM2.5 ${f0(S.PM)}`,
+    msg: `Indoor PM2.5 ${f0(S.PM)} ug/m3, outdoor ${inj.wifi ? 'n/a (offline)' : f0(S.PMout) + ' ug/m3'}.`,
+    act: 'OA damper locked CLOSED. Blower 70% recirculation through MERV-13 filter.' };
+  if (c.clogLevel > 0) d['E-301'] = { sev: c.clogLevel === 2 ? 'crit' : 'warn', title: 'FILTER RESTRICTION', target: 'ret', short: `dP ${f0(S.dP)} Pa`,
+    msg: `FS3000 ${f2(S.vel)} m/s (${f0(c.ratio * 100)}% of expected), static dP ${f0(S.dP)} Pa, filter ~${f0(S.filterH * 100)}%.`,
+    act: c.clogLevel === 2 ? 'Compressor capped 50% (coil freeze protection). Replace filter now.' : `Blower boost +${f0(c.boost)}% to hold airflow. Maintenance alert sent.` };
+  if (c.blowerFault) d['E-302'] = { sev: 'crit', title: 'BLOWER MOTOR FAILURE', target: 'ahu', short: '0 RPM',
+    msg: `Commanded ${f0(c.fanCmd)}% but tach 0 RPM, FS3000 ${f2(S.vel)} m/s.`, act: 'Safety interlock: heater and compressor OFF. Service alert sent.' };
+  if (c.shed) d['E-401'] = { sev: 'warn', title: 'DEMAND LIMIT EXCEEDED', target: 'tv', short: `${f0(S.pw.total)} / ${S.demandLimit} W`,
+    msg: `Total draw ${f0(S.pw.total)} W vs limit ${S.demandLimit} W.`,
+    act: `TV smart plug shed, setpoint +1.8 F${c.compCap < 100 ? `, compressor capped ${f0(c.compCap)}%` : ''}.` };
+  if (c.winTimer > 0) d['E-402'] = { sev: 'warn', title: 'WINDOW OPEN', target: 'window', short: c.winPause ? 'HVAC PAUSED' : c.safety ? 'OVERRIDE' : 'TIMER',
+    msg: `Contact sensor open for ${f1(c.winTimer / 60)} min.`,
+    act: c.safety ? 'Safety override: room outside safe band, HVAC resumed.' : c.winPause ? 'HVAC paused to avoid conditioning outdoors.' : `HVAC pause in ${f0(60 - c.winTimer)} s.` };
+  if (c.heatEmerg) d['E-403'] = { sev: 'crit', title: 'HEAT STRESS RISK', target: 'bed', short: `FEELS ${fF(c.AT)} F`,
+    msg: `Room ${fF(c.Tctl)} F, feels like ${fF(c.AT)} F.`,
+    act: (c.blowerFault ? 'Cooling unavailable (blower interlock). ' : 'Max cooling. ') + (inj.wifi ? 'Caregiver alert QUEUED (offline), local alarm ON.' : 'Push alert sent to caregiver.') };
+  if (c.ff > 1) d['E-404'] = { sev: 'info', title: 'HIGH PLUG LOAD', target: 'desk', short: `${f0(S.plugs.wrk)} W`,
+    msg: `Workstation smart plug reports ${f0(S.plugs.wrk)} W.`, act: `Feed-forward +${f1(c.ff)}% cooling ahead of temperature rise.` };
+  return d;
+}
+const SEVRANK = { crit: 3, warn: 2, info: 1 };
+function diffDiag(d) {
+  for (const k in d) {
+    const o = S.diag[k];
+    if (!o) {
+      toast(d[k].sev, 'ESP32 FAULT DETECTED', `${k}  ${d[k].title}`, d[k].msg, 'RESPONSE: ' + d[k].act);
+      log(d[k].sev, `${k} DETECTED: ${d[k].title}. ${d[k].act}`);
+    } else if (SEVRANK[d[k].sev] > SEVRANK[o.sev]) {
+      toast(d[k].sev, 'FAULT ESCALATED', `${k}  ${d[k].title}`, d[k].msg, 'RESPONSE: ' + d[k].act);
+    }
+  }
+  for (const k in S.diag) if (!d[k]) {
+    toast('ok', 'FAULT CLEARED', `${k}  ${S.diag[k].title}`, 'Condition resolved. Normal control resumed.', '');
+    log('ok', `${k} CLEARED: ${S.diag[k].title}.`);
+  }
+  S.diag = d;
+}
+
+/* =====================================================================
+   10. TELEMETRY BUFFERS + FORECAST
+   ===================================================================== */
+const HLEN = 150;
+const H = { lab: [], comp: [], heat: [], fan: [], plugs: [], ctrl: [], limit: [], T: [], TA: [], TB: [], SP: [], AT: [], Tout: [],
+            vel: [], fanCmd: [], fanAct: [], filt: [], dP: [], voc: [], co2: [], pm: [], dmp: [] };
+const F = { lab: [], W: [], To: [], kWh: 0, peakW: 0, peakT: '', avgTo: 0 };
+function push(a, v) { a.push(v); if (a.length > HLEN) a.shift(); }
+function sample() {
+  const c = S.ctl;
+  push(H.lab, clockStr(S.t).slice(0, 5));
+  push(H.comp, +f1(S.pw.comp)); push(H.heat, +f1(S.pw.heat)); push(H.fan, +f1(S.pw.fan));
+  push(H.plugs, +f1(S.pw.plugs)); push(H.ctrl, +f2(S.pw.ctrl)); push(H.limit, S.demandLimit);
+  push(H.T, +f2(S.T)); push(H.TA, +f2(S.sensA)); push(H.TB, +f2(S.sensB)); push(H.SP, c.sp);
+  push(H.AT, +f2(apparentTemp(S.T, S.RH, S.vel))); push(H.Tout, +f2(S.Tout));
+  push(H.vel, +f2(S.vel)); push(H.fanCmd, +f1(c.fanCmd)); push(H.fanAct, +f1(S.fanAct)); push(H.filt, +f1(S.filterH * 100)); push(H.dP, +f0(S.dP));
+  push(H.voc, +f0(S.VOC)); push(H.co2, +f0(S.CO2)); push(H.pm, +f1(S.PM)); push(H.dmp, +f0(S.damperAct));
+  if (S.inj.wifi) c.buffered++;
+  forecast();
+}
+function forecast() {
+  // 6 h ahead in 15 min steps: diurnal outdoor model + envelope load + current plug loads
+  const c = S.ctl, inj = S.inj;
+  const di = t => 4 * Math.cos((t / 3600 - 15) / 24 * 2 * Math.PI);
+  const off = S.Tout - di(S.t);
+  const sp = S.setpoint + (c.shed ? 1 : 0);
+  const UAeff = P.UA + (inj.window && !c.winPause ? P.UAwin : 0) + P.kVent * ((inj.window ? 6 : 0.4) + S.damperAct / 100 * 4);
+  F.lab.length = 0; F.W.length = 0; F.To.length = 0; F.kWh = 0; F.peakW = 0; let sumTo = 0;
+  for (let i = 1; i <= 24; i++) {
+    const t = S.t + i * 900, To = off + di(t);
+    const Q = UAeff * (To - sp) + S.pw.plugs * 0.95 + 95;
+    let hv = Q > 0 ? Q / P.COP : -Q;
+    const duty = clamp(Math.abs(Q) / (Q > 0 ? P.capCool : P.capHeat) * 100, 0, 100);
+    let fanW = P.fanMax * Math.pow((30 + 0.6 * duty) / 100, 3);
+    if (inj.blower) { hv = 0; fanW = 0; }
+    if (c.winPause) hv = 0;
+    const W = hv + fanW + S.pw.plugs + S.pw.ctrl;
+    F.lab.push(clockStr(t).slice(0, 5)); F.W.push(+f0(W)); F.To.push(+f1(To));
+    F.kWh += W * 0.25 / 1000; sumTo += To;
+    if (W > F.peakW) { F.peakW = W; F.peakT = clockStr(t).slice(0, 5); }
+  }
+  F.avgTo = sumTo / 24;
+}
+
+/* =====================================================================
+   11. CHARTS
+   ===================================================================== */
+let chart = null, view = 'power';
+const tick9 = { color: '#7f97b8', font: { family: MONO, size: 9 } };
+const xAxis = () => ({ ticks: Object.assign({ maxTicksLimit: 8, maxRotation: 0 }, tick9), grid: { color: 'rgba(56,189,248,.06)' } });
+const yAxis = (title, o) => Object.assign({ title: { display: true, text: title, color: '#7f97b8', font: { family: MONO, size: 9 } },
+  ticks: Object.assign({ maxTicksLimit: 6 }, tick9), grid: { color: 'rgba(56,189,248,.10)' } }, o || {});
+const ds = (label, data, color, o) => Object.assign({ label, data, borderColor: color, backgroundColor: color + '40', borderWidth: 1.6, pointRadius: 0, tension: .25, fill: false }, o || {});
