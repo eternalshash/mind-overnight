@@ -4,13 +4,13 @@ Welcome to the **Smart HVAC Control** project for ECE 441 (Smart and Connected S
 
 The simulation models real-world thermodynamics, indoor air quality (IAQ), duct airflow dynamics, and power consumption, all autonomously regulated by a custom split-range PID controller.
 
-## 🚀 View the Simulation
+## View the Simulation
 
-**[Click Here to Run the Simulation Live](https://htmlpreview.github.io/?https://github.com/eternalshash/mind-overnight/blob/main/code/ECE441/SmartHVAC_Sim/simulation/index.html)** 
+**[Click Here to Run the Simulation Live](https://raw.githack.com/eternalshash/mind-overnight/main/code/ECE441/SmartHVAC_Sim/simulation/index.html)** 
 
 *(Note: The above link securely renders the raw HTML file directly through your browser so you can view and interact with the simulation without needing to download it or leave GitHub.)*
 
-## 🛠️ How to Interact With It
+## How to Interact With It
 
 The interface is divided into three main sections, designed to look like a 2D architectural CAD blueprint.
 
@@ -27,7 +27,7 @@ The interface is divided into three main sections, designed to look like a 2D ar
    - **Controller Response:** Watch the right side of this panel. You'll see the ESP32's immediate response, actuator outputs (PWM duty cycles), and a scrolling event log detailing the firmware's mitigation strategy.
    - **Sliders:** Adjust the desired thermostat setpoint, outdoor temperature, or energy demand limits using the sliders at the bottom to see how the PID controller adapts.
 
-## 🧠 Core Features Modeled
+## Core Features Modeled
 - **Thermodynamic Mass:** Realistic heat capacity, specific heat of air, and envelope heat transfer.
 - **Fail-Safe Redundancy:** Watchdog timers enable a hot-standby ESP32 (MCU-B) to take over seamlessly if the primary MCU crashes.
 - **Air Quality (IAQ):** Simulates VOC/CO2 buildup requiring ventilation purges, and PM2.5 smoke events requiring damper lockouts and recirculation.
