@@ -42,7 +42,7 @@ git push -u origin your-name/feature-name
 ## 5. Submit a Pull Request (PR)
 1. Go to the [GitHub repository page](https://github.com/eternalshash/mind-overnight) in your browser.
 2. You will see a green button that says **"Compare & pull request"** next to your recently pushed branch. Click it!
-3. **⚠️ CRITICAL:** Change the **"base"** branch dropdown from `main` to `develop`. We want to merge your code into the working branch first for testing!
+3. **CRITICAL:** Change the **"base"** branch dropdown from `main` to `develop`. We want to merge your code into the working branch first for testing!
 4. Add a quick title and description of what you did.
 5. Click **"Create pull request"**.
 
