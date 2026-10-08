@@ -998,3 +998,103 @@ function render(now) {
   const flowSpeed = S.vel / P.vMax;
   const supCol = c.comp > 0 ? '#60a5fa' : c.heat > 0 ? '#f87171' : '#94a3b8';
   const retCol = c.clogLevel ? '#f59e0b' : '#94a3b8';
+  [['sup', supCol], ['ret', retCol]].forEach(([k, col]) => {
+    const p = DUCT[k];
+    ctx.strokeStyle = 'rgba(56,189,248,.10)'; ctx.lineWidth = Dd(.024); ctx.lineJoin = 'round';
+    ctx.beginPath(); p.forEach((q, i) => i ? ctx.lineTo(X(q[0]), Y(q[1])) : ctx.moveTo(X(q[0]), Y(q[1]))); ctx.stroke();
+    ctx.strokeStyle = 'rgba(148,197,255,.55)'; ctx.lineWidth = 1; ctx.setLineDash([6, 4]); ctx.stroke(); ctx.setLineDash([]);
+    parts[k] = parts[k].map(s => (s + dt * .18 * flowSpeed) % 1);
+    ctx.fillStyle = col; parts[k].forEach(s => { const [px, py] = along(p, s); ctx.globalAlpha = .85; ctx.beginPath(); ctx.arc(px, py, 2, 0, Math.PI * 2); ctx.fill(); });
+    ctx.globalAlpha = 1;
+  });
+  lbl('SA DUCT', X(.30), Y(.545) - 6, '#7dd3fc', 'left', 8); lbl('RA DUCT', X(.30), Y(.645) + 12, '#7dd3fc', 'left', 8);
+
+  // supply diffuser + room throw
+  const [sx, sy, sw, sh] = rect(R.supply, '#091e3b', c.purge ? '#00e5ff' : '#38bdf8', 1.8);
+  ctx.strokeStyle = 'rgba(56,189,248,.6)'; ctx.lineWidth = 1;
+  for (let i = 1; i < 4; i++) { ctx.strokeRect(sx + sw * i * .12, sy + sh * i * .12, sw * (1 - i * .24), sh * (1 - i * .24)); }
+  const scx = sx + sw / 2, scy = sy + sh / 2;
+  diffuse.forEach(p => { p.r += dt * .35 * p.sp * (0.2 + flowSpeed); if (p.r > 1) { p.r = 0; p.a = Math.random() * Math.PI * 2; }
+    const rr = 10 + p.r * Dd(.16) * (0.3 + flowSpeed); ctx.globalAlpha = (1 - p.r) * .7 * Math.min(1, flowSpeed * 3); ctx.fillStyle = supCol;
+    ctx.beginPath(); ctx.arc(scx + Math.cos(p.a) * rr, scy + Math.sin(p.a) * rr * .8, 1.6, 0, Math.PI * 2); ctx.fill(); });
+  ctx.globalAlpha = 1;
+  lbl(`SUPPLY DIFFUSER  SA ${fF(S.SAT)} F`, scx, sy - 5, '#7dd3fc', 'center', 8);
+
+  // return grille + filter + FS3000
+  const filtCol = S.filterH < .4 ? '#ef4444' : S.filterH < .7 ? '#f59e0b' : '#10b981';
+  const [gx, gy, gw, gh] = rect(R.ret, c.clogLevel ? 'rgba(245,158,11,.12)' : '#091e3b', c.clogLevel === 2 ? '#ef4444' : c.clogLevel ? '#f59e0b' : '#38bdf8', 1.8);
+  ctx.strokeStyle = filtCol; ctx.lineWidth = 1; ctx.setLineDash([2, 2]);
+  for (let yy = 4; yy < gh; yy += 4) { ctx.beginPath(); ctx.moveTo(gx + 3, gy + yy); ctx.lineTo(gx + gw - 3, gy + yy); ctx.stroke(); }
+  ctx.setLineDash([]);
+  ctx.fillStyle = `rgba(120,90,40,${(1 - S.filterH) * .7})`; ctx.fillRect(gx + 1, gy + 1, gw - 2, gh - 2); // dust loading
+  ctx.fillStyle = '#00e5ff'; ctx.beginPath(); ctx.arc(gx + gw * .85, gy + gh / 2, 3.5, 0, Math.PI * 2); ctx.fill();
+  lbl(`RETURN + FS3000  ${f2(S.vel)} m/s`, gx + gw / 2, gy + gh + 11, c.clogLevel ? '#f59e0b' : '#7dd3fc', 'center', 8);
+  lbl(`FILTER ${f0(S.filterH * 100)}%  dP ${f0(S.dP)} Pa`, gx + gw / 2, gy + gh + 21, filtCol, 'center', 8);
+
+  // pollutant hazes
+  if (S.VOC > 250) blobs.slice(0, 14).forEach(b => { ctx.fillStyle = `rgba(245,158,11,${clamp((S.VOC - 250) / 2000, 0, .12)})`;
+    ctx.beginPath(); ctx.arc(X(b.x + Math.sin(now / 2000 + b.ph) * .01), Y(b.y), Dd(b.r), 0, Math.PI * 2); ctx.fill(); });
+  if (S.PM > 10) blobs.slice(12).forEach(b => { ctx.fillStyle = `rgba(160,170,185,${clamp((S.PM - 10) / 200, 0, .16)})`;
+    ctx.beginPath(); ctx.arc(X(b.x), Y(b.y + Math.sin(now / 2500 + b.ph) * .01), Dd(b.r), 0, Math.PI * 2); ctx.fill(); });
+
+  // wireless / wired signal links from CTRL-HUB
+  const [hx, hy] = ctr(R.thermostat);
+  const links = [['iaq', R.iaq], ['tsb', R.tsb], ['ahu', R.ahu], ['damper', R.damper], ['window', { x: R.window.x + R.window.w - .01, y: R.window.y, w: .01, h: .01 }],
+                 ['desk', R.plugDesk], ['tv', R.plugTv], ['ret', R.ret]];
+  const alive = controllerAlive();
+  links.forEach(([k, o], i) => {
+    const [tx2, ty2] = ctr(o);
+    const bad = Object.values(S.diag).some(f => f.target === k && f.sev !== 'info');
+    ctx.strokeStyle = bad ? 'rgba(239,68,68,.45)' : 'rgba(0,229,255,.16)'; ctx.lineWidth = 1; ctx.setLineDash([1, 4]);
+    ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(tx2, ty2); ctx.stroke(); ctx.setLineDash([]);
+    if (alive) { const t = ((now / 1600) + i * .137) % 1; ctx.fillStyle = bad ? '#ef4444' : '#00e5ff';
+      ctx.beginPath(); ctx.arc(lerp(hx, tx2, t), lerp(hy, ty2, t), 1.8, 0, Math.PI * 2); ctx.fill(); }
+  });
+
+  // devices
+  const [ix, iy, iw, ih] = rect(R.iaq, '#0b203d', c.purge || c.smokeLock ? '#f59e0b' : '#38bdf8', 1.6);
+  ctx.fillStyle = S.VOC > 350 || S.PM > 25 ? '#ef4444' : S.VOC > 220 || S.PM > 12 ? '#f59e0b' : '#10b981';
+  ctx.beginPath(); ctx.arc(ix + iw / 2, iy + ih / 2, 3.5, 0, Math.PI * 2); ctx.fill();
+  lbl(`IAQ VOC ${f0(S.VOC)} CO2 ${f0(S.CO2)} PM ${f0(S.PM)}`, ix + iw / 2, iy + ih + 11, c.purge || c.smokeLock ? '#f59e0b' : '#7dd3fc', 'center', 8);
+  const [bx2, by2, bw2, bh2] = rect(R.tsb, '#0b203d', '#38bdf8', 1.4);
+  lbl(`TS-B ${f1(S.sensB)}`, bx2 + bw2 / 2, by2 + bh2 + 22, '#7dd3fc', 'center', 8);
+  [[R.plugDesk, S.plugs.wrk, true], [R.plugTv, S.plugs.tv, tvOn]].forEach(([o, w, on]) => {
+    const [px, py, pw2, ph] = rect(o, on ? '#fbbf24' : '#475569', null);
+    ctx.strokeStyle = 'rgba(251,191,36,.4)'; ctx.setLineDash([2, 2]); ctx.beginPath(); ctx.moveTo(px, py + ph / 2); ctx.lineTo(px - Dd(.02), py + ph / 2); ctx.stroke(); ctx.setLineDash([]);
+    lbl(on ? `${f0(w)}W` : 'OFF', px + pw2 + 3, py + ph / 2 + 3, on ? '#fbbf24' : '#f59e0b', 'left', 8);
+  });
+
+  // thermostat / dual-MCU hub
+  const [cx2, cy2, cw, ch] = rect(R.thermostat, '#0b203d', S.mcu.a !== 'RUN' ? '#ef4444' : '#00e5ff', 1.8);
+  const chipW = cw * .36, chipH = ch * .6;
+  ctx.fillStyle = S.mcu.a === 'RUN' ? '#10b981' : S.mcu.a === 'SYNC' ? '#f59e0b' : ((now / 250 | 0) % 2 ? '#ef4444' : '#7f1d1d'); ctx.fillRect(cx2 + 3, cy2 + ch * .2, chipW, chipH);
+  ctx.fillStyle = S.mcu.b === 'ACTIVE' ? '#10b981' : '#f59e0b'; ctx.fillRect(cx2 + cw - chipW - 3, cy2 + ch * .2, chipW, chipH);
+  lbl('A', cx2 + 3 + chipW / 2, cy2 + ch * .2 + chipH - 2, '#06142a', 'center', 7, true); lbl('B', cx2 + cw - 3 - chipW / 2, cy2 + ch * .2 + chipH - 2, '#06142a', 'center', 7, true);
+  lbl(`CTRL-HUB  MCU-${S.mcu.active}`, cx2 + cw + 6, cy2 + 9, S.mcu.a !== 'RUN' ? '#ef4444' : '#00e5ff', 'left', 8, true);
+  lbl(`TS-A ${f1(S.sensA)}${c.sensorAOk ? '' : ' X'}  ${alive ? c.mode : 'FAILOVER'}`, cx2 + cw + 6, cy2 + 20, c.sensorAOk ? '#7dd3fc' : '#f59e0b', 'left', 8);
+
+  // fault markers + callouts
+  const pulse = (Math.sin(now / 180) + 1) / 2, perT = {};
+  const entries = Object.entries(S.diag).sort((a, b) => SEVRANK[b[1].sev] - SEVRANK[a[1].sev]);
+  entries.forEach(([code, f]) => {
+    const o = TGT[f.target]; if (!o) return;
+    const [mx, my] = ctr(o), idx = perT[f.target] = (perT[f.target] === undefined ? 0 : perT[f.target] + 1);
+    const col = f.sev === 'crit' ? '#ef4444' : f.sev === 'warn' ? '#f59e0b' : '#38bdf8';
+    if (idx === 0) {
+      ctx.strokeStyle = col; ctx.lineWidth = 1.6; ctx.setLineDash([4, 3]);
+      ctx.beginPath(); ctx.arc(mx, my, 18 + pulse * 10, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+      ctx.globalAlpha = .4 + .4 * (1 - pulse); ctx.beginPath(); ctx.arc(mx, my, 30 + pulse * 14, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1;
+      ctx.beginPath(); ctx.moveTo(mx - 40, my); ctx.lineTo(mx - 24, my); ctx.moveTo(mx + 24, my); ctx.lineTo(mx + 40, my);
+      ctx.moveTo(mx, my - 40); ctx.lineTo(mx, my - 24); ctx.moveTo(mx, my + 24); ctx.lineTo(mx, my + 40); ctx.stroke();
+    }
+    let vx = X(.5) - mx, vy = Y(.5) - my; const L = Math.hypot(vx, vy) || 1; vx /= L; vy /= L;
+    const t1 = `${code} ${f.title}`, t2 = f.short || '';
+    ctx.font = `bold 9px ${MONO}`; const bw3 = Math.max(ctx.measureText(t1).width, ctx.measureText(t2).width) + 14, bh3 = 28;
+    let lx = mx + vx * 75, ly = my + vy * 75 + idx * (bh3 + 4);
+    let boxX = vx < 0 ? lx - bw3 : lx; boxX = clamp(boxX, 4, W - bw3 - 4); ly = clamp(ly, 44, Hh - 100);
+    ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(mx + vx * 20, my + vy * 20); ctx.lineTo(vx < 0 ? boxX + bw3 : boxX, ly + bh3 / 2); ctx.stroke();
+    ctx.fillStyle = 'rgba(7,18,36,.95)'; ctx.fillRect(boxX, ly, bw3, bh3); ctx.strokeRect(boxX, ly, bw3, bh3);
+    ctx.fillStyle = col; ctx.fillRect(boxX, ly, 3, bh3);
+    lbl(t1, boxX + 8, ly + 12, col, 'left', 9, true); lbl(t2, boxX + 8, ly + 23, '#cbd5e1', 'left', 8);
+  });
+  // injected but not yet detected
