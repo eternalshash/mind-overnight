@@ -1,0 +1,57 @@
+name: Auto-Update HVAC Technical Log
+
+on:
+  push:
+    paths:
+      - 'code/ECE441/SmartHVAC_Sim/**'
+    branches:
+      - main
+      - develop
+
+concurrency:
+  group: tech-log-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  update-log:
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install google-genai
+
+      - name: Update Technical Log
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          BEFORE_COMMIT: ${{ github.event.before }}
+          AFTER_COMMIT: ${{ github.event.after }}
+        run: |
+          python3 .github/scripts/update_technical_log.py --range "$BEFORE_COMMIT" "$AFTER_COMMIT"
+
+      - name: Commit and Push Log Update
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add code/ECE441/SmartHVAC_Sim/TECHNICAL_LOG.md
+          if git diff --staged --quiet; then
+            echo "No changes to commit in TECHNICAL_LOG.md."
+          else
+            git commit -m "docs(hvac): auto-update technical log [skip ci]"
+            git push origin ${{ github.ref_name }}
+          fi

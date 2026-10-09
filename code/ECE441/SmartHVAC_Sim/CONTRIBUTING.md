@@ -244,6 +244,28 @@ The repository includes an automated technical assistant powered by **Gemini 3.8
 * **Direct Answer:** Within 30 to 45 seconds, the bot posts a structured technical response with exact code references and wiring tables directly into the comment thread.
 * **Live Reference:** See a working demonstration on [GitHub Issue #1](https://github.com/eternalshash/mind-overnight/issues/1#issuecomment-6082902126).
 
+#### Visual Walkthrough:
+
+Posting the `/ask` command on an Issue or PR:
+![Querying the Assistant via GitHub Issue Comment](simulation/ask_assistant_query.png)
+
+Automated technical response generated with pinout tables and code excerpts:
+![Automated Assistant Technical Response](simulation/ask_assistant_response.png)
+
+Full conversation overview:
+![Live Issue Assistant Demo](simulation/ask_assistant_demo.png)
+
+### Step 8: Automated Engineering Technical Log
+
+To satisfy course requirements emphasizing technical depth and engineering accountability, every push affecting the Smart HVAC subsystem automatically updates our centralized technical log:
+
+* **File Location:** [`TECHNICAL_LOG.md`](TECHNICAL_LOG.md)
+* **Automated Workflow:**
+  * When any team member pushes a commit or merges a PR affecting `code/ECE441/SmartHVAC_Sim/`, GitHub Actions triggers automatically.
+  * The runner inspects the git diff, extracts the author's name, and summarizes the update into a 1 to 2 sentence engineering summary highlighting specific pinouts, control math, or circuit changes.
+  * The entry is prepended to `TECHNICAL_LOG.md` without requiring any manual documentation from the author.
+* **Historical Backfill:** The entire commit history from project initiation through the digital twin buildouts has been backfilled into `TECHNICAL_LOG.md`.
+
 ---
 
 ## 5. Visual Documentation and System Media
