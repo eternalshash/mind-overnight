@@ -5,6 +5,48 @@ This technical log is automatically maintained to record engineering implementat
 ---
 
 ### [2026-10-09] Shashwat Choudhry
+* **Commit:** `45feacb`
+* **Technical Summary:** Updated the Wokwi simulation documentation asset (`wokwi_leds.png`) to depict the active VS Code simulation window showing LED runtime states. This update affects only visual documentation and introduces no modifications to circuit schematics, pin mappings, or firmware logic.
+
+---
+
+### [2026-10-09] Shashwat Choudhry
+* **Commit:** `57a9cdd`
+* **Technical Summary:** Documented Wokwi simulation actuator mappings and added visual verification artifacts for GPIO 25 (PWM-controlled red LED proxying the 12V PTC heater) and GPIO 26 (blue LED proxying the blower fan with a 20% baseline PWM draft).
+
+---
+
+### [2026-10-09] Shashwat Choudhry
+* **Commit:** `86fa226`
+* **Technical Summary:** Fix: update esp32 GND pin routing in wokwi diagram. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-10-09] Shashwat Choudhry
+* **Commit:** `b7a4b32`
+* **Technical Summary:** Updated the sensor HAL fallback temperature from 25.0°C to 15.0°C in `hal_sensors.h` when the BME sensor is unavailable. This forces a low-temperature reading to validate the PID heating loop response and verify activation of the heater LED indicator.
+
+---
+
+### [2026-10-09] Shashwat Choudhry
+* **Commit:** `e5253fa`
+* **Technical Summary:** Docs: update technical log for wokwi sim physical parts alignment. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-10-09] Shashwat Choudhry
+* **Commit:** `6328d37`
+* **Technical Summary:** Chore: restore LEDs in wokwi sim to mock physical heater and fan. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-10-09] Shashwat Choudhry
+* **Commit:** `fcc391c`
+* **Technical Summary:** Chore: sync wokwi sim to only include received physical parts. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-10-09] Shashwat Choudhry
 * **Commit:** `72726f9` (Documentation Update)
 * **Technical Summary:** Documented the Wokwi visual actuator proxies. The Red LED (GPIO 25) maps to the 12V PTC Heater and scales brightness via PWM. The Blue LED (GPIO 26) maps to the Blower Fan, maintaining a 20% PWM baseline draft during active heating.
 * **Simulation Output:**
