@@ -204,7 +204,26 @@ git push -u origin your-name/feature-name
 * Once approved and verified, your changes will be merged into `develop`.
 * Stable releases from `develop` will undergo final integration testing before being merged into `main` for project milestones.
 
-### Step 7: Asking Technical Questions via GitHub (`/ask`)
+### Step 7: Troubleshooting Git Push Errors (403 Forbidden)
+
+If your `git push` command fails with a **`403 Forbidden`** or **`Authentication failed`** error, your commits **did not** upload to GitHub. This means any Pull Request you open on the website will be empty or tracking the wrong branch.
+
+GitHub removed password authentication in August 2021. You **must** use a Personal Access Token (PAT) as your password.
+
+**How to fix a 403 error on macOS:**
+1. **Clear your broken cached password:**
+   ```bash
+   printf "protocol=https\nhost=github.com\n" | git credential-osxkeychain erase
+   ```
+2. **Retry your push:**
+   ```bash
+   git push --set-upstream origin your-name/feature-name
+   ```
+3. **Authenticate:** When prompted for your username, type your GitHub username. When prompted for your password, **paste your Personal Access Token (PAT)**.
+
+*(To generate a PAT, go to GitHub.com > Settings > Developer Settings > Personal access tokens > Tokens (classic) > Generate new token, and check the `repo` scope).*
+
+### Step 8: Asking Technical Questions via GitHub (`/ask`)
 
 The repository includes an automated technical assistant powered by **Gemini 3.8 Flash** running in GitHub Actions. Any team member can query the assistant directly on any GitHub Issue or Pull Request discussion thread.
 
@@ -255,7 +274,7 @@ Automated technical response generated with pinout tables and code excerpts:
 Full conversation overview:
 ![Live Issue Assistant Demo](simulation/ask_assistant_demo.png)
 
-### Step 8: Automated Engineering Technical Log
+### Step 9: Automated Engineering Technical Log
 
 To satisfy course requirements emphasizing technical depth and engineering accountability, every push affecting the Smart HVAC subsystem automatically updates our centralized technical log:
 
