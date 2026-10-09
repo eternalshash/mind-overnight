@@ -205,6 +205,18 @@ git push -u origin your-name/feature-name
 * Once approved and verified, your changes will be merged into `develop`.
 * Stable releases from `develop` will undergo final integration testing before being merged into `main` for project milestones.
 
+### Step 7: Asking Technical Questions via GitHub (`/ask`)
+
+Teammates can ask the Smart HVAC technical assistant questions directly on any GitHub Issue or Pull Request thread:
+* Simply post a comment starting with `/ask` followed by your question:
+  ```text
+  /ask What are the PWM pin assignments and timer channels for the heater and fan?
+  ```
+  ```text
+  /ask How is the FS3000 mock air velocity formula calculated in hal_sensors.h?
+  ```
+* The automated GitHub Actions bot analyzes the full repository context (firmware, simulations, schematics, and guidelines) and replies directly in the discussion thread.
+
 ---
 
 ## 5. Visual Documentation and System Media
