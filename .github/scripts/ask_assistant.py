@@ -134,10 +134,20 @@ def main():
             f"## Question from @{comment_author}:\n{question}\n"
         )
 
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=full_prompt,
-        )
+        # Try gemini-3.8-flash, with fallback to gemini-flash-latest
+        model_name = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash")
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=full_prompt,
+            )
+        except Exception as model_err:
+            print(f"Failed with {model_name}: {model_err}, trying gemini-flash-latest", file=sys.stderr)
+            model_name = "gemini-flash-latest"
+            response = client.models.generate_content(
+                model=model_name,
+                contents=full_prompt,
+            )
 
         answer_text = response.text.strip()
         formatted_reply = (
@@ -145,7 +155,7 @@ def main():
             f"> **Question:** {question}\n\n"
             f"{answer_text}\n\n"
             "---\n"
-            "*Smart HVAC Assistant powered by Gemini 2.5 Flash*"
+            f"*Smart HVAC Assistant powered by {model_name}*"
         )
 
         if repo and issue_number and github_token:
