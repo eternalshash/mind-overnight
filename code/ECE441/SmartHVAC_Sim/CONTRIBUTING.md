@@ -210,7 +210,7 @@ If your `git push` command fails with a **`403 Forbidden`** or **`Authentication
 
 GitHub removed password authentication in August 2021. You **must** use a Personal Access Token (PAT) as your password.
 
-**How to fix a 403 error on macOS:**
+**How to fix a 403 error (macOS):**
 1. **Clear your broken cached password:**
    ```bash
    printf "protocol=https\nhost=github.com\n" | git credential-osxkeychain erase
@@ -220,6 +220,17 @@ GitHub removed password authentication in August 2021. You **must** use a Person
    git push --set-upstream origin your-name/feature-name
    ```
 3. **Authenticate:** When prompted for your username, type your GitHub username. When prompted for your password, **paste your Personal Access Token (PAT)**.
+
+**How to fix a 403 error (Windows):**
+1. **Clear your broken cached password:**
+   * Open the Start Menu and search for **Credential Manager**.
+   * Click **Windows Credentials**.
+   * Scroll down to "Generic Credentials", find the entry for `git:https://github.com`, and click **Remove**.
+2. **Retry your push:**
+   ```bash
+   git push --set-upstream origin your-name/feature-name
+   ```
+3. **Authenticate:** A Windows security pop-up or GitHub login window will appear. If asked to use a browser, do so. If asked for a password in the terminal, **paste your Personal Access Token (PAT)**.
 
 *(To generate a PAT, go to GitHub.com > Settings > Developer Settings > Personal access tokens > Tokens (classic) > Generate new token, and check the `repo` scope).*
 
