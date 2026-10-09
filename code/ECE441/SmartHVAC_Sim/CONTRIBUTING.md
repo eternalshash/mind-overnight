@@ -227,15 +227,6 @@ Simulation curves evaluating sensor drift, extreme outdoor heatwaves, and fan mo
 
 ![Advanced Environmental Scenarios](simulation/advanced_scenarios.png)
 
-### Physical Hardware and Telemetry Verification
-Breadboard circuit assembly and live serial monitor telemetry logs from physical bench testing:
-
-![Physical Breadboard Circuit Assembly](../lab03/media/Figure1_circuit_assembly.jpg)
-
-![Serial Monitor Telemetry Verification](../lab03/media/Figure2_serial_monitor.jpg)
-
-![Live Cloud Telemetry Graph](../lab03/media/Figure5_thingspeak_chart.jpg)
-
 ---
 
 ## 6. Important Project Links and Resources
