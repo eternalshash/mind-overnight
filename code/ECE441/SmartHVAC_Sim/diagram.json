@@ -3,7 +3,19 @@
   "author": "Smart HVAC Team Group 2",
   "editor": "wokwi",
   "parts": [
-    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": 0, "left": 0, "attrs": {} }
+    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": 0, "left": 0, "attrs": {} },
+    { "type": "wokwi-led", "id": "led_heater", "top": 50, "left": 250, "attrs": { "color": "red" } },
+    { "type": "wokwi-led", "id": "led_fan", "top": 120, "left": 250, "attrs": { "color": "blue" } },
+    { "type": "wokwi-resistor", "id": "r_heater", "top": 90, "left": 180, "attrs": { "value": "330" } },
+    { "type": "wokwi-resistor", "id": "r_fan", "top": 160, "left": 180, "attrs": { "value": "330" } }
   ],
-  "connections": []
+  "connections": [
+    [ "esp:25", "r_heater:1", "green", [ "v0" ] ],
+    [ "r_heater:2", "led_heater:A", "green", [ "v0" ] ],
+    [ "led_heater:C", "esp:GND", "black", [ "v0" ] ],
+    
+    [ "esp:26", "r_fan:1", "green", [ "v0" ] ],
+    [ "r_fan:2", "led_fan:A", "green", [ "v0" ] ],
+    [ "led_fan:C", "esp:GND", "black", [ "v0" ] ]
+  ]
 }
