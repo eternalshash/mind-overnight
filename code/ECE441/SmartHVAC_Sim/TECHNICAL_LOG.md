@@ -25,6 +25,12 @@ For the 6-pin GY-BM E/P 280 (BME280) physical module, wire it as follows (I2C mo
 
 ---
 
+### [2026-10-09] Andy Tran & Kaleb Cowgur
+* **Commit:** `Manual Hardware Update`
+* **Technical Summary:** Hardware Validation: Blower fan functionality confirmed (12V nominal for full speed, operable down to 0.5V minimum threshold). The PTC heating element integration is currently a work in progress and undergoing further testing.
+
+---
+
 ### [2026-10-09] Shashwat Choudhry
 * **Commit:** `d6e6b55`
 * **Technical Summary:** Docs: add Wokwi simulation hardware visualization screenshots to CONTRIBUTING.md. Modified files in the Smart HVAC subsystem.
