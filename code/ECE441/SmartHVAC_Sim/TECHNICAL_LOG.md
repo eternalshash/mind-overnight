@@ -5,6 +5,14 @@ This technical log is automatically maintained to record engineering implementat
 ---
 
 ### [2026-10-09] Shashwat Choudhry
+* **Commit:** `72726f9` (Documentation Update)
+* **Technical Summary:** Documented the Wokwi visual actuator proxies. The Red LED (GPIO 25) maps to the 12V PTC Heater and scales brightness via PWM. The Blue LED (GPIO 26) maps to the Blower Fan, maintaining a 20% PWM baseline draft during active heating.
+* **Simulation Output:**
+  ![Wokwi Simulation LEDs](simulation/wokwi_leds.png)
+
+---
+
+### [2026-10-09] Shashwat Choudhry
 * **Commit:** `6328d37`
 * **Technical Summary:** Restored LEDs in the Wokwi simulation diagram to proxy the newly received physical 12V PTC heater and blower fan, driven by the ESP32 and MOSFETs.
 
