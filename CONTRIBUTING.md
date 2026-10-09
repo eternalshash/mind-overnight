@@ -207,15 +207,43 @@ git push -u origin your-name/feature-name
 
 ### Step 7: Asking Technical Questions via GitHub (`/ask`)
 
-Teammates can ask the Smart HVAC technical assistant questions directly on any GitHub Issue or Pull Request thread:
-* Simply post a comment starting with `/ask` followed by your question:
+The repository includes an automated technical assistant powered by **Gemini 3.8 Flash** running in GitHub Actions. Any team member can query the assistant directly on any GitHub Issue or Pull Request discussion thread.
+
+#### How to Use It:
+1. Open an existing Pull Request, Issue, or create a new Issue on GitHub.
+2. In the comment box, type `/ask` followed immediately by your question.
+3. Submit the comment.
+
+#### Example Queries:
+* **Hardware & Wiring (Andy):**
   ```text
-  /ask What are the PWM pin assignments and timer channels for the heater and fan?
+  /ask What are the PWM pin assignments, timer channels, and frequency used for the heater and blower fan?
   ```
+* **Firmware & Control (Shashwat):**
   ```text
-  /ask How is the FS3000 mock air velocity formula calculated in hal_sensors.h?
+  /ask How does the discrete PID loop calculate duty cycle in src/main.cpp and how are the Kp, Ki, Kd gains initialized?
   ```
-* The automated GitHub Actions bot analyzes the full repository context (firmware, simulations, schematics, and guidelines) and replies directly in the discussion thread.
+* **Cloud & Networking (Haron):**
+  ```text
+  /ask What MQTT broker, port, and publish/subscribe topics are configured in config.h?
+  ```
+* **Aerodynamics & Testing (Kaleb):**
+  ```text
+  /ask How is the FS3000 airflow velocity mock calculated in hal_sensors.h based on the fan PWM input?
+  ```
+
+#### What Happens Under the Hood:
+* **Immediate Acknowledgment:** The bot instantly reacts to your comment with eyes to confirm the request was received.
+* **Full Codebase Context:** The bot automatically checks out your branch and loads all key system files into memory:
+  * Hardware definitions and MQTT topics: [`config.h`](code/ECE441/SmartHVAC_Sim/include/config.h)
+  * Sensor abstractions and mock formulas: [`hal_sensors.h`](code/ECE441/SmartHVAC_Sim/include/hal_sensors.h)
+  * Thermal comfort equations: [`thermal_comfort.h`](code/ECE441/SmartHVAC_Sim/include/thermal_comfort.h)
+  * FreeRTOS tasks and PID loop: [`src/main.cpp`](code/ECE441/SmartHVAC_Sim/src/main.cpp)
+  * PlatformIO build configuration: [`platformio.ini`](code/ECE441/SmartHVAC_Sim/platformio.ini)
+  * Wokwi virtual breadboard wiring: [`diagram.json`](code/ECE441/SmartHVAC_Sim/diagram.json) and [`wokwi.toml`](code/ECE441/SmartHVAC_Sim/wokwi.toml)
+  * Analytical physical models: [`simulation/advanced_env_sim.py`](code/ECE441/SmartHVAC_Sim/simulation/advanced_env_sim.py)
+* **Direct Answer:** Within 30 to 45 seconds, the bot posts a structured technical response with exact code references and wiring tables directly into the comment thread.
+* **Live Reference:** See a working demonstration on [GitHub Issue #1](https://github.com/eternalshash/mind-overnight/issues/1#issuecomment-6082902126).
 
 ---
 
