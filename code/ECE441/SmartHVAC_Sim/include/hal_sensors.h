@@ -23,8 +23,8 @@ public:
     float getTemperature() {
         if (bme_status) return bme.readTemperature();
         // Fallback since we removed the potentiometer from the simulation
-        // Return a fixed mock value because analogRead(34) would float
-        return 25.0;
+        // Return a cold mock value (15.0C) so the PID turns on the heater LED
+        return 15.0;
     }
 
     float getHumidity() {
