@@ -319,6 +319,15 @@ Simulation curves evaluating sensor drift, extreme outdoor heatwaves, and fan mo
 
 ![Advanced Environmental Scenarios](simulation/advanced_scenarios.png)
 
+### Wokwi Hardware Simulation (VS Code)
+The embedded Wokwi simulator executes the compiled ESP32 firmware on a virtual breadboard. Actuator responses are visualized dynamically (Red LED for PTC Heater, Blue LED for Blower Fan).
+
+![Wokwi Simulator with Active Actuators](simulation/wokwi_led_on.png)
+
+Developers can hover over physical ESP32 pins during active execution to trace live logic states and PWM output values without oscilloscope hardware.
+
+![Wokwi Simulator Logic State Diagnostics](simulation/wokwi_logic_state.png)
+
 ---
 
 ## 6. Important Project Links and Resources
