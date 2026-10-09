@@ -32,3 +32,7 @@ The interface is divided into three main sections, designed to look like a 2D ar
 - **Fail-Safe Redundancy:** Watchdog timers enable a hot-standby ESP32 (MCU-B) to take over seamlessly if the primary MCU crashes.
 - **Air Quality (IAQ):** Simulates VOC/CO2 buildup requiring ventilation purges, and PM2.5 smoke events requiring damper lockouts and recirculation.
 - **Hardware Faults:** Models filter clogging (static pressure rise), blower failures, sensor drift cross-checking, and cloud/Wi-Fi outages.
+
+## Development & Contribution Guide
+For instructions on setting up the ESP32 build toolchain in PlatformIO, installing code libraries, configuring Wokwi simulation in VS Code, and submitting Pull Requests, please review the [Team Contribution Guide](CONTRIBUTING.md).
+

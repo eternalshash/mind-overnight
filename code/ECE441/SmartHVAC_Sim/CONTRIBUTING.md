@@ -1,4 +1,4 @@
-# Team Contribution Guide
+# Team Contribution Guide - Smart HVAC Control
 
 Welcome to the **Smart HVAC Control** project for ECE 441 (Smart and Connected Systems). To keep our codebase clean, prevent merge conflicts, and ensure seamless integration across embedded firmware, simulation modeling, and cloud telemetry, all team members follow this unified contribution guide and standard **Pull Request (PR)** workflow.
 
@@ -25,7 +25,7 @@ The project is structured into three integrated subsystems: embedded firmware, n
 
 ### A. ESP32 Firmware Libraries (PlatformIO)
 
-The firmware builds using the PlatformIO ecosystem on top of the Arduino framework for ESP32. All library dependencies are automatically tracked in [`platformio.ini`](code/ECE441/SmartHVAC_Sim/platformio.ini):
+The firmware builds using the PlatformIO ecosystem on top of the Arduino framework for ESP32. All library dependencies are automatically tracked in [`platformio.ini`](platformio.ini):
 
 * **Platform:** `espressif32`
 * **Framework:** `arduino`
@@ -40,13 +40,12 @@ The firmware builds using the PlatformIO ecosystem on top of the Arduino framewo
 
 To install or restore firmware dependencies via the PlatformIO CLI:
 ```bash
-cd code/ECE441/SmartHVAC_Sim
 pio pkg install
 ```
 
 ### B. Python Analytical Simulation Libraries
 
-The numerical models in [`simulation/advanced_env_sim.py`](code/ECE441/SmartHVAC_Sim/simulation/advanced_env_sim.py) and [`simulation/thermal_sim.py`](code/ECE441/SmartHVAC_Sim/simulation/thermal_sim.py) evaluate envelope heat transfer, indoor air quality (IAQ), and transient PID tuning.
+The numerical models in [`simulation/advanced_env_sim.py`](simulation/advanced_env_sim.py) and [`simulation/thermal_sim.py`](simulation/thermal_sim.py) evaluate envelope heat transfer, indoor air quality (IAQ), and transient PID tuning.
 
 Install the Python libraries via `pip`:
 ```bash
@@ -58,14 +57,14 @@ python3 -m pip install numpy matplotlib
 
 ### C. Digital Twin Simulation and Headless Verification (Node.js)
 
-The interactive digital twin is located in [`code/ECE441/SmartHVAC_Sim/simulation`](code/ECE441/SmartHVAC_Sim/simulation).
+The interactive digital twin is located in [`simulation`](simulation).
 
 * **`Chart.js`** (`v4.4.x`): Embedded via CDN for real-time telemetry rendering across five dashboard tabs.
 * **`puppeteer`** (`^25.12.0`): Headless Chrome automation for verifying simulation canvas rendering and telemetry logs without a manual browser session.
 
 To install headless testing dependencies:
 ```bash
-cd code/ECE441/SmartHVAC_Sim/simulation
+cd simulation
 npm install
 ```
 
@@ -97,7 +96,7 @@ Wokwi for VS Code requires an active license key or a free trial token:
 
 The repository includes the configuration files pre-configured for the project:
 
-* **[`wokwi.toml`](code/ECE441/SmartHVAC_Sim/wokwi.toml)**: Instructs Wokwi where to locate the compiled ELF binary and firmware images:
+* **[`wokwi.toml`](wokwi.toml)**: Instructs Wokwi where to locate the compiled ELF binary and firmware images:
   ```toml
   [wokwi]
   version = 1
@@ -105,7 +104,7 @@ The repository includes the configuration files pre-configured for the project:
   firmware = ".pio/build/esp32dev/firmware.bin"
   ```
 
-* **[`diagram.json`](code/ECE441/SmartHVAC_Sim/diagram.json)**: Declares simulated virtual components and breadboard wiring:
+* **[`diagram.json`](diagram.json)**: Declares simulated virtual components and breadboard wiring:
   * **ESP32 DevKit C v4** (`esp`)
   * **Potentiometer** (`pot1`): Analog temperature input connected to GPIO 34 (ADC1_CH6).
   * **Red LED** (`led_heater`): Visual indicator for heater PWM output connected to GPIO 25 through a 330 ohm current-limiting resistor (`r_heater`).
@@ -126,7 +125,7 @@ The repository includes the configuration files pre-configured for the project:
    * Confirm that compilation succeeds and `.pio/build/esp32dev/firmware.bin` is generated.
 
 3. **Launch the Wokwi Simulation:**
-   * Open [`diagram.json`](code/ECE441/SmartHVAC_Sim/diagram.json) in the VS Code editor.
+   * Open [`diagram.json`](diagram.json) in the VS Code editor.
    * Click the blue/green **Start Simulation** button above the editor, or
    * Press `Cmd+Shift+P` (macOS) / `Ctrl+Shift+P` (Windows/Linux) and run `Wokwi: Start Simulator`.
 
@@ -214,28 +213,28 @@ The following references illustrate system operation across hardware, simulation
 ### Digital Twin Blueprint Simulation
 The interactive 2D digital twin visualizes airflow, envelope heat loss, pollutant dispersion, and dual-MCU failover:
 
-![Digital Twin Architectural Blueprint and Telemetry](code/ECE441/SmartHVAC_Sim/simulation/digital_twin_preview.png)
+![Digital Twin Architectural Blueprint and Telemetry](simulation/digital_twin_preview.png)
 
 *Live Interactive Digital Twin:* [Run Simulation in Browser](https://eternalshash.github.io/mind-overnight/code/ECE441/SmartHVAC_Sim/simulation/index.html)
 
 ### PID Transient Thermal Response
 Closed-loop step response validation showing heater PWM duty cycle adjustment and chamber temperature stabilization:
 
-![Thermal Step Response Curve](code/ECE441/SmartHVAC_Sim/simulation/thermal_response.png)
+![Thermal Step Response Curve](simulation/thermal_response.png)
 
 ### Multi-Scenario Environmental Stress Testing
 Simulation curves evaluating sensor drift, extreme outdoor heatwaves, and fan motor degradation:
 
-![Advanced Environmental Scenarios](code/ECE441/SmartHVAC_Sim/simulation/advanced_scenarios.png)
+![Advanced Environmental Scenarios](simulation/advanced_scenarios.png)
 
 ### Physical Hardware and Telemetry Verification
 Breadboard circuit assembly and live serial monitor telemetry logs from physical bench testing:
 
-![Physical Breadboard Circuit Assembly](code/ECE441/lab03/media/Figure1_circuit_assembly.jpg)
+![Physical Breadboard Circuit Assembly](../lab03/media/Figure1_circuit_assembly.jpg)
 
-![Serial Monitor Telemetry Verification](code/ECE441/lab03/media/Figure2_serial_monitor.jpg)
+![Serial Monitor Telemetry Verification](../lab03/media/Figure2_serial_monitor.jpg)
 
-![Live Cloud Telemetry Graph](code/ECE441/lab03/media/Figure5_thingspeak_chart.jpg)
+![Live Cloud Telemetry Graph](../lab03/media/Figure5_thingspeak_chart.jpg)
 
 ---
 
