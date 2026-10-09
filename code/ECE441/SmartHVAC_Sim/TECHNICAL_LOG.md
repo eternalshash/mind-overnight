@@ -2,6 +2,15 @@
 
 This technical log is automatically maintained to record engineering implementations, hardware pinout configurations, closed-loop control algorithms, physical thermodynamic simulations, and cloud telemetry updates across all team members.
 
+## Hardware Pinout Reference (Physical BME280)
+For the 6-pin GY-BM E/P 280 (BME280) physical module, wire it as follows (I2C mode):
+* **VCC** -> `3V3` on the ESP32 (Do not use 5V, as the ESP32 and BME280 are 3.3V logic devices)
+* **GND** -> `GND` on the ESP32
+* **SCL** -> `Pin 22` on the ESP32 (or whichever pin your `diagram.json` assigned to SCL)
+* **SDA** -> `Pin 21` on the ESP32 (or whichever pin your `diagram.json` assigned to SDA)
+
+*(Note: Leave CSB and SDO disconnected. It will default to I2C address `0x76` as required by the firmware).*
+
 ---
 
 ### [2026-10-09] Shashwat Choudhry
