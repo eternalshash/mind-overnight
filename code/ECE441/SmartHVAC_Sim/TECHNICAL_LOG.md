@@ -5,6 +5,12 @@ This technical log is automatically maintained to record engineering implementat
 ---
 
 ### [2026-10-09] Shashwat Choudhry
+* **Commit:** `d6a9713`
+* **Technical Summary:** Documented hardware validation results for the HVAC actuators, confirming blower fan operation at 12V nominal full-speed down to a 0.5V minimum threshold alongside ongoing integration testing for the PTC heating element.
+
+---
+
+### [2026-10-09] Shashwat Choudhry
 * **Commit:** `55b62cb`
 * **Technical Summary:** Docs: add physical BME280 pinout mapping to TECHNICAL_LOG.md. Modified files in the Smart HVAC subsystem.
 
