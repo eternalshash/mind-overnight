@@ -2,6 +2,18 @@
 
 This technical log is automatically maintained to record engineering implementations, hardware pinout configurations, closed-loop control algorithms, physical thermodynamic simulations, and cloud telemetry updates across all team members.
 
+---
+
+### [2026-10-09] Shashwat Choudhry
+* **Commit:** `55b62cb`
+* **Technical Summary:** Docs: add physical BME280 pinout mapping to TECHNICAL_LOG.md. Modified files in the Smart HVAC subsystem.
+
+---
+
+# Smart HVAC Control - Engineering Technical Log
+
+This technical log is automatically maintained to record engineering implementations, hardware pinout configurations, closed-loop control algorithms, physical thermodynamic simulations, and cloud telemetry updates across all team members.
+
 ## Hardware Pinout Reference (Physical BME280)
 For the 6-pin GY-BM E/P 280 (BME280) physical module, wire it as follows (I2C mode):
 * **VCC** -> `3V3` on the ESP32 (Do not use 5V, as the ESP32 and BME280 are 3.3V logic devices)
