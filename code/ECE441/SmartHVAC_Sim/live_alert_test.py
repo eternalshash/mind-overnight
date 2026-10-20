@@ -25,12 +25,12 @@ from iot_alert_engine import (
 )
 
 CARRIER_GATEWAYS = {
-    "att": "txt.att.net",
-    "verizon": "vtext.com",
-    "tmobile": "tmomail.net",
-    "googlefi": "msg.fi.google.com",
-    "sprint": "messaging.sprintpcs.com",
-    "boost": "myboostmobile.com"
+    "att": ["txt.att.net", "mms.att.net"],
+    "verizon": ["vtext.com", "vzwpix.com"],
+    "tmobile": ["tmomail.net"],
+    "googlefi": ["msg.fi.google.com"],
+    "sprint": ["messaging.sprintpcs.com"],
+    "boost": ["myboostmobile.com"]
 }
 
 def send_apple_mail(recipient: str, subject: str, body_text: str) -> bool:
@@ -51,10 +51,10 @@ def send_apple_mail(recipient: str, subject: str, body_text: str) -> bool:
     '''
     try:
         proc = subprocess.run(['osascript', '-e', script], capture_output=True, text=True, check=True)
-        print(f"✅ Email successfully dispatched to {recipient} via macOS Apple Mail.")
+        print(f"✅ Dispatched to {recipient} via macOS Apple Mail.")
         return True
     except subprocess.CalledProcessError as e:
-        print(f"❌ Failed to dispatch email via Apple Mail: {e.stderr.strip()}")
+        print(f"❌ Failed to dispatch to {recipient}: {e.stderr.strip()}")
         return False
 
 def send_apple_imessage(recipient_phone: str, message: str) -> bool:
@@ -79,14 +79,21 @@ def send_apple_imessage(recipient_phone: str, message: str) -> bool:
         return False
 
 def send_carrier_sms(phone_number: str, carrier: str, subject: str, message: str) -> bool:
-    """Sends a real SMS via Carrier Email-to-SMS gateway."""
+    """Sends a real SMS via Carrier Email-to-SMS gateway(s)."""
     clean_phone = "".join(filter(str.isdigit, phone_number))
     if len(clean_phone) == 11 and clean_phone.startswith("1"):
         clean_phone = clean_phone[1:]
-    carrier_domain = CARRIER_GATEWAYS.get(carrier.lower(), "txt.att.net")
-    gateway_address = f"{clean_phone}@{carrier_domain}"
-    print(f"📲 Routing SMS through carrier gateway: {gateway_address}")
-    return send_apple_mail(gateway_address, subject, message)
+    carrier_domains = CARRIER_GATEWAYS.get(carrier.lower(), ["vtext.com", "vzwpix.com"])
+    if isinstance(carrier_domains, str):
+        carrier_domains = [carrier_domains]
+
+    success = False
+    for domain in carrier_domains:
+        gateway_address = f"{clean_phone}@{domain}"
+        print(f"📲 Routing SMS through carrier gateway: {gateway_address}")
+        if send_apple_mail(gateway_address, subject, message):
+            success = True
+    return success
 
 def send_textbelt_sms(phone_number: str, message: str) -> bool:
     """Sends an SMS using the free Textbelt quota (1 free test text per day)."""
