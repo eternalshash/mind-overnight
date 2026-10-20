@@ -309,6 +309,11 @@ The interactive 2D digital twin visualizes airflow, envelope heat loss, pollutan
 
 *Live Interactive Digital Twin:* [Run Simulation in Browser](https://eternalshash.github.io/mind-overnight/code/ECE441/SmartHVAC_Sim/simulation/index.html)
 
+### Live IoT SMS & Email Alert Gateway Integration
+When a fault is injected or detected in the simulation, the integrated IoT Alert Gateway automatically formats a 3-row telemetry summary (fault headline, live room/apparent/outdoor metrics, and autonomous mitigation action) and dispatches real-time SMS and email notifications to the configured caregiver recipient.
+
+![IoT SMS and Email Alert Gateway in Digital Twin](simulation/iot_alert_gateway.png)
+
 ### PID Transient Thermal Response
 Closed-loop step response validation showing heater PWM duty cycle adjustment and chamber temperature stabilization:
 

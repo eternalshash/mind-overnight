@@ -35,7 +35,9 @@ The interface is divided into three main sections, designed to look like a 2D ar
 - **IoT Mobile Alerting:** Autonomous anomaly detection engine dispatching real-time 3-row cellular SMS and HTML email alerts to caregivers.
 
 ## IoT Anomaly Detection & Live Mobile Alerting (SMS & Email)
-The system includes a dedicated edge anomaly detection and cellular dispatch engine (`testingIot.py` & `iot_alert_engine.py`) designed to alert caregivers and residents immediately when thermal hazards or equipment faults occur.
+The system includes a dedicated edge anomaly detection and cellular dispatch engine (`testingIot.py` & `iot_alert_engine.py`) integrated directly into the Digital Twin simulation. Whenever a fault is triggered in the simulation, the embedded IoT Alert Gateway automatically formats a 3-row arrowless summary with live room metrics and dispatches real-time SMS and email alerts to the configured recipient.
+
+![IoT SMS and Email Alert Gateway in Digital Twin](simulation/iot_alert_gateway.png)
 
 ### Cellular SMS Layout (3-Row Arrowless Format)
 Alerts sent to cellular gateways (Verizon, AT&T, T-Mobile) format cleanly into three distinct rows without arrows to ensure single-message SMS delivery:
