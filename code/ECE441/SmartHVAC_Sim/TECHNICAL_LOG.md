@@ -5,6 +5,12 @@ This technical log is automatically maintained to record engineering implementat
 ---
 
 ### [2026-10-19] Shashwat Choudhry
+* **Commit:** `416080b`
+* **Technical Summary:** Feat(iot): add testingIot.py with 3-row arrow-free format and multi-fault dispatch. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-10-19] Shashwat Choudhry
 * **Commit:** `6893521`
 * **Technical Summary:** Updated the cellular SMS notification payload structure within `MultiChannelDispatcher.format_sms` to enforce explicit metric labels, degree Fahrenheit units, and alert header prefixes. Corresponding alert engine test notebooks and live test scripts were re-executed to validate the revised payload formatting.
 
