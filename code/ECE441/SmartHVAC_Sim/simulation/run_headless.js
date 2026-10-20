@@ -9,5 +9,11 @@ const puppeteer = require('puppeteer');
   page.on('requestfailed', request => console.log('REQUEST FAILED:', request.url(), request.failure().errorText));
 
   await page.goto('file:///Users/schoudhry/Desktop/mind-overnight/code/ECE441/SmartHVAC_Sim/simulation/index.html', { waitUntil: 'networkidle0' });
+  const autoBadge = await page.$eval('#iotAutoBadge', el => el.textContent);
+  const previewText = await page.$eval('#iotPreview', el => el.innerText);
+  if (!autoBadge.includes('AUTO-SEND') || previewText.includes('->')) {
+    console.error('IOT GATEWAY ASSERTION FAILED:', autoBadge, previewText);
+    process.exit(1);
+  }
   await browser.close();
 })();
