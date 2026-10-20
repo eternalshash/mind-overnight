@@ -4,6 +4,12 @@ This technical log is automatically maintained to record engineering implementat
 
 ---
 
+### [2026-10-20] Shashwat Choudhry
+* **Commit:** `2c92097`
+* **Technical Summary:** Updated the ECE 441 digital twin simulation documentation and visual assets to detail the integration of the edge IoT anomaly detection and alerting gateway (`iot_alert_engine.py`). The updates document the autonomous dispatch of three-row telemetry payloads—capturing fault conditions, live environmental metrics, and mitigation actions—via cellular SMS and email upon fault injection.
+
+---
+
 ### [2026-10-19] Shashwat Choudhry
 * **Commit:** `f37c7d7`
 * **Technical Summary:** Updated the simulation documentation to detail execution parameters for the local HTTP IoT alert gateway server via `testingIot.py --serve`. This configuration hosts the digital twin simulation interface on port 8765 and enables real-time SMS and email dispatching in response to simulated fault injections.
