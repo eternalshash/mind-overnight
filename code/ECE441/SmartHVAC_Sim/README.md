@@ -32,6 +32,33 @@ The interface is divided into three main sections, designed to look like a 2D ar
 - **Fail-Safe Redundancy:** Watchdog timers enable a hot-standby ESP32 (MCU-B) to take over seamlessly if the primary MCU crashes.
 - **Air Quality (IAQ):** Simulates VOC/CO2 buildup requiring ventilation purges, and PM2.5 smoke events requiring damper lockouts and recirculation.
 - **Hardware Faults:** Models filter clogging (static pressure rise), blower failures, sensor drift cross-checking, and cloud/Wi-Fi outages.
+- **IoT Mobile Alerting:** Autonomous anomaly detection engine dispatching real-time 3-row cellular SMS and HTML email alerts to caregivers.
+
+## IoT Anomaly Detection & Live Mobile Alerting (SMS & Email)
+The system includes a dedicated edge anomaly detection and cellular dispatch engine (`testingIot.py` & `iot_alert_engine.py`) designed to alert caregivers and residents immediately when thermal hazards or equipment faults occur.
+
+### Cellular SMS Layout (3-Row Arrowless Format)
+Alerts sent to cellular gateways (Verizon, AT&T, T-Mobile) format cleanly into three distinct rows without arrows to ensure single-message SMS delivery:
+```text
+Rapid temp increase
+Room: 78.8°F | Feels Like: 79.3°F | Outside: 82.4°F
+System Action: Heater shut off, emergency cooling engaged
+```
+* **Row 1:** Simplified fault headline dynamically tailored to the active anomaly.
+* **Row 2:** Environmental telemetry (Room dry-bulb, Steadman "Feels Like" apparent temp, outdoor temp).
+* **Row 3:** Immediate autonomous system mitigation action.
+
+### Running Alert Tests
+```bash
+# Dispatch a live fault alert to configured phone and email
+python3 testingIot.py --fault surge
+
+# Batch validate all 7 fault scenarios
+python3 testingIot.py --all
+
+# Run regression test suite
+python3 verify_iot_pipeline.py
+```
 
 ## Development & Contribution Guide
 For instructions on setting up the ESP32 build toolchain in PlatformIO, installing code libraries, configuring Wokwi simulation in VS Code, and submitting Pull Requests, please review the [Team Contribution Guide](CONTRIBUTING.md).
