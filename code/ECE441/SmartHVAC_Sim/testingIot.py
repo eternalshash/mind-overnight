@@ -17,6 +17,9 @@ import subprocess
 import argparse
 import math
 import time
+import json
+import threading
+from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Optional, Tuple, Any
@@ -44,6 +47,11 @@ class AlertFault(Enum):
     BLOWER_FAILURE = "blower"
     FILTER_CLOG = "filter"
     MCU_CRASH = "mcu"
+    VOC_BUILDUP = "voc"
+    WILDFIRE_SMOKE = "smoke"
+    SENSOR_FAULT = "sensor"
+    WIFI_OUTAGE = "wifi"
+    WINDOW_OPEN = "window"
 
 def c_to_f(c: float) -> float:
     return c * 1.8 + 32.0
@@ -143,7 +151,7 @@ def generate_fault_data(
             outside_temp_f=outside_f,
             details="Sudden temperature drop detected. Exterior window breach suspected."
         )
-    elif fault_type == "heatstress":
+    elif fault_type == "heatstress" or fault_type == "heatwave":
         return HVACFaultRecord(
             fault_type=AlertFault.HEAT_STRESS,
             row1_title="Dangerous heat stress detected",
@@ -182,7 +190,7 @@ def generate_fault_data(
             outside_temp_f=outside_f,
             details="Commanded blower fan at 60% but tachometer reads 0 RPM. Safety interlock tripped."
         )
-    elif fault_type == "filter":
+    elif fault_type == "filter" or fault_type == "clog":
         return HVACFaultRecord(
             fault_type=AlertFault.FILTER_CLOG,
             row1_title="Air filter severely restricted",
@@ -207,6 +215,71 @@ def generate_fault_data(
             apparent_temp_f=apparent_f,
             outside_temp_f=outside_f,
             details="Watchdog timer expired on primary ESP32. Hardware hot-standby failover completed."
+        )
+    elif fault_type == "voc":
+        return HVACFaultRecord(
+            fault_type=AlertFault.VOC_BUILDUP,
+            row1_title="Poor indoor air quality detected",
+            row2_temps=f"VOC: 480 ppb | CO2: 1180 ppm | Room: {room_f:.1f}°F",
+            row3_action="System Action: Ventilation purge active, OA damper 100%, blower 85%",
+            severity=AlertSeverity.WARNING,
+            diagnostic_code="E-101",
+            room_temp_f=room_f,
+            apparent_temp_f=apparent_f,
+            outside_temp_f=outside_f,
+            details="Indoor VOC and CO2 levels exceeded fresh air comfort limits. Outdoor air damper opened."
+        )
+    elif fault_type == "smoke":
+        return HVACFaultRecord(
+            fault_type=AlertFault.WILDFIRE_SMOKE,
+            row1_title="Outdoor wildfire smoke hazard",
+            row2_temps=f"Indoor PM2.5: 28 ug/m3 | Outdoor: 160 ug/m3 | Room: {room_f:.1f}°F",
+            row3_action="System Action: Outdoor damper locked closed, MERV-13 recirc at 70%",
+            severity=AlertSeverity.CRITICAL,
+            diagnostic_code="E-102",
+            room_temp_f=room_f,
+            apparent_temp_f=apparent_f,
+            outside_temp_f=outside_f,
+            details="Outdoor PM2.5 smoke plume detected. Damper locked shut to protect indoor air."
+        )
+    elif fault_type == "sensor":
+        return HVACFaultRecord(
+            fault_type=AlertFault.SENSOR_FAULT,
+            row1_title="Primary temperature sensor fault",
+            row2_temps=f"TS-A: 63.0°F (Stuck) | TS-B: {room_f:.1f}°F | Outside: {outside_f:.1f}°F",
+            row3_action="System Action: TS-A voted out, regulating on redundant TS-B sensor",
+            severity=AlertSeverity.WARNING,
+            diagnostic_code="E-202",
+            room_temp_f=room_f,
+            apparent_temp_f=apparent_f,
+            outside_temp_f=outside_f,
+            details="Cross-check between primary BME280 (TS-A) and secondary SHT31 (TS-B) failed."
+        )
+    elif fault_type == "wifi":
+        return HVACFaultRecord(
+            fault_type=AlertFault.WIFI_OUTAGE,
+            row1_title="Cloud link restored after outage",
+            row2_temps=f"Room: {room_f:.1f}°F | Feels Like: {apparent_f:.1f}°F | Outside: {outside_f:.1f}°F",
+            row3_action="System Action: Edge PID maintained control, buffered alerts flushed",
+            severity=AlertSeverity.INFO,
+            diagnostic_code="E-203",
+            room_temp_f=room_f,
+            apparent_temp_f=apparent_f,
+            outside_temp_f=outside_f,
+            details="MQTT broker connection restored. Flushed queued offline telemetry samples."
+        )
+    elif fault_type == "window":
+        return HVACFaultRecord(
+            fault_type=AlertFault.WINDOW_OPEN,
+            row1_title="Exterior window left open",
+            row2_temps=f"Room: {room_f:.1f}°F | Feels Like: {apparent_f:.1f}°F | Outside: {outside_f:.1f}°F",
+            row3_action="System Action: HVAC paused after 60s to prevent conditioning outdoors",
+            severity=AlertSeverity.WARNING,
+            diagnostic_code="E-402",
+            room_temp_f=room_f,
+            apparent_temp_f=apparent_f,
+            outside_temp_f=outside_f,
+            details="Window contact sensor open >60 seconds. Conditioning paused until window is closed."
         )
     else:
         # Default fallback
@@ -360,19 +433,193 @@ def run_test(
 
     print("\n🎉 Live alert dispatch test completed!")
 
+def dispatch_custom_alert(
+    row1: str,
+    row2: str,
+    row3: str,
+    code: str = "E-405",
+    severity: str = "CRITICAL",
+    details: str = "",
+    email: str = "choudhryshashwat29@gmail.com",
+    phone: str = "9254075652",
+    carrier: str = "verizon",
+    dry_run: bool = False
+) -> str:
+    """Dispatches a 3-row alert directly from live Digital Twin simulation payloads."""
+    row1_clean = row1.replace("->", "|").strip()
+    row2_clean = row2.replace("->", "|").strip()
+    row3_clean = row3.replace("->", "|").strip()
+    if not row3_clean.startswith("System Action:"):
+        row3_clean = f"System Action: {row3_clean}"
+
+    sms_text = f"{row1_clean}\n{row2_clean}\n{row3_clean}"
+    timestamp_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    email_subject = f"[{severity}] Smart HVAC Alert: {row1_clean}"
+    email_body = (
+        f"SMART HVAC CONTROL - DIGITAL TWIN FAULT DISPATCH\n"
+        f"----------------------------------------\n"
+        f"Alert: {row1_clean}\n"
+        f"Status: {severity} ({code})\n"
+        f"Timestamp: {timestamp_str}\n\n"
+        f"ENVIRONMENTAL TELEMETRY:\n"
+        f"{row2_clean}\n\n"
+        f"SYSTEM RESPONSE:\n"
+        f"{row3_clean}\n\n"
+        f"TECHNICAL DETAILS:\n"
+        f"{details or 'Triggered by live ECE 441 Digital Twin Simulation.'}\n"
+        f"----------------------------------------\n"
+        f"Dispatched by Illinois Tech ECE 441 Edge IoT Gateway\n"
+    )
+
+    if dry_run:
+        return sms_text
+
+    def _bg_send():
+        print(f"\n🚨 [SIM GATEWAY DISPATCH] {code} - {row1_clean}")
+        print("-" * 55)
+        print(sms_text)
+        print("-" * 55)
+        if email:
+            send_apple_mail(email, email_subject, email_body)
+        if phone:
+            send_carrier_sms(phone, carrier, sms_text, subject=f"HVAC-{code}")
+            send_apple_imessage(phone, sms_text)
+
+    threading.Thread(target=_bg_send, daemon=True).start()
+    return sms_text
+
+class IoTGatewayHandler(SimpleHTTPRequestHandler):
+    default_email = "choudhryshashwat29@gmail.com"
+    default_phone = "9254075652"
+    default_carrier = "verizon"
+
+    def end_headers(self):
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        super().end_headers()
+
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.end_headers()
+
+    def do_GET(self):
+        if self.path.startswith("/health"):
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            payload = {
+                "status": "ok",
+                "service": "ECE441-IoT-Alert-Gateway",
+                "email": self.default_email,
+                "phone": self.default_phone,
+                "carrier": self.default_carrier
+            }
+            self.wfile.write(json.dumps(payload).encode("utf-8"))
+            return
+        return super().do_GET()
+
+    def do_POST(self):
+        if self.path.startswith("/dispatch"):
+            length = int(self.headers.get("Content-Length", 0))
+            raw = self.rfile.read(length).decode("utf-8") if length > 0 else "{}"
+            try:
+                data = json.loads(raw)
+            except Exception:
+                data = {}
+
+            email = data.get("email", self.default_email)
+            phone = data.get("phone", self.default_phone)
+            carrier = data.get("carrier", self.default_carrier)
+            dry_run = bool(data.get("dry_run", False))
+
+            if data.get("row1") and data.get("row2") and data.get("row3"):
+                sms_text = dispatch_custom_alert(
+                    row1=data["row1"],
+                    row2=data["row2"],
+                    row3=data["row3"],
+                    code=data.get("code", "E-405"),
+                    severity=data.get("severity", "CRITICAL"),
+                    details=data.get("details", ""),
+                    email=email,
+                    phone=phone,
+                    carrier=carrier,
+                    dry_run=dry_run
+                )
+            else:
+                fault_type = data.get("fault_type") or data.get("fault", "surge")
+                room_c = float(data.get("room_c", 26.0))
+                outside_c = float(data.get("outside_c", 28.0))
+                humidity = float(data.get("humidity", 50.0))
+                air_vel = float(data.get("air_vel", 1.8))
+                rec = generate_fault_data(fault_type, room_c=room_c, outside_c=outside_c, humidity=humidity, air_vel=air_vel)
+                sms_text = dispatch_custom_alert(
+                    row1=rec.row1_title,
+                    row2=rec.row2_temps,
+                    row3=rec.row3_action,
+                    code=rec.diagnostic_code,
+                    severity=rec.severity.value,
+                    details=rec.details,
+                    email=email,
+                    phone=phone,
+                    carrier=carrier,
+                    dry_run=dry_run
+                )
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            resp = {
+                "status": "dispatched",
+                "sms_preview": sms_text,
+                "email": email,
+                "phone": phone,
+                "carrier": carrier,
+                "timestamp": datetime.now().strftime("%H:%M:%S")
+            }
+            self.wfile.write(json.dumps(resp).encode("utf-8"))
+            return
+
+        self.send_response(404)
+        self.end_headers()
+
+def start_gateway_server(port: int = 8765, email: str = "choudhryshashwat29@gmail.com", phone: str = "9254075652", carrier: str = "verizon"):
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    IoTGatewayHandler.default_email = email
+    IoTGatewayHandler.default_phone = phone
+    IoTGatewayHandler.default_carrier = carrier
+    server = ThreadingHTTPServer(("127.0.0.1", port), IoTGatewayHandler)
+    print("=" * 65)
+    print(f"🌐 ECE 441 SMART HVAC IOT ALERT GATEWAY SERVER LISTENING")
+    print(f"   Endpoint:       http://127.0.0.1:{port}/dispatch")
+    print(f"   Sim Dashboard:  http://127.0.0.1:{port}/simulation/index.html")
+    print(f"   Default Email:  {email}")
+    print(f"   Default Phone:  {phone} ({carrier.upper()})")
+    print("=" * 65)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nShutting down IoT Gateway Server.")
+        server.server_close()
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Testing IoT Alert Dispatcher")
     parser.add_argument("--email", type=str, default="choudhryshashwat29@gmail.com", help="Recipient email")
     parser.add_argument("--phone", type=str, default="9254075652", help="Recipient phone number")
     parser.add_argument("--carrier", type=str, default="verizon", choices=list(CARRIER_GATEWAYS.keys()), help="Mobile carrier")
-    parser.add_argument("--fault", type=str, default="surge", choices=["surge", "drop", "heatstress", "freeze", "blower", "filter", "mcu"], help="Fault scenario")
+    parser.add_argument("--fault", type=str, default="surge", choices=["surge", "drop", "heatstress", "heatwave", "freeze", "blower", "filter", "clog", "mcu", "voc", "smoke", "sensor", "wifi", "window"], help="Fault scenario")
     parser.add_argument("--all", action="store_true", help="Batch test all fault scenarios and verify 3-row layout")
+    parser.add_argument("--serve", action="store_true", help="Run local HTTP IoT Alert Gateway server for the Digital Twin simulation")
+    parser.add_argument("--port", type=int, default=8765, help="Port for local HTTP IoT Alert Gateway server")
     args = parser.parse_args()
 
-    run_test(
-        email=args.email,
-        phone=args.phone,
-        carrier=args.carrier,
-        fault=args.fault,
-        run_all=args.all
-    )
+    if args.serve:
+        start_gateway_server(port=args.port, email=args.email, phone=args.phone, carrier=args.carrier)
+    else:
+        run_test(
+            email=args.email,
+            phone=args.phone,
+            carrier=args.carrier,
+            fault=args.fault,
+            run_all=args.all
+        )

@@ -105,6 +105,15 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px}
 .fi .m{font-size:9px;color:var(--muted);margin-top:2px}
 .fi .a{font-size:9px;color:var(--accent);margin-top:2px}
 .none{font-size:10px;color:var(--green);padding:4px 0}
+.iot-box{background:#081629;border:1px solid var(--border);padding:7px 8px;margin-top:6px}
+.iot-grid{display:grid;grid-template-columns:62px 1fr;gap:4px 6px;align-items:center;font-size:9.5px;margin-top:4px}
+.iot-grid label{color:var(--muted);letter-spacing:.5px}
+.iot-in{background:#050d1a;border:1px solid var(--border);color:#fff;font-family:var(--mono);font-size:9.5px;padding:3px 6px;width:100%}
+.iot-in:focus{outline:none;border-color:var(--cyan)}
+.iot-prev{background:#050d1a;border:1px solid var(--border);border-left:3px solid var(--cyan);padding:6px 8px;margin-top:6px;font-size:9.5px;line-height:1.45;color:#dbe7f5;white-space:pre-wrap;word-break:break-word}
+.iot-prev .r1{color:#fca5a5;font-weight:bold}
+.iot-prev .r2{color:#7dd3fc}
+.iot-prev .r3{color:#6ee7b7}
 #log{height:130px;overflow-y:auto;background:#050d1a;border:1px solid var(--border);padding:5px 7px;font-size:9.5px;line-height:1.45}
 #log div{color:#7dd3fc;word-break:break-word}
 #log .warn{color:#fcd34d} #log .crit{color:#f87171} #log .ok{color:#6ee7b7} #log .sim{color:#c4b5fd}
@@ -118,6 +127,7 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px}
     <span><i class="dot" id="hA"></i>MCU-A <b id="hAt">RUN</b></span>
     <span><i class="dot" id="hB"></i>MCU-B <b id="hBt">STANDBY</b></span>
     <span><i class="dot" id="hW"></i>CLOUD <b id="hWt">ONLINE</b></span>
+    <span><i class="dot" id="hIot"></i>IOT GATEWAY <b id="hIott">READY</b></span>
     <span>SIM <b id="clock" class="cy">14:00:00</b> <span id="speedLbl" style="color:var(--muted)">x40</span></span>
   </div>
 </header>
@@ -157,6 +167,30 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px}
         <div class="sl"><div class="h"><span>OUTDOOR TEMPERATURE</span><b id="lOut">82.4 F</b></div><input type="range" id="sOut" min="23" max="108" step="1" value="82"></div>
         <div class="sl"><div class="h"><span>DEMAND LIMIT (LOAD SHEDDING)</span><b id="lLim">1000 W</b></div><input type="range" id="sLim" min="300" max="2000" step="50" value="1000"></div>
         <div class="sl"><div class="h"><span>SIMULATION SPEED</span><b id="lSpd">x40</b></div><input type="range" id="sSpd" min="5" max="120" step="5" value="40"></div>
+        <div class="grp-h" style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">
+          <span>IOT SMS / EMAIL ALERT GATEWAY</span>
+          <div style="display:flex;gap:4px;align-items:center">
+            <span id="iotAutoBadge" class="badge ok" style="cursor:pointer;user-select:none" title="Automatically dispatch Email + SMS when a fault is triggered">AUTO-SEND: ON</span>
+            <span id="iotSentCount" class="badge">0 SENT</span>
+          </div>
+        </div>
+        <div class="iot-box">
+          <div class="iot-grid">
+            <label for="iotPhone">SMS TO</label>
+            <div style="display:flex;gap:4px">
+              <input id="iotPhone" class="iot-in" type="text" value="9254075652" placeholder="Phone (10 digits)">
+              <select id="iotCarrier" class="iot-in" style="width:92px">
+                <option value="verizon" selected>Verizon</option>
+                <option value="att">AT&amp;T</option>
+                <option value="tmobile">T-Mobile</option>
+              </select>
+            </div>
+            <label for="iotEmail">EMAIL TO</label>
+            <input id="iotEmail" class="iot-in" type="email" value="choudhryshashwat29@gmail.com" placeholder="Recipient email">
+          </div>
+          <div class="iot-prev" id="iotPreview"><div class="r1">Row 1: Fault status nominal (awaiting fault trigger)</div><div class="r2">Row 2: Room: 75.2°F | Feels Like: 75.0°F | Outside: 82.4°F</div><div class="r3">Row 3: System Action: Closed-loop PID regulating zone climate</div></div>
+          <button class="btn" id="btnTestIot" style="margin-top:6px;border-color:var(--cyan);color:var(--accent)">SEND TEST ALERT (SMS + EMAIL)</button>
+        </div>
       </div>
 
       <div class="col">
@@ -250,7 +284,8 @@ const S = {
   mcu: { active: 'A', a: 'RUN', b: 'STANDBY', wd: 0, rebootTimer: 0, rebootTry: 0, syncT: 0, failMs: 0 },
   plugs: { wrk: 95, tv: 45, lamp: 10 },
   pw: { comp: 0, heat: 0, fan: 0, plugs: 150, ctrl: 1.5, total: 150 },
-  kWh: 0, diag: {}, quiet: true, inspect: null, inspectUntil: 0, wifiPrev: false
+  kWh: 0, diag: {}, quiet: true, inspect: null, inspectUntil: 0, wifiPrev: false,
+  iotAuto: true, iotSent: 0, iotOnline: false, iotDispatched: {}, iotQueue: []
 };
 
 /* =====================================================================
@@ -279,6 +314,157 @@ function toast(cls, head, title, msg, act) {
   box.insertBefore(el, box.firstChild);
   while (box.children.length > 4) box.removeChild(box.lastChild);
   setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 500); }, cls === 'crit' ? 9000 : 6500);
+}
+
+/* =====================================================================
+   4B. REAL-TIME IOT EMAIL & SMS ALERT GATEWAY (3-ROW FORMAT, NO ARROWS)
+   ===================================================================== */
+const IOT_GATEWAY_URL = 'http://127.0.0.1:8765';
+const CODE_TO_FAULT = {
+  'E-101': 'voc', 'E-102': 'smoke', 'E-201': 'mcu', 'E-202': 'sensor',
+  'E-203': 'wifi', 'E-301': 'clog', 'E-302': 'blower', 'E-401': 'surge',
+  'E-402': 'window', 'E-403': 'heatwave', 'E-404': 'surge'
+};
+
+function buildIoTAlertPayload(idOrCode) {
+  const c = S.ctl;
+  const fId = CODE_TO_FAULT[idOrCode] || idOrCode || 'surge';
+  const roomF = +fF(c.Tctl), feelsF = +fF(c.AT), outF = +fF(S.inj.heatwave ? 39 : S.Tout);
+  let code = 'E-404', row1 = '', row2 = '', row3 = '';
+
+  if (fId === 'voc' || idOrCode === 'E-101') {
+    code = 'E-101';
+    row1 = 'Poor indoor air quality detected';
+    row2 = `Room: ${roomF.toFixed(1)}°F | VOC: ${f0(Math.max(S.VOC, 380))} ppb | CO2: ${f0(Math.max(S.CO2, 1150))} ppm`;
+    row3 = 'System Action: Outdoor damper 100%, ventilation purge active';
+  } else if (fId === 'smoke' || idOrCode === 'E-102') {
+    code = 'E-102';
+    row1 = 'Outdoor wildfire smoke detected';
+    row2 = `Room: ${roomF.toFixed(1)}°F | Indoor PM2.5: ${f1(Math.max(S.PM, 28))} ug/m3 | Outside: ${outF.toFixed(1)}°F`;
+    row3 = 'System Action: Outdoor damper locked closed, MERV-13 recirculation active';
+  } else if (fId === 'mcu' || idOrCode === 'E-201') {
+    code = 'E-201';
+    row1 = 'Primary controller crash detected';
+    row2 = `Room: ${roomF.toFixed(1)}°F | Active Controller: MCU-B | Outside: ${outF.toFixed(1)}°F`;
+    row3 = 'System Action: Watchdog failover to MCU-B, heater relay gated safe';
+  } else if (fId === 'sensor' || idOrCode === 'E-202') {
+    code = 'E-202';
+    const tsAF = +fF(S.inj.sensor ? 17.2 : S.sensA), tsBF = +fF(S.sensB);
+    row1 = 'Primary temp sensor fault detected';
+    row2 = `TS-A: ${tsAF.toFixed(1)}°F | TS-B: ${tsBF.toFixed(1)}°F | Outside: ${outF.toFixed(1)}°F`;
+    row3 = 'System Action: TS-A voted out, control loop switched to redundant TS-B';
+  } else if (fId === 'wifi' || idOrCode === 'E-203') {
+    code = 'E-203';
+    row1 = 'Cloud link lost (Wi-Fi outage)';
+    row2 = `Room: ${roomF.toFixed(1)}°F | Feels Like: ${feelsF.toFixed(1)}°F | Outside: ${outF.toFixed(1)}°F`;
+    row3 = 'System Action: Autonomous local edge PID active, buffering telemetry';
+  } else if (fId === 'clog' || idOrCode === 'E-301') {
+    code = 'E-301';
+    row1 = 'Air filter severely restricted';
+    row2 = `Room: ${roomF.toFixed(1)}°F | Duct Velocity: ${f2(S.vel)} m/s | Pressure: ${f0(Math.max(S.dP, 185))} Pa`;
+    row3 = 'System Action: Blower boosted, compressor capped at 50%, replace filter';
+  } else if (fId === 'blower' || idOrCode === 'E-302') {
+    code = 'E-302';
+    row1 = 'Blower motor failure (0 RPM)';
+    row2 = `Room: ${roomF.toFixed(1)}°F | Duct Velocity: 0.0 m/s | Outside: ${outF.toFixed(1)}°F`;
+    row3 = 'System Action: Safety interlock engaged, heater and compressor shut off';
+  } else if (idOrCode === 'E-401') {
+    code = 'E-401';
+    row1 = 'Power demand limit exceeded';
+    row2 = `Room: ${roomF.toFixed(1)}°F | Total Draw: ${f0(S.pw.total)} W | Limit: ${S.demandLimit} W`;
+    row3 = 'System Action: Smart plug load shed, thermostat setpoint +1.8°F';
+  } else if (fId === 'window' || idOrCode === 'E-402') {
+    code = 'E-402';
+    row1 = 'Window left open';
+    row2 = `Room: ${roomF.toFixed(1)}°F | Feels Like: ${feelsF.toFixed(1)}°F | Outside: ${outF.toFixed(1)}°F`;
+    row3 = 'System Action: HVAC paused to prevent energy waste';
+  } else if (fId === 'heatwave' || idOrCode === 'E-403') {
+    code = 'E-403';
+    row1 = 'Dangerous heat stress detected';
+    row2 = `Room: ${roomF.toFixed(1)}°F | Feels Like: ${feelsF.toFixed(1)}°F | Outside: ${outF.toFixed(1)}°F`;
+    row3 = 'System Action: Maximum emergency cooling engaged, caregiver notified';
+  } else {
+    code = 'E-404';
+    row1 = 'Rapid temp increase';
+    row2 = `Room: ${roomF.toFixed(1)}°F | Feels Like: ${feelsF.toFixed(1)}°F | Outside: ${outF.toFixed(1)}°F`;
+    row3 = 'System Action: Heater shut off, emergency cooling engaged';
+  }
+
+  const phoneEl = $('iotPhone'), carrierEl = $('iotCarrier'), emailEl = $('iotEmail');
+  return {
+    fault_type: fId,
+    code,
+    row1,
+    row2,
+    row3,
+    room_temp_f: roomF,
+    feels_like_f: feelsF,
+    outside_temp_f: outF,
+    duct_vel_ms: fId === 'blower' ? 0.0 : +f2(S.vel),
+    static_pa: +f0(fId === 'clog' ? Math.max(S.dP, 185) : S.dP),
+    voc_ppb: +f0(fId === 'voc' ? Math.max(S.VOC, 380) : S.VOC),
+    co2_ppm: +f0(fId === 'voc' ? Math.max(S.CO2, 1150) : S.CO2),
+    pm25_ug: +f1(fId === 'smoke' ? Math.max(S.PM, 28) : S.PM),
+    ts_a_f: +fF(S.inj.sensor ? 17.2 : S.sensA),
+    ts_b_f: +fF(S.sensB),
+    phone: phoneEl ? phoneEl.value.trim() : '9254075652',
+    carrier: carrierEl ? carrierEl.value : 'verizon',
+    email: emailEl ? emailEl.value.trim() : 'choudhryshashwat29@gmail.com'
+  };
+}
+
+function renderIoTPreview(p) {
+  const box = $('iotPreview');
+  if (!box || !p) return;
+  box.innerHTML = `<div class="r1">${p.row1}</div><div class="r2">${p.row2}</div><div class="r3">${p.row3}</div>`;
+}
+
+function checkIoTGatewayHealth() {
+  if (typeof fetch !== 'function') return;
+  fetch(IOT_GATEWAY_URL + '/health', { method: 'GET' })
+    .then(r => r.ok ? r.json() : Promise.reject())
+    .then(() => { S.iotOnline = true; })
+    .catch(() => { S.iotOnline = false; });
+}
+
+function triggerIoTAlert(idOrCode, isManual) {
+  if (S.quiet && !isManual) return;
+  if (!S.iotAuto && !isManual) return;
+  const p = buildIoTAlertPayload(idOrCode);
+  renderIoTPreview(p);
+
+  if (S.inj.wifi && p.fault_type !== 'wifi' && !isManual) {
+    S.iotQueue.push(p);
+    log('warn', `[IOT] Cloud offline: queued SMS + Email alert (${p.code}: ${p.row1}) for reconnect flush.`);
+    return;
+  }
+
+  S.iotSent++;
+  const cntEl = $('iotSentCount');
+  if (cntEl) {
+    cntEl.textContent = `${S.iotSent} SENT`;
+    cntEl.className = 'badge ok';
+  }
+  log('ok', `[IOT] Dispatching SMS (${p.phone}) & Email (${p.email}) | ${p.row1}`);
+  toast('ok', `IOT SMS + EMAIL DISPATCHED (${p.code})`, p.row1, p.row2, p.row3);
+
+  if (typeof fetch === 'function') {
+    const isAutomatedWarmup = !!(navigator.webdriver && location.hash.includes('warm='));
+    fetch(IOT_GATEWAY_URL + '/dispatch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({}, p, { dry_run: isAutomatedWarmup }))
+    })
+      .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
+      .then(() => {
+        S.iotOnline = true;
+        log('ok', `[IOT] Live gateway confirmed delivery to ${p.phone} (${p.carrier.toUpperCase()}) & ${p.email}.`);
+      })
+      .catch(() => {
+        S.iotOnline = false;
+        log('warn', `[IOT] Local gateway (127.0.0.1:8765) unreachable; alert preview updated in UI.`);
+      });
+  }
 }
 
 /* =====================================================================
@@ -536,6 +722,11 @@ function diffDiag(d) {
     if (!o) {
       toast(d[k].sev, 'ESP32 FAULT DETECTED', `${k}  ${d[k].title}`, d[k].msg, 'RESPONSE: ' + d[k].act);
       log(d[k].sev, `${k} DETECTED: ${d[k].title}. ${d[k].act}`);
+      const mappedFault = CODE_TO_FAULT[k];
+      if (!S.iotDispatched[k] && (!mappedFault || !S.iotDispatched[mappedFault])) {
+        S.iotDispatched[k] = true;
+        triggerIoTAlert(k, false);
+      }
     } else if (SEVRANK[d[k].sev] > SEVRANK[o.sev]) {
       toast(d[k].sev, 'FAULT ESCALATED', `${k}  ${d[k].title}`, d[k].msg, 'RESPONSE: ' + d[k].act);
     }
@@ -543,6 +734,7 @@ function diffDiag(d) {
   for (const k in S.diag) if (!d[k]) {
     toast('ok', 'FAULT CLEARED', `${k}  ${S.diag[k].title}`, 'Condition resolved. Normal control resumed.', '');
     log('ok', `${k} CLEARED: ${S.diag[k].title}.`);
+    delete S.iotDispatched[k];
   }
   S.diag = d;
 }
@@ -684,7 +876,18 @@ function setFault(id, on) {
     }
   }
   log('sim', `[SIM] ${on ? 'Injected' : 'Removed'} fault: ${FAULT_NAME[id]}`);
+  if (on) {
+    S.iotDispatched[id] = true;
+    const [mappedCode] = INJ_MAP[id] || [];
+    if (mappedCode) S.iotDispatched[mappedCode] = true;
+    if (id === 'heatwave') S.iotDispatched['E-403'] = true;
+    triggerIoTAlert(id, false);
+  }
   if (!on) {
+    delete S.iotDispatched[id];
+    const [mappedCode] = INJ_MAP[id] || [];
+    if (mappedCode) delete S.iotDispatched[mappedCode];
+    if (id === 'heatwave') delete S.iotDispatched['E-403'];
     const c = S.ctl, m = S.mcu;
     if (id === 'smoke') {
       S.PMout = 8;
@@ -909,6 +1112,21 @@ $('autoSolveBadge').addEventListener('click', () => {
   log('sim', `[SIM] Automatic fault clearing on resolution turned ${S.autoSolve ? 'ON' : 'OFF'}.`);
 });
 
+if ($('iotAutoBadge')) {
+  $('iotAutoBadge').addEventListener('click', () => {
+    S.iotAuto = !S.iotAuto;
+    $('iotAutoBadge').textContent = S.iotAuto ? 'AUTO-SEND: ON' : 'AUTO-SEND: OFF';
+    $('iotAutoBadge').className = 'badge ' + (S.iotAuto ? 'ok' : '');
+    log('sim', `[IOT] Automatic fault SMS/Email dispatch turned ${S.iotAuto ? 'ON' : 'OFF'}.`);
+  });
+}
+if ($('btnTestIot')) {
+  $('btnTestIot').addEventListener('click', () => {
+    const activeFault = Object.keys(S.inj).find(k => S.inj[k]) || Object.keys(S.diag)[0] || 'blower';
+    triggerIoTAlert(activeFault, true);
+  });
+}
+
 $('clearAll').addEventListener('click', () => {
   Object.keys(S.inj).forEach(k => { if (S.inj[k]) setFault(k, false); });
   S.setpoint = 23; S.ToutSet = 28; S.demandLimit = 1000;
@@ -982,6 +1200,10 @@ function updatePanel() {
   setDot('hA', m.a === 'RUN' ? '#10b981' : m.a === 'SYNC' ? '#f59e0b' : '#ef4444'); $('hAt').textContent = m.a;
   setDot('hB', m.b === 'ACTIVE' ? '#10b981' : '#f59e0b'); $('hBt').textContent = m.b;
   setDot('hW', S.inj.wifi ? '#ef4444' : '#10b981'); $('hWt').textContent = S.inj.wifi ? 'OFFLINE' : 'ONLINE';
+  if ($('hIot')) {
+    setDot('hIot', S.iotOnline ? '#10b981' : S.iotAuto ? '#38bdf8' : '#f59e0b');
+    $('hIott').textContent = S.iotOnline ? `LIVE (${S.iotSent})` : S.iotAuto ? 'ARMED' : 'PAUSED';
+  }
   $('clock').textContent = clockStr(S.t);
   // mode
   const mode = alive ? c.mode : 'FAILOVER HOLD';
@@ -1035,9 +1257,17 @@ function tick() {
   plant(dtS);
   checkFaultAutoSolve(dtR);
   diffDiag(diagnose(alive));
-  if (S.wifiPrev && !S.inj.wifi) { log('ok', `Cloud link restored. Flushed ${S.ctl.buffered} buffered telemetry samples to MQTT broker.`); S.ctl.buffered = 0; }
+  if (S.wifiPrev && !S.inj.wifi) {
+    log('ok', `Cloud link restored. Flushed ${S.ctl.buffered} buffered telemetry samples to MQTT broker.`);
+    S.ctl.buffered = 0;
+    while (S.iotQueue.length) {
+      const qAlert = S.iotQueue.shift();
+      triggerIoTAlert(qAlert.fault_type, true);
+    }
+  }
   S.wifiPrev = !!S.inj.wifi;
   if (++tickN % 5 === 0) { sample(); if (chart) chart.update('none'); }
+  if (tickN % 25 === 0 && !S.quiet) checkIoTGatewayHealth();
   if (!S.quiet) { updateCards(); updatePanel(); }
 }
 
@@ -1388,7 +1618,9 @@ S.kWh = 0; S.quiet = false;
 })();
 log('ok', 'MCU-B hot standby: heartbeat mirror active, watchdog armed (1.6 s).');
 log('ok', 'FS3000 airflow baseline captured. TS-A / TS-B cross-check enabled.');
+log('ok', 'IoT Email & SMS Alert Gateway armed (9254075652 Verizon / choudhryshashwat29@gmail.com).');
 log('', 'ESP32 boot complete. Split-range PID: Kp=55 %/C, Ki=0.02 %/(C s), smart-plug feed-forward ON.');
+checkIoTGatewayHealth();
 buildChart(); updateCards(); updatePanel();
 setInterval(tick, 200);
 requestAnimationFrame(render);
