@@ -5,6 +5,12 @@ This technical log is automatically maintained to record engineering implementat
 ---
 
 ### [2026-10-19] Shashwat Choudhry
+* **Commit:** `0c94b63`
+* **Technical Summary:** Updated the IoT alert notification module in `testingIot.py` to transmit diagnostic-code subject headers through carrier email-to-SMS gateways to mitigate spam filtering. Additionally, integrated an AppleScript-driven macOS Messages service routine to dispatch alerts directly via iMessage and SMS.
+
+---
+
+### [2026-10-19] Shashwat Choudhry
 * **Commit:** `416080b`
 * **Technical Summary:** Implemented standalone `testingIot.py` test suite and multi-channel cellular alerting dispatcher. Formatted outbound SMS payloads into a strict 3-row layout without arrow delimiters (Row 1: Simplified Fault Headline, Row 2: Room/Apparent/Outside Temperature Metrics, Row 3: Autonomous System Mitigation Action). Added `alert_config.json` configuration schema, ESP32 FreeRTOS `iot_alerts.h` firmware interface, and automated regression test runner `verify_iot_pipeline.py`.
 
