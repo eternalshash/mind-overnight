@@ -5,6 +5,12 @@ This technical log is automatically maintained to record engineering implementat
 ---
 
 ### [2026-10-19] Shashwat Choudhry
+* **Commit:** `53697a6`
+* **Technical Summary:** Updated the carrier gateway configuration to support multiple domain endpoints per carrier, including dual-routing across SMS and MMS endpoints for Verizon (`vtext.com` and `vzwpix.com`) and AT&T. Refactored `send_carrier_sms` to iterate through all configured gateway domains and dispatch alert messages to each address.
+
+---
+
+### [2026-10-19] Shashwat Choudhry
 * **Commit:** `1c2a026`
 * **Technical Summary:** Added `live_alert_test.py` to test and validate real-time alert dispatching for simulated HVAC faults and rapid temperature anomalies. The utility integrates with `iot_alert_engine` and implements outbound transmission via AppleScript automation for macOS Mail and Messages alongside carrier email-to-SMS gateways.
 
