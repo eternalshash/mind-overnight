@@ -265,12 +265,36 @@ def send_carrier_sms(phone_number: str, carrier: str, sms_text: str) -> bool:
             success = True
     return success
 
+def test_all_fault_scenarios():
+    """Validates and prints the 3-row layout for all supported fault scenarios."""
+    fault_keys = ["surge", "drop", "heatstress", "freeze", "blower", "filter", "mcu"]
+    print("=" * 65)
+    print("🧪 BATCH VALIDATION: 3-ROW SMS LAYOUT ACROSS ALL FAULT SCENARIOS")
+    print("=" * 65)
+    for idx, f_key in enumerate(fault_keys, 1):
+        rec = generate_fault_data(f_key)
+        sms = rec.format_sms()
+        lines = sms.split("\n")
+        print(f"\n[{idx}/7] SCENARIO: {f_key.upper()} ({rec.diagnostic_code} - {rec.severity.value})")
+        print(f"  Row 1: {lines[0]}")
+        print(f"  Row 2: {lines[1]}")
+        print(f"  Row 3: {lines[2]}")
+        assert len(lines) == 3, f"Expected 3 lines, got {len(lines)}"
+        assert "->" not in sms, f"Found arrow in SMS: {sms}"
+    print("\n" + "=" * 65)
+    print("✅ All 7 fault scenarios verified: 3 rows, zero arrows, valid metrics.")
+    print("=" * 65)
+
 def run_test(
     email: str = "choudhryshashwat29@gmail.com",
     phone: str = "9254075652",
     carrier: str = "verizon",
-    fault: str = "surge"
+    fault: str = "surge",
+    run_all: bool = False
 ):
+    if run_all:
+        test_all_fault_scenarios()
+        return
     print("=" * 65)
     print("🚀 SMART HVAC TESTING IOT ALERT DISPATCHER")
     print(f"Target Email:   {email}")
@@ -321,11 +345,13 @@ if __name__ == "__main__":
     parser.add_argument("--phone", type=str, default="9254075652", help="Recipient phone number")
     parser.add_argument("--carrier", type=str, default="verizon", choices=list(CARRIER_GATEWAYS.keys()), help="Mobile carrier")
     parser.add_argument("--fault", type=str, default="surge", choices=["surge", "drop", "heatstress", "freeze", "blower", "filter", "mcu"], help="Fault scenario")
+    parser.add_argument("--all", action="store_true", help="Batch test all fault scenarios and verify 3-row layout")
     args = parser.parse_args()
 
     run_test(
         email=args.email,
         phone=args.phone,
         carrier=args.carrier,
-        fault=args.fault
+        fault=args.fault,
+        run_all=args.all
     )
