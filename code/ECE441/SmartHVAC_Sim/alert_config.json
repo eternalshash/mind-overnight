@@ -1,0 +1,46 @@
+{
+  "facility": "Illinois Tech ECE 441 Zone-A Residential Suite",
+  "anomaly_thresholds": {
+    "temp_surge_threshold_f_per_min": 2.5,
+    "temp_drop_threshold_f_per_min": -3.5,
+    "heat_stress_apparent_threshold_f": 88.0,
+    "heat_stress_drybulb_threshold_f": 85.0,
+    "freeze_risk_threshold_f": 45.0,
+    "blower_stall_rpm_cutoff": 100.0,
+    "blower_stall_persistence_seconds": 5.0,
+    "filter_restriction_max_dp_pa": 280.0,
+    "sensor_cross_check_max_divergence_f": 3.0
+  },
+  "timing_parameters": {
+    "sliding_window_seconds": 60,
+    "alert_cooldown_seconds": 180,
+    "offline_buffer_max_records": 100,
+    "burst_dispatch_delay_ms": 250
+  },
+  "default_recipients": {
+    "caregiver_email": "choudhryshashwat29@gmail.com",
+    "caregiver_phone": "9254075652",
+    "preferred_carrier": "verizon"
+  },
+  "carrier_gateways": {
+    "verizon": ["vtext.com", "vzwpix.com"],
+    "att": ["txt.att.net", "mms.att.net"],
+    "tmobile": ["tmomail.net"],
+    "googlefi": ["msg.fi.google.com"],
+    "sprint": ["messaging.sprintpcs.com"],
+    "boost": ["myboostmobile.com"]
+  },
+  "sms_layout": {
+    "format": "three_row_arrowless",
+    "row1": "Simplified fault description",
+    "row2": "Room, Apparent, and Outside environmental telemetry",
+    "row3": "Autonomous system mitigation action"
+  },
+  "mqtt_telemetry": {
+    "broker": "broker.emqx.io",
+    "port": 1883,
+    "topic_alerts": "ece441/hvac/alerts",
+    "topic_telemetry": "ece441/hvac/telemetry",
+    "qos": 1
+  }
+}
