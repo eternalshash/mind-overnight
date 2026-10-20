@@ -81,6 +81,19 @@ public:
             return false;
         }
     }
+
+    void formatThreeRowSms(const EdgeAlertPayload& p, char* outBuf, size_t bufLen) {
+        snprintf(
+            outBuf,
+            bufLen,
+            "%s\nRoom: %.1fF | Feels Like: %.1fF | Outside: %.1fF\nSystem Action: %s",
+            p.headline,
+            p.roomTempF,
+            p.apparentTempF,
+            p.outsideTempF,
+            p.systemAction
+        );
+    }
 };
 
 #endif // IOT_ALERTS_H
