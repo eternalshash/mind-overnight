@@ -1,0 +1,4 @@
+{
+  "python.defaultInterpreterPath": "/Users/schoudhry/anaconda3/bin/python3",
+  "jupyter.notebookFileRoot": "${fileDirname}"
+}
