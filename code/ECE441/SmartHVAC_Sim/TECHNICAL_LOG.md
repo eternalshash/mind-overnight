@@ -4,6 +4,12 @@ This technical log is automatically maintained to record engineering implementat
 
 ---
 
+### [2026-10-19] Shashwat Choudhry
+* **Commit:** `1c2a026`
+* **Technical Summary:** Added `live_alert_test.py` to test and validate real-time alert dispatching for simulated HVAC faults and rapid temperature anomalies. The utility integrates with `iot_alert_engine` and implements outbound transmission via AppleScript automation for macOS Mail and Messages alongside carrier email-to-SMS gateways.
+
+---
+
 ### [2026-10-15] Haron
 * **Commit:** `7e8f1ee`
 * **Technical Summary:** Create sw.js. Modified files in the Smart HVAC subsystem.
