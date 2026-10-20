@@ -246,8 +246,28 @@ def send_apple_mail(recipient: str, subject: str, body_text: str) -> bool:
         print(f"❌ Failed to dispatch to {recipient}: {e.stderr.strip()}")
         return False
 
-def send_carrier_sms(phone_number: str, carrier: str, sms_text: str) -> bool:
-    """Dispatches real SMS via carrier email-to-SMS gateway with empty subject to prevent headers."""
+def send_apple_imessage(recipient_phone: str, message: str) -> bool:
+    """Sends a real iMessage or SMS text using macOS Messages app."""
+    safe_msg = message.replace('\\', '\\\\').replace('"', '\\"')
+    safe_phone = recipient_phone.replace('\\', '\\\\').replace('"', '\\"')
+
+    script = f'''
+    tell application "Messages"
+        set targetService to 1st service whose service type = iMessage
+        set targetBuddy to participant "{safe_phone}" of targetService
+        send "{safe_msg}" to targetBuddy
+    end tell
+    '''
+    try:
+        subprocess.run(['osascript', '-e', script], capture_output=True, text=True, check=True)
+        print(f"✅ Text message dispatched to {recipient_phone} via macOS Messages.")
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Messages.app dispatch: {e.stderr.strip()}")
+        return False
+
+def send_carrier_sms(phone_number: str, carrier: str, sms_text: str, subject: str = "Alert") -> bool:
+    """Dispatches real SMS via carrier email-to-SMS gateway with valid subject for spam filtering."""
     clean_phone = "".join(filter(str.isdigit, phone_number))
     if len(clean_phone) == 11 and clean_phone.startswith("1"):
         clean_phone = clean_phone[1:]
@@ -260,8 +280,7 @@ def send_carrier_sms(phone_number: str, carrier: str, sms_text: str) -> bool:
     for domain in carrier_domains:
         gateway_addr = f"{clean_phone}@{domain}"
         print(f"📲 Routing SMS through gateway: {gateway_addr}")
-        # Empty subject "" ensures Verizon does not prepend any ugly subject tags
-        if send_apple_mail(gateway_addr, "", sms_text):
+        if send_apple_mail(gateway_addr, subject, sms_text):
             success = True
     return success
 
@@ -335,7 +354,9 @@ def run_test(
     # 3. Dispatch real SMS text
     if phone:
         print(f"\n💬 Sending Text Message to {phone} ({carrier.upper()})...")
-        send_carrier_sms(phone, carrier, sms_text)
+        send_carrier_sms(phone, carrier, sms_text, subject=f"HVAC-{record.diagnostic_code}")
+        print("\n💬 Also sending direct message via macOS Messages app...")
+        send_apple_imessage(phone, sms_text)
 
     print("\n🎉 Live alert dispatch test completed!")
 
