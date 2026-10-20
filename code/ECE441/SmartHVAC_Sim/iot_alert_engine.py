@@ -64,7 +64,10 @@ class AlertRecord:
         humidity: float,
         rate_of_change_f_per_min: float,
         actuator_state: Dict[str, Any],
-        queued_offline: bool = False
+        queued_offline: bool = False,
+        outside_temp_f: float = 82.0,
+        simplified_title: Optional[str] = None,
+        system_action: Optional[str] = None
     ):
         self.alert_id = alert_id
         self.timestamp = timestamp
@@ -72,10 +75,13 @@ class AlertRecord:
         self.code = code
         self.severity = severity
         self.title = title
+        self.simplified_title = simplified_title or title
         self.message = message
         self.recommended_action = recommended_action
+        self.system_action = system_action or recommended_action
         self.room_temp_f = room_temp_f
         self.apparent_temp_f = apparent_temp_f
+        self.outside_temp_f = outside_temp_f
         self.humidity = humidity
         self.rate_of_change_f_per_min = rate_of_change_f_per_min
         self.actuator_state = actuator_state
@@ -178,13 +184,15 @@ class IoTAlertEngine:
         heater_pwm_pct: float = 0.0,
         damper_pct: float = 0.0,
         sens_a_c: Optional[float] = None,
-        sens_b_c: Optional[float] = None
+        sens_b_c: Optional[float] = None,
+        outside_temp_c: float = 27.8
     ) -> List[AlertRecord]:
         """
         Main anomaly evaluation cycle executed on edge/gateway.
         Returns a list of newly triggered alerts during this cycle.
         """
         temp_f = c_to_f(temp_c)
+        outside_temp_f = c_to_f(outside_temp_c)
         apparent_c = calculate_apparent_temperature(temp_c, humidity, air_velocity)
         apparent_f = c_to_f(apparent_c)
         dT_dt = self.compute_rate_of_change(t, temp_f)
@@ -210,11 +218,14 @@ class IoTAlertEngine:
                 code=AlertCode.SUDDEN_TEMP_SURGE,
                 severity=AlertSeverity.CRITICAL,
                 title="SUDDEN THERMAL SURGE DETECTED",
+                simplified_title="Sudden rapid increase in temperature",
                 message=(f"Zone temperature climbing abnormally fast: {temp_f:.1f}°F "
                          f"(Rate: +{dT_dt:.2f}°F/min). Possible thermal runaway or envelope breach."),
                 recommended_action="Inspect PTC heating element and HVAC relay. Interlock heating OFF immediately.",
+                system_action="Heater shut OFF, emergency cooling engaged",
                 room_temp_f=temp_f,
                 apparent_temp_f=apparent_f,
+                outside_temp_f=outside_temp_f,
                 humidity=humidity,
                 rate_of_change_f_per_min=dT_dt,
                 actuator_state=actuators,
@@ -230,11 +241,14 @@ class IoTAlertEngine:
                 code=AlertCode.SUDDEN_TEMP_DROP,
                 severity=AlertSeverity.WARNING,
                 title="SUDDEN TEMPERATURE PLUMMET",
+                simplified_title="Sudden rapid drop in temperature",
                 message=(f"Zone temperature dropping rapidly: {temp_f:.1f}°F "
                          f"(Rate: {dT_dt:.2f}°F/min). Check for open exterior windows or doors."),
                 recommended_action="Verify building envelope seals and outdoor dampers.",
+                system_action="Heating increased to maintain setpoint",
                 room_temp_f=temp_f,
                 apparent_temp_f=apparent_f,
+                outside_temp_f=outside_temp_f,
                 humidity=humidity,
                 rate_of_change_f_per_min=dT_dt,
                 actuator_state=actuators,
@@ -254,12 +268,15 @@ class IoTAlertEngine:
                 code=AlertCode.HEAT_STRESS_RISK,
                 severity=AlertSeverity.EMERGENCY,
                 title="HEAT STRESS RISK: VULNERABLE OCCUPANT ALERT",
+                simplified_title="Dangerous indoor heat stress detected",
                 message=(f"Indoor thermal environment exceeds safe human tolerance: "
                          f"Room {temp_f:.1f}°F, Apparent 'Feels Like' {apparent_f:.1f}°F (RH: {humidity:.0f}%). "
                          f"Elderly occupants exhibit diminished heat perception and high heatstroke risk."),
                 recommended_action="Engage maximum emergency cooling. Caregiver must check occupant wellness immediately.",
+                system_action="Emergency cooling engaged at 100% duty cycle",
                 room_temp_f=temp_f,
                 apparent_temp_f=apparent_f,
+                outside_temp_f=outside_temp_f,
                 humidity=humidity,
                 rate_of_change_f_per_min=dT_dt,
                 actuator_state=actuators,
@@ -278,11 +295,14 @@ class IoTAlertEngine:
                 code=AlertCode.FREEZE_RISK,
                 severity=AlertSeverity.CRITICAL,
                 title="LOW TEMPERATURE FREEZE WARNING",
+                simplified_title="Low indoor temperature freeze warning",
                 message=(f"Zone temperature critically low: {temp_f:.1f}°F. "
                          f"Imminent risk of pipe freezing and occupant hypothermia."),
                 recommended_action="Emergency heating override engaged. Inspect furnace and building insulation.",
+                system_action="Auxiliary emergency heat engaged at 100%",
                 room_temp_f=temp_f,
                 apparent_temp_f=apparent_f,
+                outside_temp_f=outside_temp_f,
                 humidity=humidity,
                 rate_of_change_f_per_min=dT_dt,
                 actuator_state=actuators,
@@ -303,11 +323,14 @@ class IoTAlertEngine:
                     code=AlertCode.BLOWER_STALL,
                     severity=AlertSeverity.CRITICAL,
                     title="BLOWER MOTOR FAILURE / STALL",
+                    simplified_title="HVAC blower motor failure detected (0 RPM)",
                     message=(f"Blower commanded at {fan_cmd_pct:.0f}% but tachometer reads {fan_rpm:.0f} RPM "
                              f"and duct velocity is {air_velocity:.2f} m/s. Actuator stalled."),
                     recommended_action="Safety interlock: Disengage 12V PTC heater immediately to prevent fire.",
+                    system_action="Heater and compressor cut OFF to prevent damage",
                     room_temp_f=temp_f,
                     apparent_temp_f=apparent_f,
+                    outside_temp_f=outside_temp_f,
                     humidity=humidity,
                     rate_of_change_f_per_min=dT_dt,
                     actuator_state=actuators,
@@ -328,11 +351,14 @@ class IoTAlertEngine:
                 code=AlertCode.FILTER_RESTRICTION,
                 severity=AlertSeverity.WARNING,
                 title="AIR DUCT FILTER RESTRICTION / HIGH STATIC PRESSURE",
+                simplified_title="Air filter severely clogged (High dP)",
                 message=(f"Static pressure rose to {static_dp:.0f} Pa. "
                          f"Airflow restricted, compressor capped at 50% to prevent coil icing."),
                 recommended_action="Replace HVAC return filter media (MERV-13) promptly.",
+                system_action="Blower boosted +25%, compressor capped at 50%",
                 room_temp_f=temp_f,
                 apparent_temp_f=apparent_f,
+                outside_temp_f=outside_temp_f,
                 humidity=humidity,
                 rate_of_change_f_per_min=dT_dt,
                 actuator_state=actuators,
@@ -351,10 +377,13 @@ class IoTAlertEngine:
                 code=AlertCode.MCU_WATCHDOG_FAIL,
                 severity=AlertSeverity.CRITICAL,
                 title="PRIMARY ESP32 (MCU-A) CRASH & FAILOVER",
+                simplified_title="Primary controller crashed - switched to backup",
                 message="MCU-A heartbeat expired. Watchdog triggered bumpless failover to MCU-B hot-standby.",
                 recommended_action="Reboot primary microcontroller and inspect FreeRTOS heap memory.",
+                system_action="Redundant MCU-B took over control bumplessly",
                 room_temp_f=temp_f,
                 apparent_temp_f=apparent_f,
+                outside_temp_f=outside_temp_f,
                 humidity=humidity,
                 rate_of_change_f_per_min=dT_dt,
                 actuator_state=actuators,
@@ -375,11 +404,14 @@ class IoTAlertEngine:
                     code=AlertCode.SENSOR_CROSS_CHECK,
                     severity=AlertSeverity.WARNING,
                     title="TEMP SENSOR TS-A/TS-B CROSS-CHECK DIVERGENCE",
+                    simplified_title="Sensor discrepancy detected - switched to backup",
                     message=(f"Sensor A ({c_to_f(sens_a_c):.1f}°F) diverges from Sensor B "
                              f"({c_to_f(sens_b_c):.1f}°F) by {discrepancy_f:.1f}°F."),
                     recommended_action="TS-A voted out. Operating PID control on TS-B. Calibrate sensors.",
+                    system_action="TS-A voted out, regulating on redundant TS-B",
                     room_temp_f=temp_f,
                     apparent_temp_f=apparent_f,
+                    outside_temp_f=outside_temp_f,
                     humidity=humidity,
                     rate_of_change_f_per_min=dT_dt,
                     actuator_state=actuators,
@@ -445,14 +477,15 @@ class MultiChannelDispatcher:
 
     def format_sms(self, alert: AlertRecord) -> str:
         """
-        Creates concise, high-priority cellular SMS text message under 160 characters.
+        Creates clean, structured cellular SMS text message matching user specification:
+        Line 1: Simplified alert message (e.g. Sudden rapid increase in temperature)
+        Line 2: Room Temp -> Feels Like -> Outside Temp
+        Line 3: Action that is being taken by the system
         """
-        prefix = f"[{alert.severity.value}] HVAC ALERT"
-        msg = (f"{prefix} {alert.code.value}: {alert.title}. "
-               f"Room: {alert.room_temp_f:.1f}F (Feels {alert.apparent_temp_f:.1f}F), "
-               f"dT/dt: {alert.rate_of_change_f_per_min:+.1f}F/m. "
-               f"Action: {alert.recommended_action[:50]}...")
-        return msg
+        headline = alert.simplified_title or alert.title
+        temps = f"Room {alert.room_temp_f:.1f}F -> Feels Like {alert.apparent_temp_f:.1f}F -> Outside {alert.outside_temp_f:.1f}F"
+        action = f"System Action: {alert.system_action or alert.recommended_action}"
+        return f"{headline}\n{temps}\n{action}"
 
     def format_carrier_sms_email(self, alert: AlertRecord, carrier_domain: str = "txt.att.net") -> Tuple[str, str, str]:
         """

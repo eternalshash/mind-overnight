@@ -147,15 +147,18 @@ def simulate_and_send(
     # Simulate fault condition
     if fault_type == "surge":
         print("\n[SIM] Simulating Sudden Thermal Surge (+4.5°F/min)...")
-        engine.process_telemetry(t=0, temp_c=22.0, humidity=50, air_velocity=1.8, fan_cmd_pct=30, fan_rpm=840, static_dp=35)
-        alerts = engine.process_telemetry(t=60, temp_c=26.0, humidity=50, air_velocity=1.8, fan_cmd_pct=30, fan_rpm=840, static_dp=35)
+        engine.process_telemetry(t=0, temp_c=22.0, humidity=50, air_velocity=1.8, fan_cmd_pct=30, fan_rpm=840, static_dp=35, outside_temp_c=28.0)
+        alerts = engine.process_telemetry(t=60, temp_c=26.0, humidity=50, air_velocity=1.8, fan_cmd_pct=30, fan_rpm=840, static_dp=35, outside_temp_c=28.0)
     elif fault_type == "blower":
         print("\n[SIM] Simulating Blower Motor Seizure (0 RPM)...")
+        alerts = []
         for sec in range(6):
-            alerts = engine.process_telemetry(t=sec, temp_c=24.0, humidity=50, air_velocity=0.0, fan_cmd_pct=60, fan_rpm=0, static_dp=0)
+            new_al = engine.process_telemetry(t=sec, temp_c=24.0, humidity=50, air_velocity=0.0, fan_cmd_pct=60, fan_rpm=0, static_dp=0, outside_temp_c=28.0)
+            if new_al:
+                alerts.extend(new_al)
     elif fault_type == "heatstress":
         print("\n[SIM] Simulating Elderly Resident Heat Stress (Feels Like > 88°F)...")
-        alerts = engine.process_telemetry(t=10, temp_c=30.0, humidity=75, air_velocity=0.2, fan_cmd_pct=30, fan_rpm=840, static_dp=35)
+        alerts = engine.process_telemetry(t=10, temp_c=30.0, humidity=75, air_velocity=0.2, fan_cmd_pct=30, fan_rpm=840, static_dp=35, outside_temp_c=36.0)
     else:
         print(f"Unknown fault type {fault_type}")
         return
@@ -166,9 +169,13 @@ def simulate_and_send(
 
     alert = alerts[0]
     print(f"\n🚨 ALERT GENERATED: [{alert.severity.value}] {alert.code.value} - {alert.title}")
-    print(f"   Room: {alert.room_temp_f:.1f}°F | Feels Like: {alert.apparent_temp_f:.1f}°F | dT/dt: {alert.rate_of_change_f_per_min:+.2f}°F/min")
+    print(f"   Room: {alert.room_temp_f:.1f}°F | Feels Like: {alert.apparent_temp_f:.1f}°F | Outside: {alert.outside_temp_f:.1f}°F | dT/dt: {alert.rate_of_change_f_per_min:+.2f}°F/min")
 
     sms_content = dispatcher.format_sms(alert)
+    print("\n📱 FORMATTED SMS PREVIEW:")
+    print("-" * 40)
+    print(sms_content)
+    print("-" * 40)
     email_subject = f"[{alert.severity.value}] Smart HVAC Alert: {alert.title}"
     email_body = (
         f"SMART HVAC CONTROL - FAULT ALERT\n"
