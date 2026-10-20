@@ -5,6 +5,36 @@ This technical log is automatically maintained to record engineering implementat
 ---
 
 ### [2026-10-19] Shashwat Choudhry
+* **Commit:** `f37c7d7`
+* **Technical Summary:** Updated the simulation documentation to detail execution parameters for the local HTTP IoT alert gateway server via `testingIot.py --serve`. This configuration hosts the digital twin simulation interface on port 8765 and enables real-time SMS and email dispatching in response to simulated fault injections.
+
+---
+
+### [2026-10-19] Shashwat Choudhry
+* **Commit:** `7cea13e`
+* **Technical Summary:** Added automated assertions to the headless Puppeteer test runner (`run_headless.js`) to verify the IoT gateway interface status. The test validates the `#iotAutoBadge` DOM element for the active `AUTO-SEND` state and confirms the telemetry preview formatting in `#iotPreview`.
+
+---
+
+### [2026-10-19] Shashwat Choudhry
+* **Commit:** `4a458e4`
+* **Technical Summary:** Test(iot): expand regression suite across all 14 simulation fault types and gateway dispatch. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-10-19] Shashwat Choudhry
+* **Commit:** `94d7172`
+* **Technical Summary:** Implemented the `formatThreeRowSms` utility in `iot_alerts.h` to serialize `EdgeAlertPayload` structures into standardized three-line SMS alert strings. The formatter populates a target buffer with the alert headline, temperature telemetry (room, apparent, and outside), and the triggered system action.
+
+---
+
+### [2026-10-19] Shashwat Choudhry
+* **Commit:** `aeabec2`
+* **Technical Summary:** Feat(config): add HTTP gateway endpoint and offline queue parameters to alert_config.json. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-10-19] Shashwat Choudhry
 * **Commit:** `303b9b0`
 * **Technical Summary:** Integrated an automated IoT Email and SMS notification gateway into the simulation interface and test harness to dispatch structured 3-row alert payloads upon system fault detection. The update introduces real-time gateway status tracking, recipient configuration controls, and automated dispatch logic tied directly to simulated fault event triggers.
 
