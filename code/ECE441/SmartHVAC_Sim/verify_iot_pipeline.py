@@ -16,11 +16,15 @@ import json
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from testingIot import generate_fault_data, CARRIER_GATEWAYS
+from testingIot import generate_fault_data, dispatch_custom_alert, CARRIER_GATEWAYS
 
 class TestIoTAlertPipeline(unittest.TestCase):
     def setUp(self):
-        self.fault_scenarios = ["surge", "drop", "heatstress", "freeze", "blower", "filter", "mcu"]
+        self.fault_scenarios = [
+            "surge", "drop", "heatstress", "heatwave", "freeze",
+            "blower", "filter", "clog", "mcu", "voc", "smoke",
+            "sensor", "wifi", "window"
+        ]
         self.config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "alert_config.json")
 
     def test_config_json_exists_and_valid(self):
@@ -55,6 +59,19 @@ class TestIoTAlertPipeline(unittest.TestCase):
         self.assertIn("verizon", CARRIER_GATEWAYS)
         self.assertIn("att", CARRIER_GATEWAYS)
         self.assertIn("tmobile", CARRIER_GATEWAYS)
+
+    def test_custom_sim_dispatch_dry_run(self):
+        sms = dispatch_custom_alert(
+            row1="Air filter severely restricted",
+            row2="Room: 73.1°F | Duct Velocity: 1.30 m/s | Pressure: 185 Pa",
+            row3="System Action: Blower boosted, compressor capped at 50%, replace filter",
+            code="E-301",
+            dry_run=True
+        )
+        lines = sms.strip().split("\n")
+        self.assertEqual(len(lines), 3)
+        self.assertNotIn("->", sms)
+        self.assertTrue(lines[2].startswith("System Action:"))
 
 if __name__ == "__main__":
     unittest.main()
