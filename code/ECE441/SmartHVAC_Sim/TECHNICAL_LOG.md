@@ -5,6 +5,12 @@ This technical log is automatically maintained to record engineering implementat
 ---
 
 ### [2026-10-19] Shashwat Choudhry
+* **Commit:** `6893521`
+* **Technical Summary:** Updated the cellular SMS notification payload structure within `MultiChannelDispatcher.format_sms` to enforce explicit metric labels, degree Fahrenheit units, and alert header prefixes. Corresponding alert engine test notebooks and live test scripts were re-executed to validate the revised payload formatting.
+
+---
+
+### [2026-10-19] Shashwat Choudhry
 * **Commit:** `f8bf908`
 * **Technical Summary:** Updated the `AlertRecord` schema and `IoTAlertEngine.evaluate_step()` processing loop to ingest ambient outside temperature and track simplified titles with automated system actions. This structures edge anomaly telemetry into a three-line alert payload reporting room, apparent, and outdoor temperatures alongside system mitigation states.
 
