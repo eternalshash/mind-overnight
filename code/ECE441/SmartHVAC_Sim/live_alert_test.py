@@ -201,7 +201,7 @@ def simulate_and_send(
     if phone:
         print(f"\n--- Dispatching Real SMS to {phone} ---")
         if sms_method == "carrier":
-            send_carrier_sms(phone, carrier, f"HVAC-{alert.code.value}", sms_content)
+            send_carrier_sms(phone, carrier, "", sms_content)
         elif sms_method == "imessage":
             send_apple_imessage(phone, sms_content)
         elif sms_method == "textbelt":

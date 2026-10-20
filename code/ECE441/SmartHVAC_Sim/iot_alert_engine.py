@@ -477,15 +477,15 @@ class MultiChannelDispatcher:
 
     def format_sms(self, alert: AlertRecord) -> str:
         """
-        Creates clean, structured cellular SMS text message matching user specification:
-        Line 1: Simplified alert message (e.g. Sudden rapid increase in temperature)
-        Line 2: Room Temp -> Feels Like -> Outside Temp
-        Line 3: Action that is being taken by the system
+        Creates clean, structured cellular SMS text message matching Option B:
+        Line 1: Alert: <Simplified Message>
+        Line 2: Room Temp: <temp>°F -> Feels Like: <temp>°F -> Outside Temp: <temp>°F
+        Line 3: System Action: <Action>
         """
         headline = alert.simplified_title or alert.title
-        temps = f"Room {alert.room_temp_f:.1f}F -> Feels Like {alert.apparent_temp_f:.1f}F -> Outside {alert.outside_temp_f:.1f}F"
+        temps = f"Room Temp: {alert.room_temp_f:.1f}°F -> Feels Like: {alert.apparent_temp_f:.1f}°F -> Outside Temp: {alert.outside_temp_f:.1f}°F"
         action = f"System Action: {alert.system_action or alert.recommended_action}"
-        return f"{headline}\n{temps}\n{action}"
+        return f"Alert: {headline}\n{temps}\n{action}"
 
     def format_carrier_sms_email(self, alert: AlertRecord, carrier_domain: str = "txt.att.net") -> Tuple[str, str, str]:
         """
