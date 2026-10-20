@@ -42,5 +42,13 @@
     "topic_alerts": "ece441/hvac/alerts",
     "topic_telemetry": "ece441/hvac/telemetry",
     "qos": 1
+  },
+  "http_gateway": {
+    "host": "127.0.0.1",
+    "port": 8765,
+    "dispatch_endpoint": "/dispatch",
+    "health_endpoint": "/health",
+    "auto_dispatch_on_fault": true,
+    "queue_when_offline": true
   }
 }
