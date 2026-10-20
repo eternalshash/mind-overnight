@@ -48,12 +48,17 @@ System Action: Heater shut off, emergency cooling engaged
 * **Row 2:** Environmental telemetry (Room dry-bulb, Steadman "Feels Like" apparent temp, outdoor temp).
 * **Row 3:** Immediate autonomous system mitigation action.
 
-### Running Alert Tests
+### Running Alert Tests & Live Simulation Gateway
 ```bash
-# Dispatch a live fault alert to configured phone and email
-python3 testingIot.py --fault surge
+# Start the local HTTP IoT Alert Gateway Server & serve the Digital Twin simulation on port 8765
+python3 testingIot.py --serve --port 8765
 
-# Batch validate all 7 fault scenarios
+# Open http://127.0.0.1:8765/simulation/index.html and toggle any fault to trigger live SMS & Email
+
+# Dispatch a standalone live fault alert to configured phone and email
+python3 testingIot.py --fault blower
+
+# Batch validate all fault scenarios
 python3 testingIot.py --all
 
 # Run regression test suite
