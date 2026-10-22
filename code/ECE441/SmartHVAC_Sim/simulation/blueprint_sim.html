@@ -187,6 +187,8 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px}
             </div>
             <label for="iotEmail">EMAIL TO</label>
             <input id="iotEmail" class="iot-in" type="email" value="choudhryshashwat29@gmail.com" placeholder="Recipient email">
+            <label for="iotPasscode">PASSCODE</label>
+            <input id="iotPasscode" class="iot-in" type="password" value="hvac441" placeholder="Demo passcode (ask the team)" autocomplete="off">
           </div>
           <div class="iot-prev" id="iotPreview"><div class="r1">Row 1: Fault status nominal (awaiting fault trigger)</div><div class="r2">Row 2: Room: 75.2°F | Feels Like: 75.0°F | Outside: 82.4°F</div><div class="r3">Row 3: System Action: Closed-loop PID regulating zone climate</div></div>
           <button class="btn" id="btnTestIot" style="margin-top:6px;border-color:var(--cyan);color:var(--accent)">SEND TEST ALERT (SMS + EMAIL)</button>
@@ -319,7 +321,11 @@ function toast(cls, head, title, msg, act) {
 /* =====================================================================
    4B. REAL-TIME IOT EMAIL & SMS ALERT GATEWAY (3-ROW FORMAT, NO ARROWS)
    ===================================================================== */
-const IOT_GATEWAY_URL = 'http://127.0.0.1:8765';
+// Hosted cloud gateway (Vercel) so any visitor can trigger real SMS + Email.
+// Override with ?gateway=http://127.0.0.1:8765 to use the local testingIot.py --serve gateway.
+const IOT_HOSTED_GATEWAY_URL = 'https://ece441-iot-gateway.vercel.app';
+const IOT_GATEWAY_URL = new URLSearchParams(location.search).get('gateway') ||
+  (location.hostname === '127.0.0.1' || location.hostname === 'localhost' ? 'http://127.0.0.1:8765' : IOT_HOSTED_GATEWAY_URL);
 const CODE_TO_FAULT = {
   'E-101': 'voc', 'E-102': 'smoke', 'E-201': 'mcu', 'E-202': 'sensor',
   'E-203': 'wifi', 'E-301': 'clog', 'E-302': 'blower', 'E-401': 'surge',
@@ -409,7 +415,8 @@ function buildIoTAlertPayload(idOrCode) {
     ts_b_f: +fF(S.sensB),
     phone: phoneEl ? phoneEl.value.trim() : '9254075652',
     carrier: carrierEl ? carrierEl.value : 'verizon',
-    email: emailEl ? emailEl.value.trim() : 'choudhryshashwat29@gmail.com'
+    email: emailEl ? emailEl.value.trim() : 'choudhryshashwat29@gmail.com',
+    passcode: $('iotPasscode') ? $('iotPasscode').value : ''
   };
 }
 
@@ -455,14 +462,13 @@ function triggerIoTAlert(idOrCode, isManual) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(Object.assign({}, p, { dry_run: isAutomatedWarmup }))
     })
-      .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
+      .then(r => r.json().catch(() => ({})).then(j => r.ok ? j : Promise.reject(new Error(j.error || ('HTTP ' + r.status)))))
       .then(() => {
         S.iotOnline = true;
         log('ok', `[IOT] Live gateway confirmed delivery to ${p.phone} (${p.carrier.toUpperCase()}) & ${p.email}.`);
       })
-      .catch(() => {
-        S.iotOnline = false;
-        log('warn', `[IOT] Local gateway (127.0.0.1:8765) unreachable; alert preview updated in UI.`);
+      .catch(err => {
+        log('warn', `[IOT] Gateway (${IOT_GATEWAY_URL}) did not send: ${err && err.message ? err.message : 'unreachable'}. Alert preview updated in UI.`);
       });
   }
 }
