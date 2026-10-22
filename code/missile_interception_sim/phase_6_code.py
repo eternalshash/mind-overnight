@@ -851,6 +851,61 @@ fig_1000 = build_1000_missile_playable_visualizer(telemetry_samples, n_frames=60
 fig_1000.show()
 print("Playable 1,000-Missile Visualizer ready.")
 
+# ==============================================================================
+# 9. STANDALONE HTML EXPORT FOR GITHUB PAGES AND WEBSITE EMBEDDING
+# ==============================================================================
+os.makedirs("../../docs", exist_ok=True)
+export_html_paths = [
+    "phase_6_massive_theater_saturation.html",
+    "../../theater_engagement_duel.html",
+    "../../phase_6_massive_theater_saturation.html",
+    "../../docs/phase_6_massive_theater_saturation.html",
+    "../../docs/theater_engagement_duel.html"
+]
+
+hover_script = """
+<script>
+  window.addEventListener('DOMContentLoaded', () => {
+    const graphDiv = document.querySelector('.plotly-graph-div');
+    if (!graphDiv) return;
+
+    window.addEventListener('resize', () => {
+      if (window.Plotly && graphDiv) Plotly.Plots.resize(graphDiv);
+    });
+
+    setTimeout(() => {
+      if (window.Plotly && graphDiv) Plotly.Plots.resize(graphDiv);
+    }, 300);
+
+    // Play simulation on cursor hover
+    graphDiv.addEventListener('mouseenter', () => {
+      if (window.Plotly) Plotly.animate(graphDiv);
+    });
+
+    // Pause animation when cursor leaves
+    graphDiv.addEventListener('mouseleave', () => {
+      if (window.Plotly) Plotly.animate(graphDiv, [], { mode: 'immediate' });
+    });
+  });
+</script>
+</body>"""
+
+for path in export_html_paths:
+    fig_1000.write_html(
+        path,
+        include_plotlyjs="cdn",
+        full_html=True,
+        auto_play=False
+    )
+    with open(path, "r", encoding="utf-8") as f:
+        content = f.read()
+    if "mouseenter" not in content:
+        content = content.replace("</body>", hover_script)
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(content)
+    print(f"Exported standalone web animation bundle: {path}")
+
+
 
 # ========================================
 
