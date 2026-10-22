@@ -50,7 +50,10 @@ System Action: Heater shut off, emergency cooling engaged
 * **Row 2:** Environmental telemetry (Room dry-bulb, Steadman "Feels Like" apparent temp, outdoor temp).
 * **Row 3:** Immediate autonomous system mitigation action.
 
-### Running Alert Tests & Live Simulation Gateway
+### Running Alert Tests & Cloud / Local Simulation Gateway
+The live GitHub Pages simulation automatically dispatches real SMS and Email alerts through our hosted Vercel serverless gateway (`https://ece441-iot-gateway.vercel.app/dispatch`) using the pre-filled demo passcode (`hvac441`)—no local server setup is required for remote users or live demos.
+
+For local offline testing on macOS:
 ```bash
 # Start the local HTTP IoT Alert Gateway Server & serve the Digital Twin simulation on port 8765
 python3 testingIot.py --serve --port 8765
