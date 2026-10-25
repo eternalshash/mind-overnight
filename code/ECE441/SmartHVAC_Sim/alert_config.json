@@ -52,7 +52,7 @@
     "telemetry_endpoint": "/api/telemetry",
     "control_endpoint": "/api/control",
     "health_endpoint": "/health",
-    "auto_dispatch_on_fault": true,
+    "auto_dispatch_on_fault": false,
     "queue_when_offline": true
   }
 }
