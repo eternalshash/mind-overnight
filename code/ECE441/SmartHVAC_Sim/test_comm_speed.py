@@ -85,14 +85,98 @@ def run_command_roundtrip_test(base_url: str) -> float:
 
 def fetch_pi_csv(base_url: str, out_path: str) -> int:
     print(f"[COMM-TEST] Downloading complete SQLite telemetry CSV from {base_url}/api/export/csv...")
-    req = Request(f"{base_url}/api/export/csv?limit=500", method="GET")
+    req = Request(f"{base_url}/api/export/csv?limit=500", headers={"Accept-Encoding": "gzip"}, method="GET")
     with urlopen(req, timeout=5) as resp:
-        content = resp.read().decode("utf-8")
+        raw = resp.read()
+        encoding = resp.headers.get("Content-Encoding", "").lower()
+        if "gzip" in encoding:
+            import gzip
+            raw = gzip.decompress(raw)
+        content = raw.decode("utf-8")
         with open(out_path, "w", encoding="utf-8") as f:
             f.write(content)
         lines = content.strip().split("\n")
-        print(f"  -> Saved {len(lines) - 1} records to {out_path}")
+        print(f"  -> Saved {len(lines) - 1} records to {out_path} (Server Content-Encoding: {encoding or 'none'})")
         return len(lines) - 1
+
+
+def run_compression_benchmark(base_url: str) -> dict:
+    import gzip
+    print(f"\n[COMM-TEST] Running Compression Benchmark (Raw vs Gzip)...")
+
+    # 1. Batch Telemetry Ingestion (50 samples compressed with Gzip)
+    samples = []
+    for i in range(50):
+        samples.append({
+            "device_id": "ESP32-COMP-TEST",
+            "source": "sim",
+            "temp_c": round(22.0 + 0.1 * i, 2),
+            "humidity": 48.0,
+            "apparent_c": 22.1,
+            "air_vel_ms": 1.8,
+            "static_pa": 14.0,
+            "power_w": 210.0,
+            "heater_pwm": 0,
+            "fan_pwm": 80,
+            "setpoint_c": 22.5,
+            "mode": "COOLING",
+            "active_mcu": "A",
+            "ts": time.time() + i,
+        })
+    raw_batch = json.dumps({"samples": samples}).encode("utf-8")
+    gzip_batch = gzip.compress(raw_batch)
+    raw_batch_len = len(raw_batch)
+    gzip_batch_len = len(gzip_batch)
+    batch_savings_pct = (1.0 - (gzip_batch_len / raw_batch_len)) * 100.0
+
+    t0 = time.perf_counter()
+    req = Request(
+        f"{base_url}/api/telemetry",
+        data=gzip_batch,
+        headers={"Content-Type": "application/json", "Content-Encoding": "gzip", "Accept-Encoding": "gzip"},
+        method="POST"
+    )
+    with urlopen(req, timeout=5) as resp:
+        t_batch_gzip = (time.perf_counter() - t0) * 1000.0
+        resp_bytes = resp.read()
+        resp_enc = resp.headers.get("Content-Encoding", "").lower()
+        if "gzip" in resp_enc:
+            resp_bytes = gzip.decompress(resp_bytes)
+        res_data = json.loads(resp_bytes.decode("utf-8"))
+        assert res_data.get("flushed") == 50
+
+    # 2. CSV Export (Raw vs Gzip)
+    req_csv_raw = Request(f"{base_url}/api/export/csv?limit=500", method="GET")
+    t0 = time.perf_counter()
+    with urlopen(req_csv_raw, timeout=5) as resp:
+        t_csv_raw = (time.perf_counter() - t0) * 1000.0
+        raw_csv_len = len(resp.read())
+
+    req_csv_gzip = Request(f"{base_url}/api/export/csv?limit=500", headers={"Accept-Encoding": "gzip"}, method="GET")
+    t0 = time.perf_counter()
+    with urlopen(req_csv_gzip, timeout=5) as resp:
+        t_csv_gzip = (time.perf_counter() - t0) * 1000.0
+        gzip_csv_data = resp.read()
+        gzip_csv_len = len(gzip_csv_data)
+        decomp_len = len(gzip.decompress(gzip_csv_data))
+        assert decomp_len == raw_csv_len
+
+    csv_savings_pct = (1.0 - (gzip_csv_len / raw_csv_len)) * 100.0 if raw_csv_len > 0 else 0.0
+
+    print(f"  * Inbound Batch (50 samples): {raw_batch_len:,} B raw -> {gzip_batch_len:,} B gzip (-{batch_savings_pct:.1f}% bandwidth, {t_batch_gzip:.1f} ms)")
+    print(f"  * Outbound CSV Export:        {raw_csv_len:,} B raw -> {gzip_csv_len:,} B gzip (-{csv_savings_pct:.1f}% bandwidth, {t_csv_gzip:.1f} ms)")
+
+    return {
+        "raw_batch_len": raw_batch_len,
+        "gzip_batch_len": gzip_batch_len,
+        "batch_savings_pct": batch_savings_pct,
+        "t_batch_gzip": t_batch_gzip,
+        "raw_csv_len": raw_csv_len,
+        "gzip_csv_len": gzip_csv_len,
+        "csv_savings_pct": csv_savings_pct,
+        "t_csv_raw": t_csv_raw,
+        "t_csv_gzip": t_csv_gzip,
+    }
 
 
 def main():
@@ -132,7 +216,10 @@ def main():
     pi_csv_path = os.path.join(PROJECT_ROOT, "rpi_telemetry_export.csv")
     pi_records_count = fetch_pi_csv(active_url, pi_csv_path)
 
-    # 6. Statistical Analysis
+    # 6. Gzip Compression Benchmark
+    comp_stats = run_compression_benchmark(active_url)
+
+    # 7. Statistical Analysis
     latencies.sort()
     min_ms = latencies[0]
     max_ms = latencies[-1]
@@ -161,6 +248,11 @@ def main():
     print(f"  * Maximum:          {max_ms:.2f} ms")
     print(f"  * Standard Dev:     {stddev_ms:.2f} ms")
     print(f"Bidirectional Setpoint Push Latency:  {cmd_latency:.2f} ms")
+    print("-" * 68)
+    print("Gzip Network Compression Performance:")
+    print(f"  * Inbound Batch (50 samples): {comp_stats['raw_batch_len']:,} B -> {comp_stats['gzip_batch_len']:,} B (-{comp_stats['batch_savings_pct']:.1f}% bandwidth)")
+    print(f"  * Outbound CSV Dataset:       {comp_stats['raw_csv_len']:,} B -> {comp_stats['gzip_csv_len']:,} B (-{comp_stats['csv_savings_pct']:.1f}% bandwidth)")
+    print(f"  * Download Latency:           Raw: {comp_stats['t_csv_raw']:.1f} ms | Gzip: {comp_stats['t_csv_gzip']:.1f} ms")
     print("-" * 68)
     print("Generated Human-Readable CSV Files:")
     print(f"  1. Simulation Comm & Telemetry CSV: {sim_csv_path}")
