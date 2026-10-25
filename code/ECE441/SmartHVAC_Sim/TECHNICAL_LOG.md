@@ -5,6 +5,18 @@ This technical log is automatically maintained to record engineering implementat
 ---
 
 ### [2026-10-24] Shashwat Choudhry
+* **Commit:** `41403ae`
+* **Technical Summary:** Added a communication speed verification report benchmarking HTTP latency (35.0–53.2 ms steady-state) between the Digital Twin simulator and the Raspberry Pi 5 edge server. The report validates bidirectional closed-loop cooling telemetry, including FS3000 air velocity, static pressure, power consumption, and proportional blower fan PWM modulation.
+
+---
+
+### [2026-10-24] Shashwat Choudhry
+* **Commit:** `e02b964`
+* **Technical Summary:** Perf(data): add verified browser communication speed benchmark dataset. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-10-24] Shashwat Choudhry
 * **Commit:** `a6912ea`
 * **Technical Summary:** Feat(rpi): add HTTP HEAD method handler for probe requests. Modified files in the Smart HVAC subsystem.
 
