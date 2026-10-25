@@ -5,6 +5,24 @@ This technical log is automatically maintained to record engineering implementat
 ---
 
 ### [2026-10-24] Shashwat Choudhry
+* **Commit:** `1bd6f83`
+* **Technical Summary:** Implemented gzip compression benchmarking routines within `test_comm_speed.py` to evaluate payload reduction and transmission latency across telemetry streams. The communication speed benchmark dataset and Raspberry Pi telemetry export logs were updated with the resulting compression metrics and simulated run data.
+
+---
+
+### [2026-10-24] Shashwat Choudhry
+* **Commit:** `83c1c0b`
+* **Technical Summary:** Implemented client-side gzip compression using the browser `CompressionStream` API for offline telemetry batch flushes to the Raspberry Pi server. Payloads exceeding 300 bytes are conditionally compressed and dispatched with a `Content-Encoding: gzip` header to reduce network bandwidth over the `/api/telemetry` endpoint.
+
+---
+
+### [2026-10-24] Shashwat Choudhry
+* **Commit:** `5a57581`
+* **Technical Summary:** Added gzip compression and decompression support to the Raspberry Pi edge HTTP server to optimize payload sizes for batch telemetry ingestion and data exports. Outgoing responses exceeding 256 bytes are dynamically compressed based on `Accept-Encoding` negotiation, while incoming compressed request bodies are decompressed prior to JSON decoding.
+
+---
+
+### [2026-10-24] Shashwat Choudhry
 * **Commit:** `5fffcbc`
 * **Technical Summary:** Added communication speed benchmark and telemetry export datasets (`sim_comm_speed_benchmark.csv` and `rpi_telemetry_export.csv`) to characterize controller interface timing and performance. The exported telemetry logs synchronized environmental measurements, indoor air quality metrics (VOC, CO2, PM2.5), power consumption, and fan/heater PWM control states across simulated and physical ESP32 nodes.
 
