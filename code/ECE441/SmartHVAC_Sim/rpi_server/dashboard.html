@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ECE 441 Raspberry Pi 5 Edge Server Console</title>
+<style>
+:root{
+  --bg:#07152b;--panel:#0b1b34;--card:#11264a;--border:#1f3d6b;
+  --cyan:#38bdf8;--accent:#00e5ff;--text:#dbe7f5;--muted:#7f97b8;
+  --green:#10b981;--amber:#f59e0b;--red:#ef4444;
+  --mono:'SF Mono',Menlo,Consolas,'Courier New',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:12px;min-height:100vh;display:flex;flex-direction:column}
+header{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;background:#081a33;border-bottom:2px solid var(--cyan);flex-wrap:wrap;gap:10px}
+.title{display:flex;align-items:center;gap:10px}
+.badge{border:1px solid var(--cyan);color:var(--accent);padding:3px 8px;font-size:10px;letter-spacing:1px}
+.badge.ok{border-color:var(--green);color:var(--green)}
+.badge.warn{border-color:var(--amber);color:var(--amber)}
+h1{font-size:14px;color:#fff;letter-spacing:1px}
+.nav-link{color:#06142a;background:var(--cyan);text-decoration:none;padding:5px 11px;font-weight:bold;font-size:11px;letter-spacing:.5px}
+.nav-link:hover{background:var(--accent)}
+main{padding:16px;display:grid;grid-template-columns:340px 1fr;gap:16px;flex:1}
+@media(max-width:960px){main{grid-template-columns:1fr}}
+.pane{background:var(--panel);border:1px solid var(--border);padding:14px}
+.pane-h{font-size:11px;color:var(--accent);letter-spacing:1px;border-bottom:1px solid var(--border);padding-bottom:6px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+@media(max-width:720px){.cards{grid-template-columns:repeat(2,1fr)}}
+.card{background:var(--card);border:1px solid var(--border);padding:8px 10px}
+.card .l{font-size:9px;color:var(--muted);letter-spacing:.5px}
+.card .v{font-size:19px;font-weight:bold;color:#fff;margin-top:3px}
+.card .v small{font-size:11px;color:var(--cyan);font-weight:normal;margin-left:3px}
+.card .s{font-size:9.5px;color:var(--muted);margin-top:2px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:5px 10px;font-size:11px;margin-bottom:12px}
+.kv span:nth-child(odd){color:var(--muted)}
+.kv span:nth-child(even){color:#fff;text-align:right}
+.ctrl-group{margin-top:10px}
+.ctrl-group label{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:4px}
+.ctrl-group label b{color:var(--cyan)}
+input[type=range],select{width:100%;accent-color:var(--cyan)}
+select{background:#050d1a;border:1px solid var(--border);color:#fff;font-family:var(--mono);padding:5px;font-size:11px}
+.btn{width:100%;margin-top:10px;background:var(--card);border:1px solid var(--cyan);color:var(--accent);font-family:var(--mono);font-size:11px;padding:8px;cursor:pointer;font-weight:bold;letter-spacing:1px}
+.btn:hover{background:var(--cyan);color:#06142a}
+table{width:100%;border-collapse:collapse;font-size:10.5px}
+th,td{padding:6px 8px;border-bottom:1px solid var(--border);text-align:left}
+th{color:var(--cyan);font-size:9.5px;letter-spacing:.5px;background:#081629}
+.src-tag{padding:1px 5px;border:1px solid var(--cyan);font-size:9px;color:var(--accent)}
+.src-tag.esp{border-color:var(--green);color:var(--green)}
+.tbl-wrap{max-height:280px;overflow-y:auto;border:1px solid var(--border)}
+.msg{margin-top:8px;font-size:10px;color:var(--green);min-height:14px}
+</style>
+</head>
+<body>
+<header>
+  <div class="title">
+    <span class="badge ok" id="srvBadge">RPI5 EDGE ONLINE</span>
+    <h1>ECE 441 SMART HVAC - RASPBERRY PI 5 EDGE SERVER</h1>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center">
+    <span class="badge" id="mqttBadge">MQTT: CHECKING</span>
+    <a class="nav-link" href="/simulation/index.html" target="_blank">OPEN DIGITAL TWIN SIMULATOR</a>
+  </div>
+</header>
+
+<main>
+  <section class="pane">
+    <div class="pane-h"><span>BIDIRECTIONAL ESP32 COMMANDS</span><span id="cmdSeq">SEQ #0</span></div>
+    <div class="ctrl-group">
+      <label><span>TARGET SETPOINT</span><b id="lblSp">73.4 °F (23.0 °C)</b></label>
+      <input type="range" id="rngSp" min="60" max="84" step="0.5" value="73.4">
+    </div>
+    <div class="ctrl-group">
+      <label><span>DEMAND LIMIT</span><b id="lblLim">1000 W</b></label>
+      <input type="range" id="rngLim" min="300" max="2000" step="50" value="1000">
+    </div>
+    <div class="ctrl-group">
+      <label><span>MODE OVERRIDE</span></label>
+      <select id="selMode">
+        <option value="AUTO">AUTO (PID SPLIT-RANGE)</option>
+        <option value="COOL">FORCE COOLING</option>
+        <option value="HEAT">FORCE HEATING</option>
+        <option value="ECO">ECO (+2°F DEADBAND)</option>
+      </select>
+    </div>
+    <button class="btn" id="btnPush">PUSH COMMAND TO ESP32 / SIM</button>
+    <div class="msg" id="ctrlMsg"></div>
+
+    <div class="pane-h" style="margin-top:16px"><span>SD CARD &amp; SQLITE STORAGE</span></div>
+    <div class="kv" id="storageKv"></div>
+  </section>
+
+  <section class="pane">
+    <div class="pane-h"><span>LIVE TELEMETRY STREAM (PLUG-AND-PLAY: SIM + REAL ESP32)</span><span id="activeSrc">WAITING FOR DATA</span></div>
+    <div class="cards" id="liveCards"></div>
+
+    <div class="pane-h"><span>RECENT SQLITE TELEMETRY SAMPLES (LAST 25)</span><span id="rowCount">0 ROWS</span></div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>TIME</th><th>SOURCE</th><th>DEVICE</th><th>ROOM</th><th>FEELS LIKE</th><th>RH</th><th>AIR VEL</th><th>POWER</th><th>HTR / FAN PWM</th><th>SP</th></tr>
+        </thead>
+        <tbody id="teleRows"><tr><td colspan="10" style="color:var(--muted)">Waiting for ESP32 or Digital Twin simulator telemetry...</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="pane-h" style="margin-top:14px"><span>STORED FAULT &amp; ALERT EVENTS</span></div>
+    <div class="tbl-wrap" style="max-height:160px">
+      <table>
+        <thead>
+          <tr><th>TIME</th><th>SOURCE</th><th>CODE</th><th>SEVERITY</th><th>HEADLINE</th><th>SYSTEM ACTION</th></tr>
+        </thead>
+        <tbody id="faultRows"><tr><td colspan="6" style="color:var(--muted)">No fault events logged yet.</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+let userDragging = false;
+
+$('rngSp').addEventListener('input', () => {
+  userDragging = true;
+  const f = +$('rngSp').value, c = (f - 32) * 5 / 9;
+  $('lblSp').textContent = `${f.toFixed(1)} °F (${c.toFixed(1)} °C)`;
+});
+$('rngLim').addEventListener('input', () => {
+  userDragging = true;
+  $('lblLim').textContent = `${$('rngLim').value} W`;
+});
+
+$('btnPush').addEventListener('click', async () => {
+  const payload = {
+    setpoint_f: +$('rngSp').value,
+    demand_limit_w: +$('rngLim').value,
+    mode_override: $('selMode').value,
+    updated_by: 'rpi-console'
+  };
+  const r = await fetch('/api/control', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload)
+  });
+  const j = await r.json();
+  userDragging = false;
+  if (j.control) {
+    $('cmdSeq').textContent = `SEQ #${j.control.command_seq}`;
+    $('ctrlMsg').textContent = `Pushed Seq #${j.control.command_seq} (${j.control.setpoint_f} °F | ${j.control.mode_override}) -> HTTP + MQTT`;
+  }
+});
+
+function card(l, v, u, s) {
+  return `<div class="card"><div class="l">${l}</div><div class="v">${v}<small>${u}</small></div><div class="s">${s}</div></div>`;
+}
+
+async function refresh() {
+  try {
+    const [stRes, telRes, fltRes] = await Promise.all([
+      fetch('/api/state'),
+      fetch('/api/telemetry?limit=25'),
+      fetch('/api/faults?limit=15')
+    ]);
+    const st = await stRes.json();
+    const tel = await telRes.json();
+    const flt = await fltRes.json();
+
+    const mq = st.mqtt || {};
+    $('mqttBadge').textContent = mq.connected ? `MQTT: LIVE (RX ${mq.messages_rx})` : 'MQTT: HTTP-ONLY';
+    $('mqttBadge').className = 'badge ' + (mq.connected ? 'ok' : 'warn');
+
+    if (st.control && !userDragging) {
+      $('cmdSeq').textContent = `SEQ #${st.control.command_seq}`;
+      $('rngSp').value = st.control.setpoint_f;
+      $('lblSp').textContent = `${st.control.setpoint_f.toFixed(1)} °F (${st.control.setpoint_c.toFixed(1)} °C)`;
+      $('rngLim').value = st.control.demand_limit_w;
+      $('lblLim').textContent = `${st.control.demand_limit_w.toFixed(0)} W`;
+      $('selMode').value = st.control.mode_override || 'AUTO';
+    }
+
+    const db = st.storage || {};
+    $('storageKv').innerHTML =
+      `<span>Host</span><span>${st.hostname || 'raspberrypi'}</span>` +
+      `<span>SQLite Size</span><span>${db.db_size_kb || 0} KB (${db.db_size_mb || 0} MB)</span>` +
+      `<span>SD Card Free</span><span>${db.disk_free_gb || 0} / ${db.disk_total_gb || 0} GB</span>` +
+      `<span>Raw Samples (14d)</span><span>${db.raw_rows || 0} rows</span>` +
+      `<span>Hourly Rollups (1y)</span><span>${db.hourly_rows || 0} hrs</span>` +
+      `<span>Fault Log (Forever)</span><span>${db.fault_rows || 0} events</span>`;
+
+    const cur = st.latest_telemetry;
+    if (cur) {
+      $('activeSrc').textContent = `${cur.device_id} (${cur.source.toUpperCase()}) @ ${cur.iso_time.split(' ')[1]}`;
+      $('liveCards').innerHTML =
+        card('ROOM TEMP', cur.temp_f.toFixed(1), '°F', `${cur.temp_c.toFixed(2)} °C`) +
+        card('FEELS LIKE', cur.apparent_f.toFixed(1), '°F', `RH ${cur.humidity.toFixed(0)}%`) +
+        card('DUCT VELOCITY', cur.air_vel_ms.toFixed(2), 'm/s', `dP ${cur.static_pa.toFixed(0)} Pa`) +
+        card('POWER DRAW', cur.power_w.toFixed(0), 'W', `HTR ${cur.heater_pwm} | FAN ${cur.fan_pwm}`);
+    } else {
+      $('liveCards').innerHTML =
+        card('ROOM TEMP', '--', '°F', 'Awaiting node') +
+        card('FEELS LIKE', '--', '°F', 'Awaiting node') +
+        card('DUCT VELOCITY', '--', 'm/s', 'Awaiting node') +
+        card('POWER DRAW', '--', 'W', 'Awaiting node');
+    }
+
+    const samples = (tel.samples || []).slice().reverse();
+    $('rowCount').textContent = `${db.raw_rows || samples.length} TOTAL`;
+    if (samples.length) {
+      $('teleRows').innerHTML = samples.map(r => {
+        const isEsp = r.source.includes('esp32');
+        return `<tr>
+          <td>${(r.iso_time || '').split(' ')[1] || ''}</td>
+          <td><span class="src-tag ${isEsp ? 'esp' : ''}">${r.source}</span></td>
+          <td>${r.device_id}</td>
+          <td>${r.temp_f.toFixed(1)} °F</td>
+          <td>${r.apparent_f.toFixed(1)} °F</td>
+          <td>${r.humidity.toFixed(0)}%</td>
+          <td>${r.air_vel_ms.toFixed(2)} m/s</td>
+          <td>${r.power_w.toFixed(0)} W</td>
+          <td>${r.heater_pwm} / ${r.fan_pwm}</td>
+          <td>${r.setpoint_f.toFixed(1)} °F</td>
+        </tr>`;
+      }).join('');
+    }
+
+    const faults = flt.faults || [];
+    if (faults.length) {
+      $('faultRows').innerHTML = faults.map(f => `<tr>
+        <td>${(f.iso_time || '').split(' ')[1] || ''}</td>
+        <td><span class="src-tag">${f.source}</span></td>
+        <td style="color:#fca5a5;font-weight:bold">${f.code}</td>
+        <td>${f.severity}</td>
+        <td>${f.row1}</td>
+        <td style="color:#6ee7b7">${f.row3}</td>
+      </tr>`).join('');
+    }
+  } catch (e) {
+    $('srvBadge').textContent = 'RECONNECTING...';
+    $('srvBadge').className = 'badge warn';
+  }
+}
+
+refresh();
+setInterval(refresh, 1500);
+</script>
+</body>
+</html>
