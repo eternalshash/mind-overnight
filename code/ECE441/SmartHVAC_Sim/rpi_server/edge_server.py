@@ -144,6 +144,20 @@ class RPiEdgeHTTPHandler(SimpleHTTPRequestHandler):
             self._send_json(200, {"status": "ok", "faults": self.store.get_recent_faults(limit=limit)})
             return
 
+        if route in ("/api/export/csv", "/api/telemetry.csv"):
+            limit = int(qs.get("limit", ["1000"])[0])
+            source = qs.get("source", [None])[0]
+            csv_str = self.store.export_telemetry_csv(limit=limit, source=source)
+            csv_bytes = csv_str.encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/csv; charset=utf-8")
+            self.send_header("Content-Disposition", 'attachment; filename="hvac_telemetry_data.csv"')
+            self.send_header("Content-Length", str(len(csv_bytes)))
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(csv_bytes)
+            return
+
         return super().do_GET()
 
     def do_POST(self) -> None:

@@ -10,6 +10,8 @@ Implements a 3-tier retention architecture optimized for microSD longevity:
   4. control_state    - Persistent bidirectional setpoint/mode commands for ESP32 & Sim
 """
 
+import csv
+import io
 import math
 import os
 import shutil
@@ -463,6 +465,62 @@ class HVACEdgeStore:
                     (limit,),
                 ).fetchall()
         return [self._row_to_telemetry_dict(r) for r in reversed(rows)]
+
+    def export_telemetry_csv(self, limit: int = 1000, source: Optional[str] = None) -> str:
+        samples = self.get_recent_telemetry(limit=limit, source=source)
+        output = io.StringIO()
+        fieldnames = [
+            "timestamp_iso",
+            "unix_ts",
+            "device_id",
+            "source",
+            "room_temp_f",
+            "room_temp_c",
+            "feels_like_f",
+            "feels_like_c",
+            "humidity_pct",
+            "air_velocity_ms",
+            "static_pressure_pa",
+            "power_w",
+            "heater_pwm",
+            "fan_pwm",
+            "setpoint_f",
+            "setpoint_c",
+            "mode",
+            "active_mcu",
+            "voc_ppb",
+            "co2_ppm",
+            "pm25_ug",
+        ]
+        writer = csv.DictWriter(output, fieldnames=fieldnames)
+        writer.writeheader()
+        for s in samples:
+            writer.writerow(
+                {
+                    "timestamp_iso": s.get("iso_time", ""),
+                    "unix_ts": s.get("ts", 0),
+                    "device_id": s.get("device_id", ""),
+                    "source": s.get("source", ""),
+                    "room_temp_f": s.get("temp_f", 0.0),
+                    "room_temp_c": s.get("temp_c", 0.0),
+                    "feels_like_f": s.get("apparent_f", 0.0),
+                    "feels_like_c": s.get("apparent_c", 0.0),
+                    "humidity_pct": s.get("humidity", 0.0),
+                    "air_velocity_ms": s.get("air_vel_ms", 0.0),
+                    "static_pressure_pa": s.get("static_pa", 0.0),
+                    "power_w": s.get("power_w", 0.0),
+                    "heater_pwm": s.get("heater_pwm", 0),
+                    "fan_pwm": s.get("fan_pwm", 0),
+                    "setpoint_f": s.get("setpoint_f", 0.0),
+                    "setpoint_c": s.get("setpoint_c", 0.0),
+                    "mode": s.get("mode", ""),
+                    "active_mcu": s.get("active_mcu", ""),
+                    "voc_ppb": s.get("voc_ppb", 0.0),
+                    "co2_ppm": s.get("co2_ppm", 0.0),
+                    "pm25_ug": s.get("pm25_ug", 0.0),
+                }
+            )
+        return output.getvalue()
 
     def get_hourly_rollups(self, limit: int = 24) -> List[Dict[str, Any]]:
         limit = max(1, min(720, int(limit)))

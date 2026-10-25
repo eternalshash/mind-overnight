@@ -165,6 +165,21 @@ class TestRPiEdgeServer(unittest.TestCase):
         self.assertEqual(len(faults["faults"]), 1)
         self.assertEqual(faults["faults"][0]["code"], "E-302")
 
+    def test_csv_export_endpoint(self) -> None:
+        self.store.record_telemetry(
+            {"device_id": "ESP32-SIM", "source": "sim", "temp_c": 23.5, "humidity": 45.0, "power_w": 120.0},
+            force_write=True,
+        )
+        url = f"http://127.0.0.1:{self.port}/api/export/csv"
+        req = Request(url, method="GET")
+        with urlopen(req, timeout=5) as resp:
+            self.assertEqual(resp.status, 200)
+            self.assertIn("text/csv", resp.headers.get("Content-Type", ""))
+            csv_text = resp.read().decode("utf-8")
+            self.assertIn("timestamp_iso", csv_text)
+            self.assertIn("ESP32-SIM", csv_text)
+            self.assertIn("23.5", csv_text)
+
 
 if __name__ == "__main__":
     unittest.main()
