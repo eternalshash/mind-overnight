@@ -10,6 +10,7 @@ Verifies:
 4. Bidirectional command_seq propagation back to ESP32 & Simulator clients.
 """
 
+import gzip
 import json
 import os
 import sys
@@ -179,6 +180,48 @@ class TestRPiEdgeServer(unittest.TestCase):
             self.assertIn("timestamp_iso", csv_text)
             self.assertIn("ESP32-SIM", csv_text)
             self.assertIn("23.5", csv_text)
+
+    def test_gzip_compression_and_decompression(self) -> None:
+        # 1. Test incoming Gzip-compressed POST request
+        payload = {
+            "device_id": "ESP32-GZIP",
+            "source": "sim",
+            "temp_c": 21.5,
+            "humidity": 44.0,
+            "apparent_c": 21.4,
+            "power_w": 250.0,
+        }
+        raw_json = json.dumps(payload).encode("utf-8")
+        compressed_json = gzip.compress(raw_json)
+
+        url = f"http://127.0.0.1:{self.port}/api/telemetry"
+        req = Request(
+            url,
+            data=compressed_json,
+            headers={
+                "Content-Type": "application/json",
+                "Content-Encoding": "gzip",
+                "Accept-Encoding": "gzip",
+            },
+            method="POST",
+        )
+        with urlopen(req, timeout=5) as resp:
+            self.assertEqual(resp.status, 200)
+            self.assertEqual(resp.headers.get("Content-Encoding"), "gzip")
+            decompressed = gzip.decompress(resp.read()).decode("utf-8")
+            res_obj = json.loads(decompressed)
+            self.assertEqual(res_obj["status"], "ok")
+            self.assertIn("ESP32-GZIP", self.store.latest_by_device)
+
+        # 2. Test Gzip-compressed CSV export
+        url_csv = f"http://127.0.0.1:{self.port}/api/export/csv"
+        req_csv = Request(url_csv, headers={"Accept-Encoding": "gzip"}, method="GET")
+        with urlopen(req_csv, timeout=5) as resp:
+            self.assertEqual(resp.status, 200)
+            self.assertEqual(resp.headers.get("Content-Encoding"), "gzip")
+            decompressed_csv = gzip.decompress(resp.read()).decode("utf-8")
+            self.assertIn("timestamp_iso", decompressed_csv)
+            self.assertIn("ESP32-GZIP", decompressed_csv)
 
 
 if __name__ == "__main__":

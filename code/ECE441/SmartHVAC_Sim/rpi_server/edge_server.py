@@ -12,13 +12,14 @@ Usage:
 """
 
 import argparse
+import gzip
 import json
 import os
 import socket
 import sys
 from datetime import datetime
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from urllib.parse import parse_qs, urlparse
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -47,26 +48,61 @@ class RPiEdgeHTTPHandler(SimpleHTTPRequestHandler):
     def end_headers(self) -> None:
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Content-Encoding, Accept-Encoding")
         # Allow Chrome/Safari Private Network Access (e.g., browser sim -> LAN Raspberry Pi)
         self.send_header("Access-Control-Allow-Private-Network", "true")
         super().end_headers()
 
+    def _client_accepts_gzip(self) -> bool:
+        accept = self.headers.get("Accept-Encoding", "").lower()
+        return "gzip" in accept
+
+    def _send_bytes(
+        self,
+        status_code: int,
+        content_type: str,
+        data: bytes,
+        filename: Optional[str] = None,
+        allow_gzip: bool = True,
+        min_gzip_len: int = 256,
+    ) -> None:
+        use_gzip = allow_gzip and self._client_accepts_gzip() and len(data) >= min_gzip_len
+        if use_gzip:
+            compressed = gzip.compress(data, compresslevel=6)
+            if len(compressed) < len(data):
+                data = compressed
+            else:
+                use_gzip = False
+
+        self.send_response(status_code)
+        self.send_header("Content-Type", content_type)
+        if use_gzip:
+            self.send_header("Content-Encoding", "gzip")
+            self.send_header("Vary", "Accept-Encoding")
+        if filename:
+            self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
     def _send_json(self, status_code: int, payload: Dict[str, Any]) -> None:
         raw = json.dumps(payload).encode("utf-8")
-        self.send_response(status_code)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Content-Length", str(len(raw)))
-        self.end_headers()
-        self.wfile.write(raw)
+        self._send_bytes(status_code, "application/json; charset=utf-8", raw, allow_gzip=True, min_gzip_len=256)
 
     def _read_json_body(self) -> Dict[str, Any]:
         length = int(self.headers.get("Content-Length", 0))
         if length <= 0:
             return {}
-        raw = self.rfile.read(length).decode("utf-8", errors="ignore")
+        raw = self.rfile.read(length)
+        encoding = self.headers.get("Content-Encoding", "").lower()
+        if "gzip" in encoding:
+            try:
+                raw = gzip.decompress(raw)
+            except Exception:
+                return {}
         try:
-            obj = json.loads(raw)
+            text = raw.decode("utf-8", errors="ignore")
+            obj = json.loads(text)
             return obj if isinstance(obj, dict) else {}
         except Exception:
             return {}
@@ -84,11 +120,7 @@ class RPiEdgeHTTPHandler(SimpleHTTPRequestHandler):
             dash_path = os.path.join(PROJECT_ROOT, "rpi_server", "dashboard.html")
             with open(dash_path, "rb") as f:
                 body = f.read()
-            self.send_response(200)
-            self.send_header("Content-Type", "text/html; charset=utf-8")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
+            self._send_bytes(200, "text/html; charset=utf-8", body, allow_gzip=True, min_gzip_len=256)
             return
 
         if route == "/health":
@@ -149,13 +181,14 @@ class RPiEdgeHTTPHandler(SimpleHTTPRequestHandler):
             source = qs.get("source", [None])[0]
             csv_str = self.store.export_telemetry_csv(limit=limit, source=source)
             csv_bytes = csv_str.encode("utf-8")
-            self.send_response(200)
-            self.send_header("Content-Type", "text/csv; charset=utf-8")
-            self.send_header("Content-Disposition", 'attachment; filename="hvac_telemetry_data.csv"')
-            self.send_header("Content-Length", str(len(csv_bytes)))
-            self.send_header("Access-Control-Allow-Origin", "*")
-            self.end_headers()
-            self.wfile.write(csv_bytes)
+            self._send_bytes(
+                200,
+                "text/csv; charset=utf-8",
+                csv_bytes,
+                filename="hvac_telemetry_data.csv",
+                allow_gzip=True,
+                min_gzip_len=128,
+            )
             return
 
         return super().do_GET()
