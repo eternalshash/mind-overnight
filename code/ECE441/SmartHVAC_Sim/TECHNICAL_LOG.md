@@ -4,6 +4,30 @@ This technical log is automatically maintained to record engineering implementat
 
 ---
 
+### [2026-10-24] Shashwat Choudhry
+* **Commit:** `9653e4f`
+* **Technical Summary:** Updated the headless Puppeteer simulation test suite to strictly verify that the IoT gateway defaults to an "AUTO-SEND: OFF" state. It adds a blower motor fault injection step to ensure the failure payload updates the UI preview without dispatching telemetry while auto-send is disabled.
+
+---
+
+### [2026-10-24] Shashwat Choudhry
+* **Commit:** `7daa2f2`
+* **Technical Summary:** Configured the simulation's IoT alert auto-dispatch flag (`S.iotAuto`) to default to disabled with query-parameter override support (`autosend=1`). Concurrently decoupled local edge logging by posting dry-run fault telemetry to the Raspberry Pi 5 SQLite server endpoint prior to evaluating the external auto-send condition.
+
+---
+
+### [2026-10-24] Shashwat Choudhry
+* **Commit:** `4f4bba0`
+* **Technical Summary:** Feat(sim): default IoT alert auto-send to OFF and gate dispatches. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-10-24] Shashwat Choudhry
+* **Commit:** `7828199`
+* **Technical Summary:** Feat(config): disable automatic fault SMS/email dispatch by default. Modified files in the Smart HVAC subsystem.
+
+---
+
 ### [2026-10-20] Shashwat Choudhry
 * **Commit:** `2c92097`
 * **Technical Summary:** Updated the ECE 441 digital twin simulation documentation and visual assets to detail the integration of the edge IoT anomaly detection and alerting gateway (`iot_alert_engine.py`). The updates document the autonomous dispatch of three-row telemetry payloads—capturing fault conditions, live environmental metrics, and mitigation actions—via cellular SMS and email upon fault injection.
