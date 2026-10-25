@@ -198,6 +198,7 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px}
           <span>RASPBERRY PI 5 EDGE SERVER (SQLITE)</span>
           <div style="display:flex;gap:4px;align-items:center">
             <span id="rpiSyncBadge" class="badge ok" style="cursor:pointer;user-select:none" title="Stream ESP32 telemetry &amp; receive setpoint commands from Raspberry Pi 5">SYNC: ON</span>
+            <span id="rpiLatencyBadge" class="badge" title="Live HTTP Round-Trip Time (latency) in milliseconds">-- ms</span>
             <span id="rpiSyncCount" class="badge">0 PKTS</span>
           </div>
         </div>
@@ -207,6 +208,10 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px}
             <input id="rpiServerUrl" class="iot-in" type="text" value="http://raspberrypi.local:8765" placeholder="http://raspberrypi.local:8765">
           </div>
           <div id="rpiStatusLine" style="margin-top:5px;font-size:9px;color:var(--muted)">SQLite WAL ready | Bidirectional ESP32 telemetry + setpoint sync</div>
+          <div style="display:flex;gap:6px;margin-top:6px">
+            <button class="btn" id="btnExportCsv" style="flex:1;border-color:var(--cyan);color:var(--accent);font-size:9.5px;padding:4px 6px">EXPORT CSV</button>
+            <button class="btn" id="btnBenchmarkComm" style="flex:1;border-color:var(--cyan);color:var(--accent);font-size:9.5px;padding:4px 6px">TEST SPEED</button>
+          </div>
         </div>
       </div>
 
@@ -303,7 +308,8 @@ const S = {
   pw: { comp: 0, heat: 0, fan: 0, plugs: 150, ctrl: 1.5, total: 150 },
   kWh: 0, diag: {}, quiet: true, inspect: null, inspectUntil: 0, wifiPrev: false,
   iotAuto: false, iotSent: 0, iotOnline: false, iotDispatched: {}, iotQueue: [],
-  rpiSync: true, rpiOnline: false, rpiPkts: 0, rpiLastCmdSeq: -1, rpiBuffer: []
+  rpiSync: true, rpiOnline: false, rpiPkts: 0, rpiLastCmdSeq: -1, rpiBuffer: [],
+  commLog: [], commStats: { count: 0, minMs: 9999, maxMs: 0, avgMs: 0, lastMs: 0, totalMs: 0 }
 };
 
 /* =====================================================================
@@ -576,6 +582,130 @@ function applyRPiRemoteControl(ctrl) {
   }
   log('ok', `[RPI->ESP32] Remote command Seq #${ctrl.command_seq} applied: Setpoint ${fF(S.setpoint)} F | Limit ${S.demandLimit} W`);
 }
+
+function recordCommMetric(direction, endpoint, rttMs, status, detail) {
+  S.commStats.count++;
+  S.commStats.lastMs = rttMs;
+  S.commStats.minMs = Math.min(S.commStats.minMs, rttMs);
+  S.commStats.maxMs = Math.max(S.commStats.maxMs, rttMs);
+  S.commStats.totalMs += rttMs;
+  S.commStats.avgMs = +(S.commStats.totalMs / S.commStats.count).toFixed(1);
+
+  const entry = {
+    iso_time: new Date().toISOString().replace('T', ' ').slice(0, 23),
+    unix_ts: +(Date.now() / 1000).toFixed(3),
+    direction,
+    endpoint,
+    latency_ms: rttMs,
+    http_status: status,
+    device_id: 'ESP32-SIM',
+    room_temp_f: +fF(S.ctl.Tctl),
+    room_temp_c: +S.ctl.Tctl.toFixed(2),
+    feels_like_f: +fF(S.ctl.AT),
+    feels_like_c: +S.ctl.AT.toFixed(2),
+    outside_temp_f: +fF(S.inj.heatwave ? 39 : S.Tout),
+    humidity_pct: +S.RH.toFixed(1),
+    air_vel_ms: +(S.inj.blower ? 0.0 : S.vel).toFixed(2),
+    static_pa: +S.dP.toFixed(1),
+    power_w: +S.pw.total.toFixed(1),
+    heater_pwm: Math.round(clamp(S.ctl.heat / 100 * 255, 0, 255)),
+    fan_pwm: Math.round(clamp(S.fanAct / 100 * 255, 0, 255)),
+    setpoint_f: +fF(S.setpoint),
+    setpoint_c: +S.setpoint.toFixed(2),
+    mode: S.ctl.mode,
+    active_mcu: S.mcu.active,
+    detail: detail || ''
+  };
+  S.commLog.push(entry);
+  if (S.commLog.length > 1000) S.commLog.shift();
+
+  if ($('rpiLatencyBadge')) {
+    $('rpiLatencyBadge').textContent = `${Math.round(rttMs)} ms`;
+    $('rpiLatencyBadge').className = 'badge ' + (rttMs < 60 ? 'ok' : rttMs < 160 ? 'warn' : 'crit');
+  }
+  return entry;
+}
+
+function buildCommCSV() {
+  const headers = [
+    'timestamp_iso', 'unix_ts', 'direction', 'endpoint', 'latency_ms', 'http_status',
+    'device_id', 'room_temp_f', 'room_temp_c', 'feels_like_f', 'feels_like_c',
+    'outside_temp_f', 'humidity_pct', 'air_vel_ms', 'static_pa', 'power_w',
+    'heater_pwm', 'fan_pwm', 'setpoint_f', 'setpoint_c', 'mode', 'active_mcu', 'detail'
+  ];
+  const rows = [headers.join(',')];
+  S.commLog.forEach(r => {
+    rows.push([
+      `"${r.iso_time}"`, r.unix_ts, `"${r.direction}"`, `"${r.endpoint}"`, r.latency_ms, r.http_status,
+      `"${r.device_id}"`, r.room_temp_f, r.room_temp_c, r.feels_like_f, r.feels_like_c,
+      r.outside_temp_f, r.humidity_pct, r.air_vel_ms, r.static_pa, r.power_w,
+      r.heater_pwm, r.fan_pwm, r.setpoint_f, r.setpoint_c, `"${r.mode}"`, `"${r.active_mcu}"`, `"${(r.detail || '').replace(/"/g, '""')}"`
+    ].join(','));
+  });
+  return rows.join('\n');
+}
+
+function exportCommCSV(triggerDownload = true) {
+  const csv = buildCommCSV();
+  if (triggerDownload && typeof document !== 'undefined') {
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `hvac_comm_speed_${Date.now()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    log('ok', `[CSV] Exported ${S.commLog.length} communication & telemetry records to CSV.`);
+  }
+  return csv;
+}
+
+async function runCommSpeedBenchmark(iterations = 20) {
+  const baseUrl = getRPiServerUrl();
+  log('sim', `[BENCHMARK] Starting ${iterations}-cycle communication speed benchmark against ${baseUrl}...`);
+  if ($('rpiStatusLine')) $('rpiStatusLine').textContent = `Running speed benchmark (0/${iterations})...`;
+  const results = [];
+  for (let i = 0; i < iterations; i++) {
+    const t0 = performance.now();
+    try {
+      const sample = buildRPiTelemetrySample();
+      const res = await fetch(baseUrl + '/api/telemetry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sample)
+      });
+      const data = await res.json();
+      const rtt = +(performance.now() - t0).toFixed(1);
+      results.push(rtt);
+      recordCommMetric('SIM->PI', '/api/telemetry', rtt, res.status, `Benchmark #${i + 1}/${iterations}`);
+      if (data && data.control) applyRPiRemoteControl(data.control);
+      if ($('rpiStatusLine')) {
+        $('rpiStatusLine').textContent = `Benchmark ${i + 1}/${iterations} | RTT: ${rtt} ms | Avg: ${S.commStats.avgMs} ms`;
+      }
+    } catch (err) {
+      const rtt = +(performance.now() - t0).toFixed(1);
+      recordCommMetric('SIM->PI', '/api/telemetry', rtt, 0, `Error: ${err.message}`);
+    }
+    await new Promise(r => setTimeout(r, 60));
+  }
+  if (results.length) {
+    results.sort((a, b) => a - b);
+    const min = results[0];
+    const max = results[results.length - 1];
+    const avg = +(results.reduce((a, b) => a + b, 0) / results.length).toFixed(1);
+    const med = results[Math.floor(results.length / 2)];
+    const p95 = results[Math.min(results.length - 1, Math.floor(results.length * 0.95))];
+    const summary = `Speed: Min ${min}ms | Avg ${avg}ms | Med ${med}ms | P95 ${p95}ms | Max ${max}ms (${results.length} pkts)`;
+    log('ok', `[BENCHMARK] Completed: ${summary}`);
+    if ($('rpiStatusLine')) $('rpiStatusLine').textContent = summary;
+    exportCommCSV(true);
+    return { min, max, avg, med, p95, count: results.length };
+  }
+  return null;
+}
+
 function syncRPiTelemetry() {
   if (S.quiet || !S.rpiSync || typeof fetch !== 'function') return;
   const sampleObj = buildRPiTelemetrySample();
@@ -587,13 +717,15 @@ function syncRPiTelemetry() {
   }
   const baseUrl = getRPiServerUrl();
   if (!baseUrl) return;
+  const t0 = performance.now();
   fetch(baseUrl + '/api/telemetry', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(sampleObj)
   })
-    .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
-    .then(j => {
+    .then(r => r.ok ? r.json().then(j => ({ ok: true, status: r.status, data: j })) : Promise.reject(new Error('HTTP ' + r.status)))
+    .then(res => {
+      const rttMs = +(performance.now() - t0).toFixed(1);
       const wasOffline = !S.rpiOnline;
       S.rpiOnline = true;
       S.rpiPkts++;
@@ -601,14 +733,17 @@ function syncRPiTelemetry() {
         $('rpiSyncCount').textContent = `${S.rpiPkts} PKTS`;
         $('rpiSyncCount').className = 'badge ok';
       }
+      recordCommMetric('SIM->PI', '/api/telemetry', rttMs, res.status, `Sync #${S.rpiPkts}`);
       if (wasOffline) log('ok', `[RPI] Connected to Raspberry Pi 5 Edge Server (${baseUrl}). Streaming telemetry to SQLite.`);
-      applyRPiRemoteControl(j.control);
-      if ($('rpiStatusLine') && j.control) {
-        $('rpiStatusLine').textContent = `Connected | Pi SP: ${j.control.setpoint_f.toFixed(1)} F (Seq #${j.control.command_seq}) | Last TX OK`;
+      applyRPiRemoteControl(res.data.control);
+      if ($('rpiStatusLine') && res.data.control) {
+        $('rpiStatusLine').textContent = `Speed: ${rttMs} ms (avg ${S.commStats.avgMs} ms) | Seq #${res.data.control.command_seq} | SP ${res.data.control.setpoint_f.toFixed(1)} F`;
       }
     })
-    .catch(() => {
+    .catch(err => {
+      const rttMs = +(performance.now() - t0).toFixed(1);
       S.rpiOnline = false;
+      recordCommMetric('SIM->PI', '/api/telemetry', rttMs, 0, `Fail: ${err && err.message ? err.message : 'timeout'}`);
       if ($('rpiStatusLine')) $('rpiStatusLine').textContent = `Standby (${baseUrl} unreachable) - local PID loop autonomous`;
     });
 }
@@ -616,6 +751,7 @@ function flushRPiBuffer() {
   if (!S.rpiSync || !S.rpiBuffer.length || typeof fetch !== 'function') return;
   const baseUrl = getRPiServerUrl();
   const batch = S.rpiBuffer.splice(0, 100);
+  const t0 = performance.now();
   fetch(baseUrl + '/api/telemetry', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -623,10 +759,12 @@ function flushRPiBuffer() {
   })
     .then(r => r.ok ? r.json() : Promise.reject())
     .then(j => {
+      const rttMs = +(performance.now() - t0).toFixed(1);
       S.rpiOnline = true;
       S.rpiPkts += batch.length;
       if ($('rpiSyncCount')) $('rpiSyncCount').textContent = `${S.rpiPkts} PKTS`;
-      log('ok', `[RPI] Flushed ${batch.length} buffered offline samples to Raspberry Pi SQLite DB.`);
+      recordCommMetric('SIM->PI', '/api/telemetry(batch)', rttMs, 200, `Flushed ${batch.length} buffered samples`);
+      log('ok', `[RPI] Flushed ${batch.length} buffered offline samples to Raspberry Pi SQLite DB (${rttMs} ms).`);
       applyRPiRemoteControl(j.control);
     })
     .catch(() => {});
@@ -634,13 +772,18 @@ function flushRPiBuffer() {
 function pushSimControlToRPi() {
   if (!S.rpiSync || !S.rpiOnline || S.inj.wifi || typeof fetch !== 'function') return;
   const baseUrl = getRPiServerUrl();
+  const t0 = performance.now();
   fetch(baseUrl + '/api/control', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ setpoint_c: +S.setpoint.toFixed(2), demand_limit_w: S.demandLimit, updated_by: 'sim-ui' })
   })
     .then(r => r.ok ? r.json() : null)
-    .then(j => { if (j && j.control) S.rpiLastCmdSeq = j.control.command_seq; })
+    .then(j => {
+      const rttMs = +(performance.now() - t0).toFixed(1);
+      recordCommMetric('SIM->PI', '/api/control', rttMs, 200, `Pushed SP ${fF(S.setpoint)} F | Lim ${S.demandLimit} W`);
+      if (j && j.control) S.rpiLastCmdSeq = j.control.command_seq;
+    })
     .catch(() => {});
 }
 
@@ -1314,6 +1457,16 @@ if ($('rpiSyncBadge')) {
     if (S.rpiSync) syncRPiTelemetry();
   });
 }
+if ($('btnExportCsv')) {
+  $('btnExportCsv').addEventListener('click', () => exportCommCSV(true));
+}
+if ($('btnBenchmarkComm')) {
+  $('btnBenchmarkComm').addEventListener('click', () => runCommSpeedBenchmark(20));
+}
+window.exportCommCSV = exportCommCSV;
+window.runCommSpeedBenchmark = runCommSpeedBenchmark;
+window.getCommLog = () => S.commLog;
+window.getCommStats = () => S.commStats;
 
 $('clearAll').addEventListener('click', () => {
   Object.keys(S.inj).forEach(k => { if (S.inj[k]) setFault(k, false); });
