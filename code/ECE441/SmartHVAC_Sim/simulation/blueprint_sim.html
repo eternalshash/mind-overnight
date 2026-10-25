@@ -171,7 +171,7 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px}
         <div class="grp-h" style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">
           <span>IOT SMS / EMAIL ALERT GATEWAY</span>
           <div style="display:flex;gap:4px;align-items:center">
-            <span id="iotAutoBadge" class="badge ok" style="cursor:pointer;user-select:none" title="Automatically dispatch Email + SMS when a fault is triggered">AUTO-SEND: ON</span>
+            <span id="iotAutoBadge" class="badge" style="cursor:pointer;user-select:none" title="Click to toggle automatic Email + SMS dispatch when a fault is triggered">AUTO-SEND: OFF</span>
             <span id="iotSentCount" class="badge">0 SENT</span>
           </div>
         </div>
@@ -302,7 +302,7 @@ const S = {
   plugs: { wrk: 95, tv: 45, lamp: 10 },
   pw: { comp: 0, heat: 0, fan: 0, plugs: 150, ctrl: 1.5, total: 150 },
   kWh: 0, diag: {}, quiet: true, inspect: null, inspectUntil: 0, wifiPrev: false,
-  iotAuto: true, iotSent: 0, iotOnline: false, iotDispatched: {}, iotQueue: [],
+  iotAuto: false, iotSent: 0, iotOnline: false, iotDispatched: {}, iotQueue: [],
   rpiSync: true, rpiOnline: false, rpiPkts: 0, rpiLastCmdSeq: -1, rpiBuffer: []
 };
 
@@ -342,6 +342,13 @@ function toast(cls, head, title, msg, act) {
 const IOT_HOSTED_GATEWAY_URL = 'https://ece441-iot-gateway.vercel.app';
 const IOT_GATEWAY_URL = new URLSearchParams(location.search).get('gateway') ||
   (location.hostname === '127.0.0.1' || location.hostname === 'localhost' ? 'http://127.0.0.1:8765' : IOT_HOSTED_GATEWAY_URL);
+if (new URLSearchParams(location.search).get('autosend') === '1') {
+  S.iotAuto = true;
+  if ($('iotAutoBadge')) {
+    $('iotAutoBadge').textContent = 'AUTO-SEND: ON';
+    $('iotAutoBadge').className = 'badge ok';
+  }
+}
 const CODE_TO_FAULT = {
   'E-101': 'voc', 'E-102': 'smoke', 'E-201': 'mcu', 'E-202': 'sensor',
   'E-203': 'wifi', 'E-301': 'clog', 'E-302': 'blower', 'E-401': 'surge',
@@ -452,9 +459,22 @@ function checkIoTGatewayHealth() {
 
 function triggerIoTAlert(idOrCode, isManual) {
   if (S.quiet && !isManual) return;
-  if (!S.iotAuto && !isManual) return;
   const p = buildIoTAlertPayload(idOrCode);
   renderIoTPreview(p);
+
+  // Persist fault record locally on Raspberry Pi 5 SQLite edge server if active (dry_run: no SMS/Email)
+  if (typeof fetch === 'function') {
+    const rpiUrl = getRPiServerUrl();
+    if (S.rpiSync && !S.inj.wifi && rpiUrl && rpiUrl !== IOT_GATEWAY_URL) {
+      fetch(rpiUrl + '/dispatch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(Object.assign({}, p, { device_id: 'ESP32-SIM', source: 'sim', dry_run: true }))
+      }).catch(() => {});
+    }
+  }
+
+  if (!S.iotAuto && !isManual) return;
 
   if (S.inj.wifi && p.fault_type !== 'wifi' && !isManual) {
     S.iotQueue.push(p);
@@ -486,15 +506,6 @@ function triggerIoTAlert(idOrCode, isManual) {
       .catch(err => {
         log('warn', `[IOT] Gateway (${IOT_GATEWAY_URL}) did not send: ${err && err.message ? err.message : 'unreachable'}. Alert preview updated in UI.`);
       });
-    // Also persist fault record to Raspberry Pi 5 SQLite edge server if active and distinct URL
-    const rpiUrl = getRPiServerUrl();
-    if (S.rpiSync && rpiUrl && rpiUrl !== IOT_GATEWAY_URL) {
-      fetch(rpiUrl + '/dispatch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(Object.assign({}, p, { device_id: 'ESP32-SIM', source: 'sim', dry_run: true }))
-      }).catch(() => {});
-    }
   }
 }
 
@@ -1282,8 +1293,9 @@ if ($('iotAutoBadge')) {
   $('iotAutoBadge').addEventListener('click', () => {
     S.iotAuto = !S.iotAuto;
     $('iotAutoBadge').textContent = S.iotAuto ? 'AUTO-SEND: ON' : 'AUTO-SEND: OFF';
-    $('iotAutoBadge').className = 'badge ' + (S.iotAuto ? 'ok' : '');
+    $('iotAutoBadge').className = 'badge' + (S.iotAuto ? ' ok' : '');
     log('sim', `[IOT] Automatic fault SMS/Email dispatch turned ${S.iotAuto ? 'ON' : 'OFF'}.`);
+    updatePanel();
   });
 }
 if ($('btnTestIot')) {
@@ -1382,8 +1394,8 @@ function updatePanel() {
     $('hPit').textContent = S.rpiOnline ? `SYNC (${S.rpiPkts})` : S.rpiSync ? 'ARMED' : 'OFF';
   }
   if ($('hIot')) {
-    setDot('hIot', S.iotOnline ? '#10b981' : S.iotAuto ? '#38bdf8' : '#f59e0b');
-    $('hIott').textContent = S.iotOnline ? `LIVE (${S.iotSent})` : S.iotAuto ? 'ARMED' : 'PAUSED';
+    setDot('hIot', !S.iotAuto ? '#f59e0b' : S.iotOnline ? '#10b981' : '#38bdf8');
+    $('hIott').textContent = !S.iotAuto ? (S.iotSent ? `PAUSED (${S.iotSent})` : 'PAUSED') : S.iotOnline ? `LIVE (${S.iotSent})` : 'ARMED';
   }
   $('clock').textContent = clockStr(S.t);
   // mode
@@ -1444,7 +1456,7 @@ function tick() {
     flushRPiBuffer();
     while (S.iotQueue.length) {
       const qAlert = S.iotQueue.shift();
-      triggerIoTAlert(qAlert.fault_type, true);
+      if (S.iotAuto) triggerIoTAlert(qAlert.fault_type, true);
     }
   }
   S.wifiPrev = !!S.inj.wifi;
@@ -1801,7 +1813,7 @@ S.kWh = 0; S.quiet = false;
 })();
 log('ok', 'MCU-B hot standby: heartbeat mirror active, watchdog armed (1.6 s).');
 log('ok', 'FS3000 airflow baseline captured. TS-A / TS-B cross-check enabled.');
-log('ok', 'IoT Email & SMS Alert Gateway armed (9254075652 Verizon / choudhryshashwat29@gmail.com).');
+log('ok', `IoT Email & SMS Alert Gateway ready (9254075652 Verizon / choudhryshashwat29@gmail.com | AUTO-SEND: ${S.iotAuto ? 'ON' : 'OFF'}).`);
 log('', 'ESP32 boot complete. Split-range PID: Kp=55 %/C, Ki=0.02 %/(C s), smart-plug feed-forward ON.');
 checkIoTGatewayHealth();
 syncRPiTelemetry();
