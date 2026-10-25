@@ -127,6 +127,7 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px}
     <span><i class="dot" id="hA"></i>MCU-A <b id="hAt">RUN</b></span>
     <span><i class="dot" id="hB"></i>MCU-B <b id="hBt">STANDBY</b></span>
     <span><i class="dot" id="hW"></i>CLOUD <b id="hWt">ONLINE</b></span>
+    <span><i class="dot" id="hPi"></i>RPI SERVER <b id="hPit">STANDBY</b></span>
     <span><i class="dot" id="hIot"></i>IOT GATEWAY <b id="hIott">READY</b></span>
     <span>SIM <b id="clock" class="cy">14:00:00</b> <span id="speedLbl" style="color:var(--muted)">x40</span></span>
   </div>
@@ -192,6 +193,20 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px}
           </div>
           <div class="iot-prev" id="iotPreview"><div class="r1">Row 1: Fault status nominal (awaiting fault trigger)</div><div class="r2">Row 2: Room: 75.2°F | Feels Like: 75.0°F | Outside: 82.4°F</div><div class="r3">Row 3: System Action: Closed-loop PID regulating zone climate</div></div>
           <button class="btn" id="btnTestIot" style="margin-top:6px;border-color:var(--cyan);color:var(--accent)">SEND TEST ALERT (SMS + EMAIL)</button>
+        </div>
+        <div class="grp-h" style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">
+          <span>RASPBERRY PI 5 EDGE SERVER (SQLITE)</span>
+          <div style="display:flex;gap:4px;align-items:center">
+            <span id="rpiSyncBadge" class="badge ok" style="cursor:pointer;user-select:none" title="Stream ESP32 telemetry &amp; receive setpoint commands from Raspberry Pi 5">SYNC: ON</span>
+            <span id="rpiSyncCount" class="badge">0 PKTS</span>
+          </div>
+        </div>
+        <div class="iot-box">
+          <div class="iot-grid">
+            <label for="rpiServerUrl">PI URL</label>
+            <input id="rpiServerUrl" class="iot-in" type="text" value="http://raspberrypi.local:8765" placeholder="http://raspberrypi.local:8765">
+          </div>
+          <div id="rpiStatusLine" style="margin-top:5px;font-size:9px;color:var(--muted)">SQLite WAL ready | Bidirectional ESP32 telemetry + setpoint sync</div>
         </div>
       </div>
 
@@ -287,7 +302,8 @@ const S = {
   plugs: { wrk: 95, tv: 45, lamp: 10 },
   pw: { comp: 0, heat: 0, fan: 0, plugs: 150, ctrl: 1.5, total: 150 },
   kWh: 0, diag: {}, quiet: true, inspect: null, inspectUntil: 0, wifiPrev: false,
-  iotAuto: true, iotSent: 0, iotOnline: false, iotDispatched: {}, iotQueue: []
+  iotAuto: true, iotSent: 0, iotOnline: false, iotDispatched: {}, iotQueue: [],
+  rpiSync: true, rpiOnline: false, rpiPkts: 0, rpiLastCmdSeq: -1, rpiBuffer: []
 };
 
 /* =====================================================================
@@ -470,7 +486,151 @@ function triggerIoTAlert(idOrCode, isManual) {
       .catch(err => {
         log('warn', `[IOT] Gateway (${IOT_GATEWAY_URL}) did not send: ${err && err.message ? err.message : 'unreachable'}. Alert preview updated in UI.`);
       });
+    // Also persist fault record to Raspberry Pi 5 SQLite edge server if active and distinct URL
+    const rpiUrl = getRPiServerUrl();
+    if (S.rpiSync && rpiUrl && rpiUrl !== IOT_GATEWAY_URL) {
+      fetch(rpiUrl + '/dispatch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(Object.assign({}, p, { device_id: 'ESP32-SIM', source: 'sim', dry_run: true }))
+      }).catch(() => {});
+    }
   }
+}
+
+/* =====================================================================
+   4C. RASPBERRY PI 5 EDGE SERVER SYNC (SQLITE + BIDIRECTIONAL COMMANDS)
+   ===================================================================== */
+const RPI_QUERY_URL = new URLSearchParams(location.search).get('rpi');
+const IS_PUBLIC_WEB = /github\.io|githack\.com|vercel\.app/.test(location.hostname);
+if ((IS_PUBLIC_WEB || navigator.webdriver) && !RPI_QUERY_URL) {
+  S.rpiSync = false;
+}
+function detectDefaultRPiUrl() {
+  if (RPI_QUERY_URL) return RPI_QUERY_URL.replace(/\/+$/, '');
+  if (location.protocol.startsWith('http') && (location.port === '8765' || /raspberrypi|^192\.168\.|^10\.|^172\./.test(location.hostname))) {
+    return location.origin;
+  }
+  return 'http://raspberrypi.local:8765';
+}
+if ($('rpiServerUrl')) $('rpiServerUrl').value = detectDefaultRPiUrl();
+if ($('rpiSyncBadge') && !S.rpiSync) {
+  $('rpiSyncBadge').textContent = 'SYNC: OFF';
+  $('rpiSyncBadge').className = 'badge';
+}
+function getRPiServerUrl() {
+  const el = $('rpiServerUrl');
+  return (el ? el.value.trim() : detectDefaultRPiUrl()).replace(/\/+$/, '');
+}
+function buildRPiTelemetrySample() {
+  const c = S.ctl;
+  return {
+    device_id: 'ESP32-SIM',
+    source: 'sim',
+    temp_c: +c.Tctl.toFixed(2),
+    humidity: +S.RH.toFixed(1),
+    apparent_c: +c.AT.toFixed(2),
+    air_vel_ms: +(S.inj.blower ? 0.0 : S.vel).toFixed(2),
+    static_pa: +S.dP.toFixed(1),
+    power_w: +S.pw.total.toFixed(1),
+    heater_pwm: Math.round(clamp(c.heat / 100 * 255, 0, 255)),
+    fan_pwm: Math.round(clamp(S.fanAct / 100 * 255, 0, 255)),
+    setpoint_c: +S.setpoint.toFixed(2),
+    mode: c.mode,
+    active_mcu: S.mcu.active,
+    voc_ppb: +S.VOC.toFixed(0),
+    co2_ppm: +S.CO2.toFixed(0),
+    pm25_ug: +S.PM.toFixed(1)
+  };
+}
+function applyRPiRemoteControl(ctrl) {
+  if (!ctrl || typeof ctrl.command_seq !== 'number') return;
+  if (S.rpiLastCmdSeq === -1) {
+    S.rpiLastCmdSeq = ctrl.command_seq;
+    if (ctrl.command_seq === 0) return;
+  } else if (ctrl.command_seq <= S.rpiLastCmdSeq) {
+    return;
+  }
+  S.rpiLastCmdSeq = ctrl.command_seq;
+  if (typeof ctrl.setpoint_c === 'number') {
+    S.setpoint = clamp(ctrl.setpoint_c, 16, 29);
+    const spF = Math.round(S.setpoint * 9 / 5 + 32);
+    if ($('sSp')) $('sSp').value = clamp(spF, 64, 82);
+    if ($('lSp')) $('lSp').textContent = fF(S.setpoint) + ' F';
+  }
+  if (typeof ctrl.demand_limit_w === 'number') {
+    S.demandLimit = clamp(ctrl.demand_limit_w, 300, 2000);
+    if ($('sLim')) $('sLim').value = S.demandLimit;
+    if ($('lLim')) $('lLim').textContent = S.demandLimit + ' W';
+  }
+  log('ok', `[RPI->ESP32] Remote command Seq #${ctrl.command_seq} applied: Setpoint ${fF(S.setpoint)} F | Limit ${S.demandLimit} W`);
+}
+function syncRPiTelemetry() {
+  if (S.quiet || !S.rpiSync || typeof fetch !== 'function') return;
+  const sampleObj = buildRPiTelemetrySample();
+  if (S.inj.wifi) {
+    if (S.rpiBuffer.length < 100) S.rpiBuffer.push(sampleObj);
+    S.rpiOnline = false;
+    if ($('rpiStatusLine')) $('rpiStatusLine').textContent = `Wi-Fi outage: buffering locally (${S.rpiBuffer.length} samples queued)`;
+    return;
+  }
+  const baseUrl = getRPiServerUrl();
+  if (!baseUrl) return;
+  fetch(baseUrl + '/api/telemetry', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(sampleObj)
+  })
+    .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
+    .then(j => {
+      const wasOffline = !S.rpiOnline;
+      S.rpiOnline = true;
+      S.rpiPkts++;
+      if ($('rpiSyncCount')) {
+        $('rpiSyncCount').textContent = `${S.rpiPkts} PKTS`;
+        $('rpiSyncCount').className = 'badge ok';
+      }
+      if (wasOffline) log('ok', `[RPI] Connected to Raspberry Pi 5 Edge Server (${baseUrl}). Streaming telemetry to SQLite.`);
+      applyRPiRemoteControl(j.control);
+      if ($('rpiStatusLine') && j.control) {
+        $('rpiStatusLine').textContent = `Connected | Pi SP: ${j.control.setpoint_f.toFixed(1)} F (Seq #${j.control.command_seq}) | Last TX OK`;
+      }
+    })
+    .catch(() => {
+      S.rpiOnline = false;
+      if ($('rpiStatusLine')) $('rpiStatusLine').textContent = `Standby (${baseUrl} unreachable) - local PID loop autonomous`;
+    });
+}
+function flushRPiBuffer() {
+  if (!S.rpiSync || !S.rpiBuffer.length || typeof fetch !== 'function') return;
+  const baseUrl = getRPiServerUrl();
+  const batch = S.rpiBuffer.splice(0, 100);
+  fetch(baseUrl + '/api/telemetry', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ samples: batch })
+  })
+    .then(r => r.ok ? r.json() : Promise.reject())
+    .then(j => {
+      S.rpiOnline = true;
+      S.rpiPkts += batch.length;
+      if ($('rpiSyncCount')) $('rpiSyncCount').textContent = `${S.rpiPkts} PKTS`;
+      log('ok', `[RPI] Flushed ${batch.length} buffered offline samples to Raspberry Pi SQLite DB.`);
+      applyRPiRemoteControl(j.control);
+    })
+    .catch(() => {});
+}
+function pushSimControlToRPi() {
+  if (!S.rpiSync || !S.rpiOnline || S.inj.wifi || typeof fetch !== 'function') return;
+  const baseUrl = getRPiServerUrl();
+  fetch(baseUrl + '/api/control', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ setpoint_c: +S.setpoint.toFixed(2), demand_limit_w: S.demandLimit, updated_by: 'sim-ui' })
+  })
+    .then(r => r.ok ? r.json() : null)
+    .then(j => { if (j && j.control) S.rpiLastCmdSeq = j.control.command_seq; })
+    .catch(() => {});
 }
 
 /* =====================================================================
@@ -1132,6 +1292,16 @@ if ($('btnTestIot')) {
     triggerIoTAlert(activeFault, true);
   });
 }
+if ($('rpiSyncBadge')) {
+  $('rpiSyncBadge').addEventListener('click', () => {
+    S.rpiSync = !S.rpiSync;
+    if (!S.rpiSync) S.rpiOnline = false;
+    $('rpiSyncBadge').textContent = S.rpiSync ? 'SYNC: ON' : 'SYNC: OFF';
+    $('rpiSyncBadge').className = 'badge ' + (S.rpiSync ? 'ok' : '');
+    log('sim', `[RPI] Raspberry Pi 5 telemetry & command sync turned ${S.rpiSync ? 'ON' : 'OFF'}.`);
+    if (S.rpiSync) syncRPiTelemetry();
+  });
+}
 
 $('clearAll').addEventListener('click', () => {
   Object.keys(S.inj).forEach(k => { if (S.inj[k]) setFault(k, false); });
@@ -1154,6 +1324,7 @@ function readSliders() {
   $('lSpd').textContent = 'x' + S.speed; $('speedLbl').textContent = 'x' + S.speed;
 }
 ['sSp', 'sOut', 'sLim', 'sSpd'].forEach(id => $(id).addEventListener('input', readSliders));
+['sSp', 'sLim'].forEach(id => $(id).addEventListener('change', pushSimControlToRPi));
 
 function card(l, v, u, s, cls) { return `<div class="card ${cls || ''}"><div class="l">${l}</div><div class="v">${v}<small>${u}</small></div><div class="s">${s}</div></div>`; }
 function updateCards() {
@@ -1206,6 +1377,10 @@ function updatePanel() {
   setDot('hA', m.a === 'RUN' ? '#10b981' : m.a === 'SYNC' ? '#f59e0b' : '#ef4444'); $('hAt').textContent = m.a;
   setDot('hB', m.b === 'ACTIVE' ? '#10b981' : '#f59e0b'); $('hBt').textContent = m.b;
   setDot('hW', S.inj.wifi ? '#ef4444' : '#10b981'); $('hWt').textContent = S.inj.wifi ? 'OFFLINE' : 'ONLINE';
+  if ($('hPi')) {
+    setDot('hPi', S.rpiOnline ? '#10b981' : S.rpiSync ? '#38bdf8' : '#f59e0b');
+    $('hPit').textContent = S.rpiOnline ? `SYNC (${S.rpiPkts})` : S.rpiSync ? 'ARMED' : 'OFF';
+  }
   if ($('hIot')) {
     setDot('hIot', S.iotOnline ? '#10b981' : S.iotAuto ? '#38bdf8' : '#f59e0b');
     $('hIott').textContent = S.iotOnline ? `LIVE (${S.iotSent})` : S.iotAuto ? 'ARMED' : 'PAUSED';
@@ -1266,6 +1441,7 @@ function tick() {
   if (S.wifiPrev && !S.inj.wifi) {
     log('ok', `Cloud link restored. Flushed ${S.ctl.buffered} buffered telemetry samples to MQTT broker.`);
     S.ctl.buffered = 0;
+    flushRPiBuffer();
     while (S.iotQueue.length) {
       const qAlert = S.iotQueue.shift();
       triggerIoTAlert(qAlert.fault_type, true);
@@ -1273,6 +1449,7 @@ function tick() {
   }
   S.wifiPrev = !!S.inj.wifi;
   if (++tickN % 5 === 0) { sample(); if (chart) chart.update('none'); }
+  if (tickN % 10 === 0 && !S.quiet) syncRPiTelemetry();
   if (tickN % 25 === 0 && !S.quiet) checkIoTGatewayHealth();
   if (!S.quiet) { updateCards(); updatePanel(); }
 }
@@ -1627,6 +1804,7 @@ log('ok', 'FS3000 airflow baseline captured. TS-A / TS-B cross-check enabled.');
 log('ok', 'IoT Email & SMS Alert Gateway armed (9254075652 Verizon / choudhryshashwat29@gmail.com).');
 log('', 'ESP32 boot complete. Split-range PID: Kp=55 %/C, Ki=0.02 %/(C s), smart-plug feed-forward ON.');
 checkIoTGatewayHealth();
+syncRPiTelemetry();
 buildChart(); updateCards(); updatePanel();
 setInterval(tick, 200);
 requestAnimationFrame(render);
