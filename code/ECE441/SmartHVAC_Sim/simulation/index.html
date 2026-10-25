@@ -747,15 +747,55 @@ function syncRPiTelemetry() {
       if ($('rpiStatusLine')) $('rpiStatusLine').textContent = `Standby (${baseUrl} unreachable) - local PID loop autonomous`;
     });
 }
-function flushRPiBuffer() {
+async function compressGzipBytes(rawText) {
+  if (typeof CompressionStream !== 'function') return null;
+  try {
+    const cs = new CompressionStream('gzip');
+    const writer = cs.writable.getWriter();
+    writer.write(new TextEncoder().encode(rawText));
+    writer.close();
+    const chunks = [];
+    const reader = cs.readable.getReader();
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+    }
+    let totalLen = chunks.reduce((acc, c) => acc + c.length, 0);
+    const merged = new Uint8Array(totalLen);
+    let offset = 0;
+    for (const c of chunks) {
+      merged.set(c, offset);
+      offset += c.length;
+    }
+    return merged;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function flushRPiBuffer() {
   if (!S.rpiSync || !S.rpiBuffer.length || typeof fetch !== 'function') return;
   const baseUrl = getRPiServerUrl();
   const batch = S.rpiBuffer.splice(0, 100);
+  const jsonStr = JSON.stringify({ samples: batch });
+  const rawBytesLen = jsonStr.length;
+  let bodyData = jsonStr;
+  const headers = { 'Content-Type': 'application/json' };
+
+  if (rawBytesLen > 300) {
+    const compressed = await compressGzipBytes(jsonStr);
+    if (compressed && compressed.byteLength < rawBytesLen) {
+      bodyData = compressed;
+      headers['Content-Encoding'] = 'gzip';
+    }
+  }
+
   const t0 = performance.now();
   fetch(baseUrl + '/api/telemetry', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ samples: batch })
+    headers,
+    body: bodyData
   })
     .then(r => r.ok ? r.json() : Promise.reject())
     .then(j => {
@@ -763,8 +803,9 @@ function flushRPiBuffer() {
       S.rpiOnline = true;
       S.rpiPkts += batch.length;
       if ($('rpiSyncCount')) $('rpiSyncCount').textContent = `${S.rpiPkts} PKTS`;
-      recordCommMetric('SIM->PI', '/api/telemetry(batch)', rttMs, 200, `Flushed ${batch.length} buffered samples`);
-      log('ok', `[RPI] Flushed ${batch.length} buffered offline samples to Raspberry Pi SQLite DB (${rttMs} ms).`);
+      const compLabel = headers['Content-Encoding'] ? ` (gzipped: ${bodyData.byteLength} vs ${rawBytesLen} B)` : '';
+      recordCommMetric('SIM->PI', '/api/telemetry(batch)', rttMs, 200, `Flushed ${batch.length} buffered samples${compLabel}`);
+      log('ok', `[RPI] Flushed ${batch.length} buffered samples to SQLite (${rttMs} ms${compLabel}).`);
       applyRPiRemoteControl(j.control);
     })
     .catch(() => {});
