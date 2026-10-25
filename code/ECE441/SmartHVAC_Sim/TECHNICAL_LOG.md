@@ -5,6 +5,30 @@ This technical log is automatically maintained to record engineering implementat
 ---
 
 ### [2026-10-24] Shashwat Choudhry
+* **Commit:** `5fffcbc`
+* **Technical Summary:** Added communication speed benchmark and telemetry export datasets (`sim_comm_speed_benchmark.csv` and `rpi_telemetry_export.csv`) to characterize controller interface timing and performance. The exported telemetry logs synchronized environmental measurements, indoor air quality metrics (VOC, CO2, PM2.5), power consumption, and fan/heater PWM control states across simulated and physical ESP32 nodes.
+
+---
+
+### [2026-10-24] Shashwat Choudhry
+* **Commit:** `9c058cf`
+* **Technical Summary:** Added automated communication benchmarking scripts using Puppeteer and Python to evaluate HTTP telemetry streaming, packet round-trip time, and setpoint propagation latency between the HVAC simulation and the Raspberry Pi 5 server. The suite executes multi-packet transmission tests to measure latency distribution metrics and automatically exports synchronized communication telemetry to CSV.
+
+---
+
+### [2026-10-24] Shashwat Choudhry
+* **Commit:** `8642368`
+* **Technical Summary:** Implemented real-time HTTP round-trip time (RTT) tracking and latency statistical aggregation (min, max, average) for bidirectional ESP32-to-Raspberry-Pi edge server communication. Added an automated speed benchmark utility and CSV logging capability to export timestamped network performance metrics synchronized with simulated environmental and power telemetry.
+
+---
+
+### [2026-10-24] Shashwat Choudhry
+* **Commit:** `4ce70d4`
+* **Technical Summary:** Added `/api/export/csv` and `/api/telemetry.csv` HTTP endpoints to the Raspberry Pi edge server to enable direct downloading of historical telemetry records. Implemented `export_telemetry_csv` in the SQLite storage layer to serialize environmental, airflow, electrical power, PWM actuator states, and air quality sensor metrics into formatted CSV data with configurable source and limit filters.
+
+---
+
+### [2026-10-24] Shashwat Choudhry
 * **Commit:** `9653e4f`
 * **Technical Summary:** Updated the headless Puppeteer simulation test suite to strictly verify that the IoT gateway defaults to an "AUTO-SEND: OFF" state. It adds a blower motor fault injection step to ensure the failure payload updates the UI preview without dispatching telemetry while auto-send is disabled.
 
