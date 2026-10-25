@@ -5,6 +5,12 @@ This technical log is automatically maintained to record engineering implementat
 ---
 
 ### [2026-10-24] Shashwat Choudhry
+* **Commit:** `a6912ea`
+* **Technical Summary:** Feat(rpi): add HTTP HEAD method handler for probe requests. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-10-24] Shashwat Choudhry
 * **Commit:** `1bd6f83`
 * **Technical Summary:** Implemented gzip compression benchmarking routines within `test_comm_speed.py` to evaluate payload reduction and transmission latency across telemetry streams. The communication speed benchmark dataset and Raspberry Pi telemetry export logs were updated with the resulting compression metrics and simulated run data.
 
