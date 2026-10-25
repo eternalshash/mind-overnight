@@ -93,6 +93,12 @@ bash rpi_server/setup_pi.sh
 # http://raspberrypi.local:8765/simulation/index.html
 ```
 
+### Communication Speed & Lab Telemetry Verification
+The communication pipeline between the Digital Twin Simulation and the Raspberry Pi 5 edge server has been benchmarked and verified with live network metrics and human-readable CSV datasets:
+- **Technical Report:** [COMM_SPEED_VERIFICATION.md](COMM_SPEED_VERIFICATION.md)
+- **Verified Benchmark Dataset:** [`hvac_comm_speed_1792898839748.csv`](hvac_comm_speed_1792898839748.csv)
+- **Key Findings:** 100% success rate, 35.0–53.2 ms steady-state RTT latency, 85–95% bandwidth reduction via HTTP Gzip compression, and bidirectional closed-loop setpoint synchronization.
+
 ## Development & Contribution Guide
 For instructions on setting up the ESP32 build toolchain in PlatformIO, installing code libraries, configuring Wokwi simulation in VS Code, and submitting Pull Requests, please review the [Team Contribution Guide](CONTRIBUTING.md).
 
