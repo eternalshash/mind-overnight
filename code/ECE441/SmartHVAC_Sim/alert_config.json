@@ -45,9 +45,12 @@
   },
   "http_gateway": {
     "hosted_url": "https://ece441-iot-gateway.vercel.app",
-    "host": "127.0.0.1",
+    "rpi_edge_url": "http://raspberrypi.local:8765",
+    "host": "0.0.0.0",
     "port": 8765,
     "dispatch_endpoint": "/dispatch",
+    "telemetry_endpoint": "/api/telemetry",
+    "control_endpoint": "/api/control",
     "health_endpoint": "/health",
     "auto_dispatch_on_fault": true,
     "queue_when_offline": true
