@@ -68,6 +68,29 @@ python3 testingIot.py --all
 
 # Run regression test suite
 python3 verify_iot_pipeline.py
+python3 rpi_server/test_rpi_edge.py
+```
+
+## Raspberry Pi 5 Unified Edge Server (Plug-and-Play: Sim + Lab ESP32)
+
+The `rpi_server/` package turns a Raspberry Pi 5 into a local, SD-card-friendly edge server (`SQLite WAL` + `Mosquitto MQTT` + `HTTP REST`) that works identically with **both** the Digital Twin Web Simulation and the physical ESP32 hardware in the lab.
+
+### Storage & Retention Architecture
+- **Raw Telemetry (`telemetry_raw`):** 2-second write-throttled sensor/PWM samples auto-pruned after **14 days** (~24 MB max).
+- **Hourly Rollups (`telemetry_hourly`):** Compact energy (`Wh`), runtime, and min/max/avg thermal rollups kept for **365 days** (<5 MB).
+- **Fault Events (`fault_events`):** 3-row caregiver alert & diagnostic records retained **indefinitely**.
+- **Bidirectional Control (`control_state`):** Target setpoint, demand limit, and mode overrides pushed back to both the simulator (via HTTP JSON) and the ESP32 (`ece441/group2/hvac/setpoint` retained MQTT + HTTP fallback).
+
+### Provisioning & Running on the Raspberry Pi 5
+```bash
+# One-command provisioning on Raspberry Pi OS (installs Mosquitto :1883 + systemd service :8765)
+bash rpi_server/setup_pi.sh
+
+# Open the Raspberry Pi 5 Live Edge Console & Setpoint Controller
+# http://raspberrypi.local:8765/
+
+# Open the Digital Twin Simulator directly from the Pi (or locally with ?rpi=http://raspberrypi.local:8765)
+# http://raspberrypi.local:8765/simulation/index.html
 ```
 
 ## Development & Contribution Guide
