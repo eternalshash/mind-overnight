@@ -111,6 +111,9 @@ class RPiEdgeHTTPHandler(SimpleHTTPRequestHandler):
         self.send_response(200)
         self.end_headers()
 
+    def do_HEAD(self) -> None:
+        self.do_GET()
+
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
         route = parsed.path
