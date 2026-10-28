@@ -7,6 +7,7 @@ default-run = "oxidation"
 # Binary definitions allowing multiple runnable scripts in one project:
 # Run main:                  cargo run
 # Run practice 1:           cargo run --bin practice1
+# Run practice revise:      cargo run --bin practiceRevise
 # Run day 2 structs:        cargo run --bin rustday2
 
 [[bin]]
@@ -16,6 +17,10 @@ path = "src/main.rs"
 [[bin]]
 name = "practice1"
 path = "src/practice1.rs"
+
+[[bin]]
+name = "practiceRevise"
+path = "src/practiceRevise.rs"
 
 [[bin]]
 name = "rustday2"
