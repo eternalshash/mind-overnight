@@ -8,6 +8,7 @@ default-run = "oxidation"
 # Run main:                  cargo run
 # Run practice 1:           cargo run --bin practice1
 # Run practice revise:      cargo run --bin practiceRevise
+# Run practice 3:           cargo run --bin practiceRust3
 # Run day 2 structs:        cargo run --bin rustday2
 
 [[bin]]
@@ -21,6 +22,10 @@ path = "src/practice1.rs"
 [[bin]]
 name = "practiceRevise"
 path = "src/practiceRevise.rs"
+
+[[bin]]
+name = "practiceRust3"
+path = "src/practiceRust3.rs"
 
 [[bin]]
 name = "rustday2"
