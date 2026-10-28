@@ -22,7 +22,13 @@ ece449/project2/easynn_test
 *.env
 *.key
 config_keys.py
+**/google-services.json
 
+# Build Artifacts & Gradle
+**/build/
+**/.gradle/
+*.apk
+*.aab
 
 # Node
 node_modules/

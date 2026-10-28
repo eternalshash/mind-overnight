@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "668497144453",
+    "firebase_url": "https://ece441lab04-default-rtdb.firebaseio.com",
+    "project_id": "ece441lab04",
+    "storage_bucket": "ece441lab04.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:668497144453:android:4ec5ad4079ecfad55cd7ec",
+        "android_client_info": {
+          "package_name": "com.example.group2_ece441_lab4_firebase_client"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "YOUR_API_KEY_HERE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

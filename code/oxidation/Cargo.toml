@@ -1,0 +1,22 @@
+[package]
+name = "oxidation"
+version = "0.1.0"
+edition = "2024"
+default-run = "oxidation"
+
+# Binary definitions allowing multiple runnable scripts in one project:
+# Run main:                  cargo run
+# Run practice 1:           cargo run --bin practice1
+# Run day 2 structs:        cargo run --bin rustday2
+
+[[bin]]
+name = "oxidation"
+path = "src/main.rs"
+
+[[bin]]
+name = "practice1"
+path = "src/practice1.rs"
+
+[[bin]]
+name = "rustday2"
+path = "src/rustday2.rs"
