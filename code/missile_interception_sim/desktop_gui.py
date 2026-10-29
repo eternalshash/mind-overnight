@@ -1805,11 +1805,55 @@ class TacticalDesktopApp:
             else:
                 widgets["btn_shield"].pack_forget()
 
+    def _apply_relocation_plan_to_map(self, plan: theater_vulnerability.BatteryRelocationPlan):
+        """Updates battery map marker and WEZ polygon after an Auto-Shield relocation."""
+        b_id = plan.battery_id
+        new_lat = plan.recommended_lat
+        new_lon = plan.recommended_lon
+
+        if b_id in self.map_site_markers:
+            m_obj, s_dict, _ = self.map_site_markers[b_id]
+            m_obj.set_position(new_lat, new_lon)
+            s_dict["lat"] = new_lat
+            s_dict["lon"] = new_lon
+
+        if b_id in self.map_wez_polygons:
+            try:
+                self.map_wez_polygons[b_id].delete()
+            except Exception:
+                pass
+            circle_pts = calculate_circle_points(new_lat, new_lon, plan.wez_radius_km)
+            self.map_wez_polygons[b_id] = self.map_widget.set_polygon(
+                circle_pts,
+                outline_color="#00ff88",
+                fill_color=None,
+                border_width=2,
+            )
+
     def _on_auto_shield_asset_clicked(self, asset_id: str):
-        pass
+        """Executes Auto-Shield battery repositioning for a specific vulnerable asset."""
+        plan = self.sim_engine.auto_shield_asset(asset_id)
+        if plan:
+            self._apply_relocation_plan_to_map(plan)
+            self._recompute_and_draw_trajectories()
+            self._update_hud_display()
+            self.lbl_mode_status.configure(
+                text=f"AUTO-SHIELDED: {plan.target_asset_name[:16]}",
+                text_color="#10b981",
+            )
 
     def _on_auto_shield_all_clicked(self):
-        pass
+        """Executes Auto-Shield battery repositioning for all vulnerable assets in the theater."""
+        plans = self.sim_engine.auto_shield_all_vulnerable()
+        for plan in plans:
+            self._apply_relocation_plan_to_map(plan)
+        if plans:
+            self._recompute_and_draw_trajectories()
+            self._update_hud_display()
+            self.lbl_mode_status.configure(
+                text=f"AUTO-SHIELDED {len(plans)} ASSET(S)",
+                text_color="#10b981",
+            )
 
     # --------------------------------------------------------------------------
     # PLAYBACK TRANSPORT EVENT HANDLERS
