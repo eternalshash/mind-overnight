@@ -208,3 +208,44 @@ def execute_million_run_monte_carlo(
             slant_km = math.sqrt(d_eng_km * d_eng_km + (0.45 * apogee_km) * (0.45 * apogee_km))
             tti_def_s = commit_s + (slant_km / v_int_kms)
 
+            # 3D Terminal Engagement Sub-Timestep TPN Kinematics Simulation
+            # Simulates final terminal engagement window (last 12.0s before CPA)
+            t_terminal = 12.0
+            dt = t_terminal / float(max(4, sim_steps))
+            vt_mps = speed_kms * 1000.0
+            vm_mps = v_int_kms * 1000.0
+
+            # Threat starts at closing distance (-vx * t_terminal) heading toward intercept point
+            vx = (vt_mps + vm_mps) * 0.55
+            rx = -vx * t_terminal
+            ry = (u3 - 0.5) * 900.0
+            rz = (u1 - 0.5) * 650.0
+            vy = -ry / t_terminal + (u2 - 0.5) * 25.0
+            vz = -rz / t_terminal + (u4 - 0.5) * 20.0
+
+            min_dist_sq = rx * rx + ry * ry + rz * rz
+            nav_N = 4.2
+            max_g_mps2 = 45.0 * 9.81
+
+            for step in range(sim_steps):
+                if rx >= 0.0:
+                    break
+                t_cur = float(step) * dt
+                # Evasive target weave acceleration
+                at_y = weave_amp_g * 9.81 * math.sin(2.8 * t_cur + u1 * 6.28)
+                at_z = weave_amp_g * 9.81 * 0.6 * math.cos(2.1 * t_cur + u2 * 6.28)
+
+                # Exact time-to-go along closing axis (clamped to >= 2.2*dt for Euler stability)
+                t_go = max(2.2 * dt, -rx / max(100.0, vx))
+                zem_y = ry + vy * t_go
+                zem_z = rz + vz * t_go
+                am_y = -nav_N * zem_y / (t_go * t_go)
+                am_z = -nav_N * zem_z / (t_go * t_go)
+
+                # Clamp interceptor G-limit with altitude density scaling
+                am_mag = math.sqrt(am_y * am_y + am_z * am_z)
+                if am_mag > max_g_mps2:
+                    scale = max_g_mps2 / am_mag
+                    am_y *= scale
+                    am_z *= scale
+
