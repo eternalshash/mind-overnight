@@ -248,7 +248,7 @@ add_meta([
 # ==================== SECTION II ====================
 add_sec_title("Section II: Cassandra Cluster Management")
 
-add_sub_title("Question II.1 (1 point): Misconfiguring CASSANDRA_CLUSTER_NAME in docker-compose.yml")
+add_sub_title("Question II.1: Misconfiguring CASSANDRA_CLUSTER_NAME in docker-compose.yml")
 add_para("In Apache Cassandra, the environment variable CASSANDRA_CLUSTER_NAME defines the logical cluster membership for each node, corresponding to the cluster_name attribute in the cassandra.yaml configuration. During node startup, gossip handshake routines, and cluster joins, the Cassandra storage engine performs strict cluster name validation. Misconfiguring this variable results in three immediate failure modes:")
 add_bullet("1. Rejection During Gossip Join Protocol:",
            "When an initializing node contacts a seed node (or any existing cluster peer), the two nodes exchange gossip digests containing their configured cluster names. If the cluster name of the joining node does not match the name configured on the seed nodes, the seed immediately rejects the connection. Cassandra aborts the join attempt and writes a fatal configuration error to the container logs: 'org.apache.cassandra.exceptions.ConfigurationException: Fatal configuration error; unable to join the cluster. Node joined cluster [NameA] but cluster name is [NameB]'.")
@@ -257,7 +257,7 @@ add_bullet("2. Formation of Split-Brain / Isolated Rings:",
 add_bullet("3. Node Crash on Persisted Volume Restart:",
            "If an existing node that already has persisted data in its volume directory (/var/lib/cassandra) is restarted with an altered CASSANDRA_CLUSTER_NAME, Cassandra inspects the cluster name recorded in its local metadata table (system.local). Upon detecting that the environment variable differs from the stored cluster name, Cassandra refuses to boot and terminates with: 'Fatal configuration error; Cannot start node if snitch/cluster name does not match the previous used'.")
 
-add_sub_title("Question II.2 (1 point): Purpose of CASSANDRA_SEEDS and Listing Server Requirements")
+add_sub_title("Question II.2: Purpose of CASSANDRA_SEEDS and Listing Server Requirements")
 add_para("Purpose of CASSANDRA_SEEDS:")
 add_para("Apache Cassandra uses a decentralized, masterless, peer-to-peer ring architecture with no central directory or coordinator server. When a node starts for the first time or recovers from a reboot, it possesses no prior knowledge of active IP addresses or ring membership. The CASSANDRA_SEEDS environment variable specifies a comma-delimited list of relatively static contact points (seed nodes). The Gossiper module on the booting node contacts these seeds to initiate the gossip communication protocol, obtain cluster digests, discover all active peers, and retrieve the current token range distributions across the ring.")
 add_para("Is it necessary to list all servers?")
@@ -269,7 +269,7 @@ add_bullet("• Disabling Token Bootstrapping Protections:",
 add_bullet("• Operational Best Practice:",
            "Industry standard practice dictates listing only 2 to 3 seeds per datacenter. In docker-compose.yml, this principle is demonstrated by setting CASSANDRA_SEEDS: cassandra-1,cassandra-2, while omitting cassandra-3 so that node 3 dynamically learns the ring state through seeds 1 and 2.")
 
-add_sub_title("Question II.3 (1 point): Cluster Status Screenshot and Meaning of UN in nodetool status")
+add_sub_title("Question II.3: Cluster Status Screenshot and Meaning of UN in nodetool status")
 add_para("The command docker compose exec cassandra-1 nodetool status was executed against the running three-node cluster. The resulting terminal output is displayed in Figure 1 below:")
 
 # Add Screenshot
@@ -287,7 +287,7 @@ add_para("Therefore, 'UN' denotes Up and Normal, confirming that all three nodes
 # ==================== SECTION III ====================
 add_sec_title("Section III: Marketplace Integration")
 
-add_sub_title("Question III.1 (1 point): Service Startup Synchronization and Required Cassandra Nodes")
+add_sub_title("Question III.1: Service Startup Synchronization and Required Cassandra Nodes")
 add_para("Tracing Database Readiness Synchronization in marketplace-service/main.go:")
 add_para("In marketplace-service/main.go, the service initializes its persistence layers sequentially before binding to HTTP port 8080:")
 add_bullet("1. PostgreSQL Store Synchronization (Line 17):",
@@ -303,7 +303,7 @@ add_bullet("• Driver Handshake Requirement:",
 add_bullet("• DDL Schema Agreement:",
            "Cassandra permits keyspace creation with replication factor 3 even when fewer nodes (1 or 2 nodes) are currently active in the cluster. The coordinator node executes the schema creation and commits metadata locally while issuing a cluster warning. As verified in the two-node experiments (CASSANDRA_NODES=2), marketplace-service successfully creates the schema and starts serving requests with only 2 nodes active. If both seed contact points are offline, the service cannot start.")
 
-add_sub_title("Question III.2 (3 points): Database Trace of Baseline Requests")
+add_sub_title("Question III.2: Database Trace of Baseline Requests")
 add_para("The starter baseline script run_baseline.sh executes three primary workflow requests that demonstrate data synchronization across PostgreSQL and Cassandra:")
 
 add_para("Request 1: ./scripts/list.sh Alice \"Used textbook\" 25")
@@ -367,7 +367,7 @@ add_bullet("  - Table marketplace_history.sales_by_seller (Read):",
 add_bullet("• Response Construction:",
            "The handler combines PostgreSQL balance (75) and Cassandra slices into a consolidated JSON payload returned with HTTP 200 OK.")
 
-add_sub_title("Question III.3 (2 points): Partitioning available_listings by Year in listed_at")
+add_sub_title("Question III.3: Partitioning available_listings by Year in listed_at")
 add_para("Architectural Evaluation of Design Improvement:")
 add_para("Yes, partitioning the available_listings table by the year extracted from listed_at instead of using a constant literal feed ('all') represents a substantial architectural improvement:")
 add_bullet("1. Elimination of the Cassandra Hot Partition Anti-Pattern:",
@@ -392,7 +392,7 @@ add_bullet("3. In-Memory Merging and Sorting:",
 # ==================== SECTION IV ====================
 add_sec_title("Section IV: Tunable Consistency and Distributed Transactions")
 
-add_sub_title("Question IV.1 (10 points): In-Depth Analysis of the Five Consistency Configurations")
+add_sub_title("Question IV.1: In-Depth Analysis of the Five Consistency Configurations")
 add_para("Background and Theoretical Consistency Model:")
 add_para("In this project, the keyspace marketplace_history is defined with replication factor N = 3 in datacenter1. The Cassandra consistency levels operate as follows:")
 add_bullet("• Consistency ONE:", "Requires confirmation from exactly 1 replica node.")
@@ -487,7 +487,7 @@ style_table(exp_table, [0.6, 0.5, 1.2, 0.8, 0.7, 0.6, 1.0, 1.1], exp_headers, ex
 add_image_centered("/Users/schoudhry/Desktop/mind-overnight/code/ECE473/cassandra_experiment_evidence.png", 6.2,
                    "Figure 2: Execution Evidence for QUORUM Baseline, ALL/ONE Projection Failures, and System Logs.")
 
-add_sub_title("Question IV.2 (1 point): Feasibility of Combining Cassandra Writes in PostgreSQL Transactions")
+add_sub_title("Question IV.2: Feasibility of Combining Cassandra Writes in PostgreSQL Transactions")
 add_para("Proposal Under Review:")
 add_para("In createOrderHandler (marketplace-service/handlers.go), writes to Cassandra tables may fail, causing materialized read views to diverge from Postgres. Someone proposes including history.WriteOrder directly inside the PostgreSQL transaction block (store.CreateOrder in marketplace/orders.go), intending that if either database operation fails, the transaction rolls back and the order will not complete.")
 add_para("Will this approach work?")
