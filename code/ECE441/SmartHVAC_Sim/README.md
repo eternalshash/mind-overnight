@@ -99,6 +99,14 @@ The communication pipeline between the Digital Twin Simulation and the Raspberry
 - **Verified Benchmark Dataset:** [`hvac_comm_speed_1792898839748.csv`](hvac_comm_speed_1792898839748.csv)
 - **Key Findings:** 100% success rate, 35.0–53.2 ms steady-state RTT latency, 85–95% bandwidth reduction via HTTP Gzip compression, and bidirectional closed-loop setpoint synchronization.
 
+### In-Lab Deployment Challenges & Troubleshooting (University Network Workaround)
+During in-person laboratory testing on university campus networks (e.g., *IIT-Secure*), several edge IoT networking obstacles were encountered and engineered around:
+
+1. **Enterprise Campus Wi-Fi & AP Isolation:** University networks enforce 802.1X Enterprise authentication and Access Point (AP) client isolation, strictly prohibiting peer-to-peer communication between edge devices (Mac client, ESP32 microcontrollers, and Raspberry Pi 5). mDNS resolution (`raspberrypi.local`) is similarly dropped across campus VLANs.
+2. **Headless OS Configuration Constraints:** Raspberry Pi OS Bookworm transitioned to NetworkManager, rendering legacy FAT32 `/boot/firmware/wpa_supplicant.conf` injection obsolete. NetworkManager keyfiles reside on the Linux ext4 root partition, which cannot be modified natively from macOS without third-party drivers.
+3. **The Non-Destructive Kernel Hook Workaround:** Rather than re-flashing and wiping edge services, a transient kernel command-line hook was injected via `cmdline.txt` (`init=/bin/sh`). On boot, the kernel executed a targeted shell script mounting the root filesystem read-write, configuring NetworkManager profiles, and restoring stock `cmdline.txt` before handing execution to systemd PID 1.
+4. **SSID Mirroring & Hotspot Stability:** Connecting directly to mobile hotspots with apostrophes (e.g., `Shashwat's iPhone`) caused NetworkManager escaping mismatches and suffered from iOS power-saving sleep timeouts. The workaround: configuring the mobile hotspot to mirror the pre-authenticated home Wi-Fi credentials (`APT2102`) with *Maximize Compatibility* enabled. The Pi auto-associated seamlessly, achieving **100% packet success rate**, **63.7 ms setpoint latency**, and active SQLite database telemetry logging (`rpi_telemetry_export.csv`).
+
 ## Development & Contribution Guide
 For instructions on setting up the ESP32 build toolchain in PlatformIO, installing code libraries, configuring Wokwi simulation in VS Code, and submitting Pull Requests, please review the [Team Contribution Guide](CONTRIBUTING.md).
 

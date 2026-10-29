@@ -4,6 +4,12 @@ This technical log is automatically maintained to record engineering implementat
 
 ---
 
+### [2026-10-29] Shashwat Choudhry
+* **Commit:** `d297f78`
+* **Technical Summary:** Resolved in-lab headless Raspberry Pi 5 telemetry streaming bottlenecks under campus Wi-Fi constraints (802.1X enterprise authentication & AP client isolation blocking peer discovery). Designed and deployed a non-destructive kernel-level initialization hook (`init=/bin/sh` via `cmdline.txt`) to configure NetworkManager connection profiles without re-flashing or rootfs data loss. Overcame iOS Personal Hotspot SSID character encoding and sleep-cycle disconnects by establishing an identical zero-friction network profile mirroring the home baseline (`APT2102`). Verified live dual-node telemetry ingestion (Digital Twin simulation + ESP32 benchmark node) with 100% packet success rate, 63.7 ms setpoint acknowledgement, and full SQLite database export (`rpi_telemetry_export.csv`).
+
+---
+
 ### [2026-10-24] Shashwat Choudhry
 * **Commit:** `41403ae`
 * **Technical Summary:** Added a communication speed verification report benchmarking HTTP latency (35.0–53.2 ms steady-state) between the Digital Twin simulator and the Raspberry Pi 5 edge server. The report validates bidirectional closed-loop cooling telemetry, including FS3000 air velocity, static pressure, power consumption, and proportional blower fan PWM modulation.
