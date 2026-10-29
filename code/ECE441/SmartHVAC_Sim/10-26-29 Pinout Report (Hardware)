@@ -6,6 +6,8 @@ Hardware Pinout Report
 -As of today, October 29th, the hardware team implemented an ESP32 that in conjunction with a 12V Power Supply and a buck booster converter, controls the power to the
 fan and PTC heating element. The hardware team has also implemented switching capabilities for both the PTC element and the fan via a relay through the esp32 and a 
 mosfet through an arduino uno r4. 
+-The team has implemented a BME280 sensor (to be upgraded to a BME688), that detects temperature changes, pressure, and humidity. If the BME280 Sensor is disconnected
+in any way, a hard restart is necessary to get measurements again.
 
 ESP32 Pinout
 D13 - Common ground between the ESP32 and the Arduino to enable MOSFET switching
@@ -15,3 +17,10 @@ ARDUINO R4 Pinout
 9 - Logic Pin connected to the gate of the MOSFET, turns MOSFET on/off for switching function
 5V - Powers the fan
 GND - Hooked up to GND on the ESP32 to provide a common ground (essential for MOSFET function)
+A4 - SDA
+A5 - SCL
+5V - Connected to the VIN pin on the sensor
+GND - Connected to the GND pin on the sensor (IMPORTANT: MUST BE ARDUINO GND, using a common ground with the fan, will cause the sensor to not be powered correctly)
+
+
+
