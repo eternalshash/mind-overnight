@@ -526,20 +526,43 @@ class TacticalDesktopApp:
         self.lbl_system_status.pack(side="right", padx=16)
 
     def _build_hud_sidebar(self):
-        """Build military tactical telemetry HUD sidebar."""
+        """Build military tactical telemetry & Theater Warfare tabbed HUD sidebar."""
         # HUD Title
-        hud_header = ctk.CTkFrame(self.hud_sidebar, height=40, fg_color="#111c2e", corner_radius=6)
+        hud_header = ctk.CTkFrame(self.hud_sidebar, height=38, fg_color="#111c2e", corner_radius=6)
         hud_header.pack(fill="x", padx=8, pady=(8, 4))
 
         ctk.CTkLabel(
             hud_header,
-            text="TACTICAL TELEMETRY HUD",
-            font=ctk.CTkFont(family="Courier", size=14, weight="bold"),
+            text="TACTICAL C2 & THEATER WARFARE HUD",
+            font=ctk.CTkFont(family="Courier", size=13, weight="bold"),
             text_color="#00f0ff"
         ).pack(side="left", padx=10, pady=6)
 
+        # Tabbed Switcher: Threat Telemetry vs. Theater Warfare Asset Safety Matrix
+        self.active_hud_tab = "Threat Telemetry"
+        self.hud_tab_switcher = ctk.CTkSegmentedButton(
+            self.hud_sidebar,
+            values=["Threat Telemetry", "Theater Warfare"],
+            command=self._on_hud_tab_switched,
+            selected_color="#0284c7",
+            selected_hover_color="#0369a1",
+            unselected_color="#1e293b",
+            unselected_hover_color="#334155",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            height=30,
+        )
+        self.hud_tab_switcher.set("Threat Telemetry")
+        self.hud_tab_switcher.pack(fill="x", padx=8, pady=(2, 4))
+
+        # Container frames for the two HUD tabs
+        self.telemetry_tab_frame = ctk.CTkFrame(self.hud_sidebar, fg_color="transparent")
+        self.telemetry_tab_frame.pack(fill="both", expand=True)
+
+        self.warfare_tab_frame = ctk.CTkFrame(self.hud_sidebar, fg_color="transparent")
+        self._build_warfare_tab_contents()
+
         # Easter Egg Banner (hidden by default)
-        self.easter_banner_frame = ctk.CTkFrame(self.hud_sidebar, fg_color="#3b1219", corner_radius=6, border_width=1, border_color="#ef4444")
+        self.easter_banner_frame = ctk.CTkFrame(self.telemetry_tab_frame, fg_color="#3b1219", corner_radius=6, border_width=1, border_color="#ef4444")
         self.easter_banner_lbl = ctk.CTkLabel(
             self.easter_banner_frame,
             text="AIR-LAUNCH DETECTED: F-22A RAPTOR WEAPON RELEASE",
@@ -550,7 +573,7 @@ class TacticalDesktopApp:
         self.easter_banner_lbl.pack(padx=8, pady=6)
 
         # Active Threat Selector
-        sel_frame = ctk.CTkFrame(self.hud_sidebar, fg_color="#070c14", corner_radius=6)
+        sel_frame = ctk.CTkFrame(self.telemetry_tab_frame, fg_color="#070c14", corner_radius=6)
         sel_frame.pack(fill="x", padx=8, pady=4)
 
         ctk.CTkLabel(sel_frame, text="TRACK MONITOR:", font=ctk.CTkFont(size=11, weight="bold"), text_color="#94a3b8").pack(side="left", padx=8, pady=6)
@@ -568,7 +591,7 @@ class TacticalDesktopApp:
         self.track_selector.pack(side="right", padx=8, pady=6)
 
         # Scrollable Telemetry Cards Frame
-        self.hud_scroll = ctk.CTkScrollableFrame(self.hud_sidebar, fg_color="#070c14", corner_radius=6)
+        self.hud_scroll = ctk.CTkScrollableFrame(self.telemetry_tab_frame, fg_color="#070c14", corner_radius=6)
         self.hud_scroll.pack(fill="both", expand=True, padx=8, pady=4)
 
         # --- Card 1: Threat Identification ---
@@ -769,6 +792,138 @@ class TacticalDesktopApp:
             height=26
         )
         self.btn_add_target.grid(row=0, column=3, padx=2, pady=2)
+
+    def _build_warfare_tab_contents(self):
+        """Constructs the 'Theater Warfare' Asset Safety & Vulnerability Matrix tab."""
+        self.warfare_asset_cards: Dict[str, Dict[str, Any]] = {}
+
+        # Summary Header Card
+        self.card_warfare_summary = ctk.CTkFrame(
+            self.warfare_tab_frame,
+            fg_color="#0f172a",
+            corner_radius=6,
+            border_width=1,
+            border_color="#1e293b",
+        )
+        self.card_warfare_summary.pack(fill="x", padx=8, pady=(4, 4))
+
+        hdr_row = ctk.CTkFrame(self.card_warfare_summary, fg_color="transparent")
+        hdr_row.pack(fill="x", padx=10, pady=(6, 2))
+
+        ctk.CTkLabel(
+            hdr_row,
+            text="THEATER ASSET SAFETY & VULNERABILITY",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color="#00f0ff",
+        ).pack(side="left")
+
+        self.lbl_warfare_surv_idx = ctk.CTkLabel(
+            hdr_row,
+            text="SURVIVAL: 100.0%",
+            font=ctk.CTkFont(family="Courier", size=12, weight="bold"),
+            text_color="#10b981",
+        )
+        self.lbl_warfare_surv_idx.pack(side="right")
+
+        self.warfare_surv_bar = ctk.CTkProgressBar(
+            self.card_warfare_summary,
+            progress_color="#10b981",
+            fg_color="#1e293b",
+            height=8,
+        )
+        self.warfare_surv_bar.set(1.0)
+        self.warfare_surv_bar.pack(fill="x", padx=10, pady=3)
+
+        # Status Count Badges Row
+        badge_row = ctk.CTkFrame(self.card_warfare_summary, fg_color="transparent")
+        badge_row.pack(fill="x", padx=10, pady=2)
+
+        self.lbl_safe_badge = ctk.CTkLabel(
+            badge_row,
+            text="🛡 SAFE: 0",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            fg_color="#064e3b",
+            text_color="#6ee7b7",
+            corner_radius=4,
+            padx=8,
+            pady=2,
+        )
+        self.lbl_safe_badge.pack(side="left", padx=(0, 4))
+
+        self.lbl_contested_badge = ctk.CTkLabel(
+            badge_row,
+            text="⚠ CONTESTED: 0",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            fg_color="#78350f",
+            text_color="#fde68a",
+            corner_radius=4,
+            padx=8,
+            pady=2,
+        )
+        self.lbl_contested_badge.pack(side="left", padx=4)
+
+        self.lbl_vuln_badge = ctk.CTkLabel(
+            badge_row,
+            text="🚨 VULNERABLE: 0",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            fg_color="#7f1d1d",
+            text_color="#fca5a5",
+            corner_radius=4,
+            padx=8,
+            pady=2,
+        )
+        self.lbl_vuln_badge.pack(side="left", padx=4)
+
+        # Priority Keep-Safe & Most Vulnerable Callouts
+        self.lbl_top_keep_safe = ctk.CTkLabel(
+            self.card_warfare_summary,
+            text="★ KEEP SAFE #1: --",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color="#38bdf8",
+             anchor="w",
+        )
+        self.lbl_top_keep_safe.pack(fill="x", padx=10, pady=(2, 0))
+
+        self.lbl_most_vulnerable = ctk.CTkLabel(
+            self.card_warfare_summary,
+            text="🚨 MOST VULNERABLE #1: --",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color="#f87171",
+            anchor="w",
+        )
+        self.lbl_most_vulnerable.pack(fill="x", padx=10, pady=(0, 4))
+
+        # Global Auto-Shield Action Button
+        self.btn_auto_shield_all = ctk.CTkButton(
+            self.card_warfare_summary,
+            text="⚡ AUTO-SHIELD ALL VULNERABLE POINTS",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            fg_color="#0284c7",
+            hover_color="#0369a1",
+            height=28,
+            command=self._on_auto_shield_all_clicked,
+        )
+        self.btn_auto_shield_all.pack(fill="x", padx=10, pady=(2, 8))
+
+        # Scrollable Asset Vulnerability Matrix
+        self.warfare_scroll = ctk.CTkScrollableFrame(
+            self.warfare_tab_frame,
+            fg_color="#070c14",
+            corner_radius=6,
+        )
+        self.warfare_scroll.pack(fill="both", expand=True, padx=8, pady=4)
+
+    def _on_hud_tab_switched(self, tab_name: str):
+        """Switches between Threat Telemetry and Theater Warfare HUD tabs."""
+        self.active_hud_tab = tab_name
+        if tab_name == "Theater Warfare":
+            self.telemetry_tab_frame.pack_forget()
+            self.warfare_tab_frame.pack(fill="both", expand=True)
+            self._update_warfare_hud_and_markers()
+        else:
+            self.warfare_tab_frame.pack_forget()
+            self.telemetry_tab_frame.pack(fill="both", expand=True)
+            self._update_hud_display()
 
     def _build_bottom_transport_bar(self):
         """Build playback transport controls bar."""
@@ -1167,6 +1322,7 @@ class TacticalDesktopApp:
             self.map_wez_polygons[new_id] = poly
             self.placement_mode = None
             self.lbl_mode_status.configure(text="BATTERY ADDED", text_color="#10b981")
+            self._update_warfare_hud_and_markers()
 
         elif self.placement_mode == "target":
             new_id = f"target-custom-{int(time.time())}"
@@ -1187,6 +1343,7 @@ class TacticalDesktopApp:
             self._attach_drag_events_to_marker(m, new_tgt)
             self.placement_mode = None
             self.lbl_mode_status.configure(text="TARGET ADDED", text_color="#10b981")
+            self._update_warfare_hud_and_markers()
 
     def _set_placement_mode(self, mode: str):
         """Sets active placement mode."""
@@ -1414,6 +1571,16 @@ class TacticalDesktopApp:
             self.easter_banner_lbl.configure(text=self.sim_engine.easter_egg_data.get("banner_text", "AIR-LAUNCH ALERT"))
         else:
             self.easter_banner_frame.pack_forget()
+
+        # 8. Refresh Theater Warfare Vulnerability Assessment & Target Markers
+        self._update_warfare_hud_and_markers()
+
+    # --------------------------------------------------------------------------
+    # THEATER WARFARE VULNERABILITY & AUTO-SHIELD ENGINE INTEGRATION
+    # --------------------------------------------------------------------------
+
+    def _update_warfare_hud_and_markers(self):
+        pass
 
     # --------------------------------------------------------------------------
     # PLAYBACK TRANSPORT EVENT HANDLERS
