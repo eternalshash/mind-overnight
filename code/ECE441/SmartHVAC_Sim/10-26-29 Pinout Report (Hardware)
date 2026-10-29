@@ -8,6 +8,8 @@ fan and PTC heating element. The hardware team has also implemented switching ca
 mosfet through an arduino uno r4. 
 -The team has implemented a BME280 sensor (to be upgraded to a BME688), that detects temperature changes, pressure, and humidity. If the BME280 Sensor is disconnected
 in any way, a hard restart is necessary to get measurements again.
+-Considering making the switch to Arduino since the ESP32 isn't currently providing any logic control signals to the components. Arduino may be better for certain 
+components that require a 5V logic signal.
 
 ESP32 Pinout
 D13 - Common ground between the ESP32 and the Arduino to enable MOSFET switching
@@ -21,6 +23,8 @@ A4 - SDA
 A5 - SCL
 5V - Connected to the VIN pin on the sensor
 GND - Connected to the GND pin on the sensor (IMPORTANT: MUST BE ARDUINO GND, using a common ground with the fan, will cause the sensor to not be powered correctly)
+
+
 
 
 
