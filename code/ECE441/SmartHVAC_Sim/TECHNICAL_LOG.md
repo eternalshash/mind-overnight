@@ -4,6 +4,12 @@ This technical log is automatically maintained to record engineering implementat
 
 ---
 
+### [2026-10-29] Shashwat Choudhry
+* **Commit:** `b6473da`
+* **Technical Summary:** Docs(hvac): backfill missed tech log entry for pinout report and fix commit hash. Modified files in the Smart HVAC subsystem.
+
+---
+
 ### [2026-10-29] atran14-F23-F28
 * **Commit:** `7afce7b`
 * **Technical Summary:** Added the hardware pinout report documenting the bench power and switching stage: a 12V supply with a buck converter powering the blower fan and PTC heating element, relay-based switching from the ESP32, and logic-level MOSFET switching driven by an Arduino Uno R4 (pin 9 to the MOSFET gate, 5V to the fan). The ESP32 and Arduino share a common ground (ESP32 D13/GND to Arduino GND), which the MOSFET gate drive requires to switch correctly.
