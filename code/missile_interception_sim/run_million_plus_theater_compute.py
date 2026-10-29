@@ -341,3 +341,67 @@ def execute_million_run_monte_carlo(
 # 3. EMPIRICAL WEIGHT CALIBRATION & REPORT GENERATION
 # ==============================================================================
 
+def run_high_compute_simulation(
+    n_runs: int = 1_000_000,
+    sim_steps: int = 32,
+    seed: int = 42,
+    output_dir: str = ".",
+) -> Dict[str, Any]:
+    """
+    Runs the high-compute Monte Carlo simulation, derives empirical calibration
+    weights for `theater_vulnerability.py`, and exports telemetry CSV & JSON files.
+    """
+    os.makedirs(output_dir, exist_ok=True)
+
+    print("=" * 88)
+    print("HIGH-COMPUTE THEATER WARFARE MONTE CARLO & VULNERABILITY CALIBRATION ENGINE")
+    print(f"Target Engagements : {n_runs:,} runs across 4 Operational Theaters (12 HVAs)")
+    print(f"3D TPN ODE Steps   : {sim_steps} sub-steps/engagement ({n_runs * sim_steps:,} total 3D vector steps)")
+    print(f"Compute Backend    : {'Numba JIT Multi-Core Parallel (@njit)' if HAS_NUMBA else 'NumPy Vectorized Engine'}")
+    print("=" * 88)
+
+    # Warm-up JIT compilation on a tiny batch so compile time is separated from compute throughput
+    if HAS_NUMBA:
+        print("[1/3] Compiling Numba parallel machine-code kernel...")
+        t_jit0 = time.time()
+        _ = execute_million_run_monte_carlo(24, EMBEDDED_THEATER_ASSETS, sim_steps=sim_steps, seed=seed)
+        print(f"      JIT Compilation completed in {time.time() - t_jit0:.2f}s.")
+
+    print(f"[2/3] Executing {n_runs:,} 3D kinematic theater engagements...")
+    t0 = time.time()
+    asset_stats, _ = execute_million_run_monte_carlo(n_runs, EMBEDDED_THEATER_ASSETS, sim_steps=sim_steps, seed=seed)
+    elapsed_s = max(1e-6, time.time() - t0)
+    total_actual_runs = int(np.sum(asset_stats[:, 0]))
+    throughput = total_actual_runs / elapsed_s
+
+    print(f"      Completed {total_actual_runs:,} engagements in {elapsed_s:.3f}s ({throughput:,.0f} runs/sec)!")
+
+    # Derive empirical failure mode attribution across all leakers
+    total_leakers = max(1.0, float(np.sum(asset_stats[:, 2])))
+    total_wez_fails = float(np.sum(asset_stats[:, 3]))
+    total_mag_fails = float(np.sum(asset_stats[:, 4]))
+    total_kin_fails = float(np.sum(asset_stats[:, 5]))
+
+    # Blend empirical failure attribution with physics baseline to prevent extreme skew
+    emp_wez_share = total_wez_fails / total_leakers
+    emp_mag_share = total_mag_fails / total_leakers
+    emp_kin_share = total_kin_fails / total_leakers
+
+    w_leaker = 0.54
+    remaining_w = 1.0 - w_leaker
+    w_wez = round(remaining_w * (0.55 * emp_wez_share + 0.45 * 0.54), 4)
+    w_mag = round(remaining_w * (0.55 * emp_mag_share + 0.45 * 0.26), 4)
+    w_kin = round(max(0.04, remaining_w - w_wez - w_mag), 4)
+
+    calibrated_weights = {
+        "weight_leaker_penetration": w_leaker,
+        "weight_wez_coverage_gap": w_wez,
+        "weight_magazine_saturation": w_mag,
+        "weight_kinematic_margin": w_kin,
+        "contested_mag_reserve_ratio": 0.30,
+        "contested_tti_margin_s": 14.0,
+        "vulnerable_threshold": 0.60,
+        "contested_threshold": 0.25,
+        "optimal_forward_screen_fraction": 0.28,
+    }
+
