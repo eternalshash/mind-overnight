@@ -81,3 +81,31 @@ EMBEDDED_THEATER_ASSETS = np.array([
     [3, 11, 47.50, -111.18, 150.0, 30.0, 910.0, 1000.0, 20.0, 4.20, 6.0], # Malmstrom AFB Nuclear Silo Wing
 ], dtype=np.float64)
 
+ASSET_METADATA = [
+    ("eastern_europe", "target-kyiv-c2", "Kyiv National Strategic Command & Control HQ"),
+    ("eastern_europe", "target-odesa-port", "Odesa Black Sea Grain & Deep-Water Naval Terminal"),
+    ("eastern_europe", "target-yuzhno-npp", "Yuzhnoukrainsk Nuclear Power Grid Facility"),
+    ("persian_gulf", "target-rastanura", "Ras Tanura Strategic Oil Refining & Export Terminal"),
+    ("persian_gulf", "target-dhafra-afb", "Al Dhafra Coalition Airbase & Strategic Wing"),
+    ("persian_gulf", "target-bahrain-5thfleet", "NSA Bahrain / US 5th Fleet Headquarters"),
+    ("taiwan_strait", "target-hengshan-c2", "Heng Shan Joint Military Command Bunker (Taipei)"),
+    ("taiwan_strait", "target-hsinchu-airbase", "Hsinchu Strategic Airbase & High-Tech Semiconductor Hub"),
+    ("taiwan_strait", "target-kaohsiung-naval", "Kaohsiung Deep-Water Strategic Naval Complex"),
+    ("conus_homeland", "target-norad-cheyenne", "NORAD Cheyenne Mountain Strategic Complex (CO)"),
+    ("conus_homeland", "target-offutt-stratcom", "US Strategic Command HQ (Offutt AFB, NE)"),
+    ("conus_homeland", "target-malmstrom-silos", "Malmstrom AFB Nuclear Deterrent Silo Wing (MT)"),
+]
+
+THREAT_CLASS_NAMES = [
+    "Loitering Drone Swarm (Mach 0.2)",
+    "Supersonic Cruise Missile (Mach 2.4)",
+    "Quasi-Ballistic Maneuvering (Mach 6.5)",
+    "Hypersonic Glide / ICBM Reentry (Mach 11.5)",
+]
+
+
+# ==============================================================================
+# 2. NUMBA-ACCELERATED 1,000,000+ RUN KINEMATIC MONTE CARLO KERNEL
+# ==============================================================================
+
+@njit(parallel=True, fastmath=True)
