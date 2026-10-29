@@ -72,7 +72,13 @@ def summarize_commit_with_gemini(author, message, diff, api_key):
     """Uses Gemini to summarize a commit into a 1-2 sentence engineering description."""
     try:
         from google import genai
-        client = genai.Client(api_key=api_key)
+        from google.genai import types
+        # Cap each request at 60 s so a slow/hung API call cannot stall the job
+        # long enough for other pushes to land and cause a non-fast-forward push.
+        client = genai.Client(
+            api_key=api_key,
+            http_options=types.HttpOptions(timeout=60_000),
+        )
         prompt = (
             "You are a technical documentation assistant for the Smart HVAC engineering project.\n"
             f"Commit Author: {author}\n"

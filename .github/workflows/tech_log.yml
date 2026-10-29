@@ -1,6 +1,7 @@
 name: Auto-Update HVAC Technical Log
 
 on:
+  workflow_dispatch:
   push:
     paths:
       - 'code/ECE441/SmartHVAC_Sim/**'
@@ -51,7 +52,19 @@ jobs:
           git add code/ECE441/SmartHVAC_Sim/TECHNICAL_LOG.md
           if git diff --staged --quiet; then
             echo "No changes to commit in TECHNICAL_LOG.md."
-          else
-            git commit -m "docs(hvac): auto-update technical log [skip ci]"
-            git push origin ${{ github.ref_name }}
+            exit 0
           fi
+          git commit -m "docs(hvac): auto-update technical log [skip ci]"
+          # Other pushes may land on the branch while this job runs; rebase onto
+          # the latest remote and retry instead of failing on non-fast-forward.
+          for attempt in 1 2 3 4 5; do
+            if git pull --rebase origin ${{ github.ref_name }} && git push origin HEAD:${{ github.ref_name }}; then
+              echo "Pushed technical log update (attempt $attempt)."
+              exit 0
+            fi
+            echo "Push attempt $attempt failed; retrying..."
+            git rebase --abort 2>/dev/null || true
+            sleep $((attempt * 5))
+          done
+          echo "Failed to push technical log update after 5 attempts." >&2
+          exit 1
