@@ -193,6 +193,8 @@ class TacticalSimEngine:
         self.speed_multiplier = 1.0
         self.selected_track_id: Optional[str] = None
         self.easter_egg_data: Dict[str, Any] = {"active": False, "banner": ""}
+        self.vuln_engine = theater_vulnerability.TheaterVulnerabilityEngine()
+        self.last_vulnerability_report: Optional[theater_vulnerability.TheaterVulnerabilityReport] = None
 
         # Load theater scenario data
         self.load_theater(theater_key)
