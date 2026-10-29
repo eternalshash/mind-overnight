@@ -305,3 +305,39 @@ def execute_million_run_monte_carlo(
                 else:
                     kin_fails += 1.0
 
+            # Counterfactual: Auto-Shield relocated battery at forward fraction f_cand * wez_km
+            f_cand = 0.15 + 0.30 * u1
+            d_shield_km = f_cand * wez_km
+            slant_shield_km = math.sqrt(d_shield_km * d_shield_km + (0.35 * apogee_km) * (0.35 * apogee_km))
+            tti_shield_s = commit_s + (slant_shield_km / v_int_kms)
+            if d_shield_km <= wez_km and tti_shield_s < (tti_s - 1.5) and base_cpa_m <= 22.0:
+                shield_kills += 1.0
+                margin_bonus = max(0.1, (tti_s - tti_shield_s) / max(1.0, tti_s))
+                sum_opt_frac += f_cand * margin_bonus
+            else:
+                sum_opt_frac += 0.28
+
+        asset_stats[a_idx, 0] = tot_eng
+        asset_stats[a_idx, 1] = base_kills
+        asset_stats[a_idx, 2] = base_leakers
+        asset_stats[a_idx, 3] = wez_fails
+        asset_stats[a_idx, 4] = mag_fails
+        asset_stats[a_idx, 5] = kin_fails
+        asset_stats[a_idx, 6] = sum_tti
+        asset_stats[a_idx, 7] = sum_tti_def
+        asset_stats[a_idx, 8] = cnt_tti_def
+        asset_stats[a_idx, 9] = sum_cpa
+        asset_stats[a_idx, 10] = sum_sat_ratio
+        asset_stats[a_idx, 11] = shield_kills
+        asset_stats[a_idx, 12] = sum_opt_frac
+
+    for c_idx in range(4):
+        class_stats[c_idx, 0] = float(n_runs) / 4.0
+
+    return asset_stats, class_stats
+
+
+# ==============================================================================
+# 3. EMPIRICAL WEIGHT CALIBRATION & REPORT GENERATION
+# ==============================================================================
+
