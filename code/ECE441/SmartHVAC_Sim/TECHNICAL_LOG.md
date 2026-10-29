@@ -4,8 +4,14 @@ This technical log is automatically maintained to record engineering implementat
 
 ---
 
+### [2026-10-29] atran14-F23-F28
+* **Commit:** `7afce7b`
+* **Technical Summary:** Added the hardware pinout report documenting the bench power and switching stage: a 12V supply with a buck converter powering the blower fan and PTC heating element, relay-based switching from the ESP32, and logic-level MOSFET switching driven by an Arduino Uno R4 (pin 9 to the MOSFET gate, 5V to the fan). The ESP32 and Arduino share a common ground (ESP32 D13/GND to Arduino GND), which the MOSFET gate drive requires to switch correctly.
+
+---
+
 ### [2026-10-29] Shashwat Choudhry
-* **Commit:** `d297f78`
+* **Commit:** `0e2940c`
 * **Technical Summary:** Resolved in-lab headless Raspberry Pi 5 telemetry streaming bottlenecks under campus Wi-Fi constraints (802.1X enterprise authentication & AP client isolation blocking peer discovery). Designed and deployed a non-destructive kernel-level initialization hook (`init=/bin/sh` via `cmdline.txt`) to configure NetworkManager connection profiles without re-flashing or rootfs data loss. Overcame iOS Personal Hotspot SSID character encoding and sleep-cycle disconnects by establishing an identical zero-friction network profile mirroring the home baseline (`APT2102`). Verified live dual-node telemetry ingestion (Digital Twin simulation + ESP32 benchmark node) with 100% packet success rate, 63.7 ms setpoint acknowledgement, and full SQLite database export (`rpi_telemetry_export.csv`).
 
 ---
