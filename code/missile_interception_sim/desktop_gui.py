@@ -58,6 +58,7 @@ try:
     import map_views
     import physics_engine
     import telemetry
+    import theater_vulnerability
 except ImportError:
     # If launched from another directory, add current folder to sys.path
     CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -69,6 +70,7 @@ except ImportError:
     import map_views
     import physics_engine
     import telemetry
+    import theater_vulnerability
 
 
 # ==============================================================================
@@ -191,6 +193,8 @@ class TacticalSimEngine:
         self.speed_multiplier = 1.0
         self.selected_track_id: Optional[str] = None
         self.easter_egg_data: Dict[str, Any] = {"active": False, "banner": ""}
+        self.vuln_engine = theater_vulnerability.TheaterVulnerabilityEngine()
+        self.last_vulnerability_report: Optional[theater_vulnerability.TheaterVulnerabilityReport] = None
 
         # Load theater scenario data
         self.load_theater(theater_key)
@@ -221,6 +225,53 @@ class TacticalSimEngine:
             self.selected_track_id = self.tracks[0]["id"]
         else:
             self.selected_track_id = None
+
+        self.evaluate_theater_vulnerability(0.0)
+
+    def evaluate_theater_vulnerability(
+        self, t_sec: Optional[float] = None
+    ) -> theater_vulnerability.TheaterVulnerabilityReport:
+        """Runs the Theater Warfare vulnerability and keep-safe detection engine."""
+        eval_t = self.sim_time_s if t_sec is None else t_sec
+        self.last_vulnerability_report = self.vuln_engine.evaluate_theater(
+            theater_key=self.theater_key,
+            target_assets=self.target_assets,
+            defender_batteries=self.defender_batteries,
+            attacker_launch_sites=self.attacker_launch_sites,
+            tracks=self.tracks,
+            sim_time_s=eval_t,
+        )
+        return self.last_vulnerability_report
+
+    def auto_shield_asset(
+        self, asset_id: str
+    ) -> Optional[theater_vulnerability.BatteryRelocationPlan]:
+        """
+        Relocates the optimal defender battery to shield the specified vulnerable
+        or contested asset, then refreshes the vulnerability report.
+        """
+        report = self.evaluate_theater_vulnerability()
+        for a in report.assessments:
+            if a.asset_id == asset_id and a.recommended_relocation is not None:
+                plan = a.recommended_relocation
+                self.move_site(plan.battery_id, plan.recommended_lat, plan.recommended_lon)
+                self.evaluate_theater_vulnerability()
+                return plan
+        return None
+
+    def auto_shield_all_vulnerable(self) -> List[theater_vulnerability.BatteryRelocationPlan]:
+        """
+        Executes all recommended Auto-Shield battery relocations for vulnerable
+        assets in priority order.
+        """
+        executed_plans: List[theater_vulnerability.BatteryRelocationPlan] = []
+        report = self.evaluate_theater_vulnerability()
+        for plan in list(report.relocation_recommendations):
+            self.move_site(plan.battery_id, plan.recommended_lat, plan.recommended_lon)
+            executed_plans.append(plan)
+        if executed_plans:
+            self.evaluate_theater_vulnerability()
+        return executed_plans
 
     def get_track_by_id(self, track_id: str) -> Optional[Dict[str, Any]]:
         for tr in self.tracks:
@@ -475,20 +526,43 @@ class TacticalDesktopApp:
         self.lbl_system_status.pack(side="right", padx=16)
 
     def _build_hud_sidebar(self):
-        """Build military tactical telemetry HUD sidebar."""
+        """Build military tactical telemetry & Theater Warfare tabbed HUD sidebar."""
         # HUD Title
-        hud_header = ctk.CTkFrame(self.hud_sidebar, height=40, fg_color="#111c2e", corner_radius=6)
+        hud_header = ctk.CTkFrame(self.hud_sidebar, height=38, fg_color="#111c2e", corner_radius=6)
         hud_header.pack(fill="x", padx=8, pady=(8, 4))
 
         ctk.CTkLabel(
             hud_header,
-            text="TACTICAL TELEMETRY HUD",
-            font=ctk.CTkFont(family="Courier", size=14, weight="bold"),
+            text="TACTICAL C2 & THEATER WARFARE HUD",
+            font=ctk.CTkFont(family="Courier", size=13, weight="bold"),
             text_color="#00f0ff"
         ).pack(side="left", padx=10, pady=6)
 
+        # Tabbed Switcher: Threat Telemetry vs. Theater Warfare Asset Safety Matrix
+        self.active_hud_tab = "Threat Telemetry"
+        self.hud_tab_switcher = ctk.CTkSegmentedButton(
+            self.hud_sidebar,
+            values=["Threat Telemetry", "Theater Warfare"],
+            command=self._on_hud_tab_switched,
+            selected_color="#0284c7",
+            selected_hover_color="#0369a1",
+            unselected_color="#1e293b",
+            unselected_hover_color="#334155",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            height=30,
+        )
+        self.hud_tab_switcher.set("Threat Telemetry")
+        self.hud_tab_switcher.pack(fill="x", padx=8, pady=(2, 4))
+
+        # Container frames for the two HUD tabs
+        self.telemetry_tab_frame = ctk.CTkFrame(self.hud_sidebar, fg_color="transparent")
+        self.telemetry_tab_frame.pack(fill="both", expand=True)
+
+        self.warfare_tab_frame = ctk.CTkFrame(self.hud_sidebar, fg_color="transparent")
+        self._build_warfare_tab_contents()
+
         # Easter Egg Banner (hidden by default)
-        self.easter_banner_frame = ctk.CTkFrame(self.hud_sidebar, fg_color="#3b1219", corner_radius=6, border_width=1, border_color="#ef4444")
+        self.easter_banner_frame = ctk.CTkFrame(self.telemetry_tab_frame, fg_color="#3b1219", corner_radius=6, border_width=1, border_color="#ef4444")
         self.easter_banner_lbl = ctk.CTkLabel(
             self.easter_banner_frame,
             text="AIR-LAUNCH DETECTED: F-22A RAPTOR WEAPON RELEASE",
@@ -499,7 +573,7 @@ class TacticalDesktopApp:
         self.easter_banner_lbl.pack(padx=8, pady=6)
 
         # Active Threat Selector
-        sel_frame = ctk.CTkFrame(self.hud_sidebar, fg_color="#070c14", corner_radius=6)
+        sel_frame = ctk.CTkFrame(self.telemetry_tab_frame, fg_color="#070c14", corner_radius=6)
         sel_frame.pack(fill="x", padx=8, pady=4)
 
         ctk.CTkLabel(sel_frame, text="TRACK MONITOR:", font=ctk.CTkFont(size=11, weight="bold"), text_color="#94a3b8").pack(side="left", padx=8, pady=6)
@@ -517,7 +591,7 @@ class TacticalDesktopApp:
         self.track_selector.pack(side="right", padx=8, pady=6)
 
         # Scrollable Telemetry Cards Frame
-        self.hud_scroll = ctk.CTkScrollableFrame(self.hud_sidebar, fg_color="#070c14", corner_radius=6)
+        self.hud_scroll = ctk.CTkScrollableFrame(self.telemetry_tab_frame, fg_color="#070c14", corner_radius=6)
         self.hud_scroll.pack(fill="both", expand=True, padx=8, pady=4)
 
         # --- Card 1: Threat Identification ---
@@ -718,6 +792,138 @@ class TacticalDesktopApp:
             height=26
         )
         self.btn_add_target.grid(row=0, column=3, padx=2, pady=2)
+
+    def _build_warfare_tab_contents(self):
+        """Constructs the 'Theater Warfare' Asset Safety & Vulnerability Matrix tab."""
+        self.warfare_asset_cards: Dict[str, Dict[str, Any]] = {}
+
+        # Summary Header Card
+        self.card_warfare_summary = ctk.CTkFrame(
+            self.warfare_tab_frame,
+            fg_color="#0f172a",
+            corner_radius=6,
+            border_width=1,
+            border_color="#1e293b",
+        )
+        self.card_warfare_summary.pack(fill="x", padx=8, pady=(4, 4))
+
+        hdr_row = ctk.CTkFrame(self.card_warfare_summary, fg_color="transparent")
+        hdr_row.pack(fill="x", padx=10, pady=(6, 2))
+
+        ctk.CTkLabel(
+            hdr_row,
+            text="THEATER ASSET SAFETY & VULNERABILITY",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color="#00f0ff",
+        ).pack(side="left")
+
+        self.lbl_warfare_surv_idx = ctk.CTkLabel(
+            hdr_row,
+            text="SURVIVAL: 100.0%",
+            font=ctk.CTkFont(family="Courier", size=12, weight="bold"),
+            text_color="#10b981",
+        )
+        self.lbl_warfare_surv_idx.pack(side="right")
+
+        self.warfare_surv_bar = ctk.CTkProgressBar(
+            self.card_warfare_summary,
+            progress_color="#10b981",
+            fg_color="#1e293b",
+            height=8,
+        )
+        self.warfare_surv_bar.set(1.0)
+        self.warfare_surv_bar.pack(fill="x", padx=10, pady=3)
+
+        # Status Count Badges Row
+        badge_row = ctk.CTkFrame(self.card_warfare_summary, fg_color="transparent")
+        badge_row.pack(fill="x", padx=10, pady=2)
+
+        self.lbl_safe_badge = ctk.CTkLabel(
+            badge_row,
+            text="🛡 SAFE: 0",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            fg_color="#064e3b",
+            text_color="#6ee7b7",
+            corner_radius=4,
+            padx=8,
+            pady=2,
+        )
+        self.lbl_safe_badge.pack(side="left", padx=(0, 4))
+
+        self.lbl_contested_badge = ctk.CTkLabel(
+            badge_row,
+            text="⚠ CONTESTED: 0",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            fg_color="#78350f",
+            text_color="#fde68a",
+            corner_radius=4,
+            padx=8,
+            pady=2,
+        )
+        self.lbl_contested_badge.pack(side="left", padx=4)
+
+        self.lbl_vuln_badge = ctk.CTkLabel(
+            badge_row,
+            text="🚨 VULNERABLE: 0",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            fg_color="#7f1d1d",
+            text_color="#fca5a5",
+            corner_radius=4,
+            padx=8,
+            pady=2,
+        )
+        self.lbl_vuln_badge.pack(side="left", padx=4)
+
+        # Priority Keep-Safe & Most Vulnerable Callouts
+        self.lbl_top_keep_safe = ctk.CTkLabel(
+            self.card_warfare_summary,
+            text="★ KEEP SAFE #1: --",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color="#38bdf8",
+             anchor="w",
+        )
+        self.lbl_top_keep_safe.pack(fill="x", padx=10, pady=(2, 0))
+
+        self.lbl_most_vulnerable = ctk.CTkLabel(
+            self.card_warfare_summary,
+            text="🚨 MOST VULNERABLE #1: --",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color="#f87171",
+            anchor="w",
+        )
+        self.lbl_most_vulnerable.pack(fill="x", padx=10, pady=(0, 4))
+
+        # Global Auto-Shield Action Button
+        self.btn_auto_shield_all = ctk.CTkButton(
+            self.card_warfare_summary,
+            text="⚡ AUTO-SHIELD ALL VULNERABLE POINTS",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            fg_color="#0284c7",
+            hover_color="#0369a1",
+            height=28,
+            command=self._on_auto_shield_all_clicked,
+        )
+        self.btn_auto_shield_all.pack(fill="x", padx=10, pady=(2, 8))
+
+        # Scrollable Asset Vulnerability Matrix
+        self.warfare_scroll = ctk.CTkScrollableFrame(
+            self.warfare_tab_frame,
+            fg_color="#070c14",
+            corner_radius=6,
+        )
+        self.warfare_scroll.pack(fill="both", expand=True, padx=8, pady=4)
+
+    def _on_hud_tab_switched(self, tab_name: str):
+        """Switches between Threat Telemetry and Theater Warfare HUD tabs."""
+        self.active_hud_tab = tab_name
+        if tab_name == "Theater Warfare":
+            self.telemetry_tab_frame.pack_forget()
+            self.warfare_tab_frame.pack(fill="both", expand=True)
+            self._update_warfare_hud_and_markers()
+        else:
+            self.warfare_tab_frame.pack_forget()
+            self.telemetry_tab_frame.pack(fill="both", expand=True)
+            self._update_hud_display()
 
     def _build_bottom_transport_bar(self):
         """Build playback transport controls bar."""
@@ -1116,6 +1322,7 @@ class TacticalDesktopApp:
             self.map_wez_polygons[new_id] = poly
             self.placement_mode = None
             self.lbl_mode_status.configure(text="BATTERY ADDED", text_color="#10b981")
+            self._update_warfare_hud_and_markers()
 
         elif self.placement_mode == "target":
             new_id = f"target-custom-{int(time.time())}"
@@ -1136,6 +1343,7 @@ class TacticalDesktopApp:
             self._attach_drag_events_to_marker(m, new_tgt)
             self.placement_mode = None
             self.lbl_mode_status.configure(text="TARGET ADDED", text_color="#10b981")
+            self._update_warfare_hud_and_markers()
 
     def _set_placement_mode(self, mode: str):
         """Sets active placement mode."""
@@ -1363,6 +1571,289 @@ class TacticalDesktopApp:
             self.easter_banner_lbl.configure(text=self.sim_engine.easter_egg_data.get("banner_text", "AIR-LAUNCH ALERT"))
         else:
             self.easter_banner_frame.pack_forget()
+
+        # 8. Refresh Theater Warfare Vulnerability Assessment & Target Markers
+        self._update_warfare_hud_and_markers()
+
+    # --------------------------------------------------------------------------
+    # THEATER WARFARE VULNERABILITY & AUTO-SHIELD ENGINE INTEGRATION
+    # --------------------------------------------------------------------------
+
+    def _update_warfare_hud_and_markers(self):
+        """
+        Evaluates real-time Theater Warfare asset safety & vulnerability,
+        color-codes target map markers (Green=SAFE, Amber=CONTESTED, Red=VULNERABLE),
+        and refreshes the Theater Warfare HUD tab cards.
+        """
+        report = self.sim_engine.evaluate_theater_vulnerability(self.sim_engine.sim_time_s)
+
+        # 1. Update summary badges & survivability bar
+        self.lbl_safe_badge.configure(text=f"🛡 SAFE: {report.safe_count}")
+        self.lbl_contested_badge.configure(text=f"⚠ CONTESTED: {report.contested_count}")
+        self.lbl_vuln_badge.configure(text=f"🚨 VULNERABLE: {report.vulnerable_count}")
+
+        surv_pct = report.theater_survivability_index
+        surv_color = "#10b981" if surv_pct >= 80.0 else ("#f59e0b" if surv_pct >= 55.0 else "#ef4444")
+        self.lbl_warfare_surv_idx.configure(text=f"SURVIVAL: {surv_pct:.1f}%", text_color=surv_color)
+        self.warfare_surv_bar.configure(progress_color=surv_color)
+        self.warfare_surv_bar.set(max(0.0, min(1.0, surv_pct / 100.0)))
+
+        if report.top_keep_safe_asset_name:
+            self.lbl_top_keep_safe.configure(
+                text=f"★ KEEP SAFE #1: {report.top_keep_safe_asset_name[:34]}"
+            )
+        if report.most_vulnerable_asset_name:
+            self.lbl_most_vulnerable.configure(
+                text=f"🚨 MOST VULNERABLE #1: {report.most_vulnerable_asset_name[:30]}"
+            )
+
+        if report.relocation_recommendations:
+            self.btn_auto_shield_all.configure(
+                state="normal",
+                text=f"⚡ AUTO-SHIELD {len(report.relocation_recommendations)} VULNERABLE POINT(S)",
+                fg_color="#0284c7",
+            )
+        else:
+            self.btn_auto_shield_all.configure(
+                state="disabled",
+                text="✓ ALL POINTS SHIELDED IN WEZ",
+                fg_color="#166534",
+            )
+
+        # Update top navbar system status indicator
+        if report.vulnerable_count > 0:
+            self.lbl_system_status.configure(
+                text=f"● ALERT: {report.vulnerable_count} VULNERABLE POINT(S)",
+                text_color="#ff1744",
+            )
+        elif report.contested_count > 0:
+            self.lbl_system_status.configure(
+                text=f"● DEFENSE CONTESTED ({report.contested_count} SECTOR)",
+                text_color="#f59e0b",
+            )
+        else:
+            self.lbl_system_status.configure(
+                text="● DEFENSE SCREEN ACTIVE (ALL SAFE)",
+                text_color="#00e676",
+            )
+
+        # 2. Dynamically color-code Target Markers on the Map
+        status_palette = {
+            theater_vulnerability.AssetSafetyStatus.SAFE: ("#10b981", "#064e3b", "#6ee7b7", "🛡 [SAFE]"),
+            theater_vulnerability.AssetSafetyStatus.CONTESTED: ("#f59e0b", "#78350f", "#fde68a", "⚠ [CONT]"),
+            theater_vulnerability.AssetSafetyStatus.VULNERABLE: ("#ef4444", "#7f1d1d", "#fca5a5", "🚨 [VULN]"),
+        }
+
+        for a in report.assessments:
+            if a.asset_id in self.map_site_markers:
+                m_obj, s_dict, s_kind = self.map_site_markers[a.asset_id]
+                c_in, c_out, c_txt, prefix = status_palette.get(
+                    a.status, ("#f59e0b", "#78350f", "#fde68a", "🎯")
+                )
+                label_txt = f"{prefix} {a.asset_name[:20]}"
+                try:
+                    m_obj.marker_color_circle = c_in
+                    m_obj.marker_color_outside = c_out
+                    m_obj.text_color = c_txt
+                    m_obj.set_text(label_txt)
+                    canvas = self.map_widget.canvas
+                    if getattr(m_obj, "big_circle", None):
+                        canvas.itemconfig(m_obj.big_circle, fill=c_out, outline=c_out)
+                    if getattr(m_obj, "polygon", None):
+                        canvas.itemconfig(m_obj.polygon, fill=c_in, outline=c_in)
+                    if getattr(m_obj, "canvas_text", None):
+                        canvas.itemconfig(m_obj.canvas_text, fill=c_txt)
+                except Exception:
+                    pass
+
+        # 3. Rebuild/Update Asset Vulnerability Cards in the Theater Warfare Tab
+        current_ids = [a.asset_id for a in report.most_vulnerable_points]
+        if list(self.warfare_asset_cards.keys()) != current_ids:
+            for child in self.warfare_scroll.winfo_children():
+                child.destroy()
+            self.warfare_asset_cards.clear()
+
+            for a in report.most_vulnerable_points:
+                card = ctk.CTkFrame(
+                    self.warfare_scroll,
+                    fg_color="#0f172a",
+                    corner_radius=6,
+                    border_width=1,
+                    border_color="#1e293b",
+                )
+                card.pack(fill="x", pady=4)
+
+                top_row = ctk.CTkFrame(card, fg_color="transparent")
+                top_row.pack(fill="x", padx=8, pady=(6, 2))
+
+                lbl_name = ctk.CTkLabel(
+                    top_row,
+                    text=a.asset_name[:26],
+                    font=ctk.CTkFont(size=12, weight="bold"),
+                    text_color="#f8fafc",
+                )
+                lbl_name.pack(side="left")
+
+                lbl_badge = ctk.CTkLabel(
+                    top_row,
+                    text=a.status.value,
+                    font=ctk.CTkFont(size=10, weight="bold"),
+                    corner_radius=4,
+                    padx=6,
+                    pady=1,
+                )
+                lbl_badge.pack(side="right")
+
+                lbl_ranks = ctk.CTkLabel(
+                    card,
+                    text="",
+                    font=ctk.CTkFont(size=10, weight="bold"),
+                    text_color="#38bdf8",
+                    anchor="w",
+                )
+                lbl_ranks.pack(fill="x", padx=8, pady=0)
+
+                score_bar = ctk.CTkProgressBar(card, height=7, fg_color="#1e293b")
+                score_bar.pack(fill="x", padx=8, pady=3)
+
+                lbl_metrics = ctk.CTkLabel(
+                    card,
+                    text="",
+                    font=ctk.CTkFont(family="Courier", size=10),
+                    text_color="#cbd5e1",
+                    justify="left",
+                    anchor="w",
+                )
+                lbl_metrics.pack(fill="x", padx=8, pady=1)
+
+                lbl_reason = ctk.CTkLabel(
+                    card,
+                    text="",
+                    font=ctk.CTkFont(size=10),
+                    text_color="#94a3b8",
+                    justify="left",
+                    anchor="w",
+                    wraplength=370,
+                )
+                lbl_reason.pack(fill="x", padx=8, pady=(0, 4))
+
+                btn_shield = ctk.CTkButton(
+                    card,
+                    text="🛡 AUTO-SHIELD THIS ASSET",
+                    font=ctk.CTkFont(size=10, weight="bold"),
+                    fg_color="#b91c1c",
+                    hover_color="#dc2626",
+                    height=24,
+                    command=lambda aid=a.asset_id: self._on_auto_shield_asset_clicked(aid),
+                )
+
+                self.warfare_asset_cards[a.asset_id] = {
+                    "card": card,
+                    "lbl_name": lbl_name,
+                    "lbl_badge": lbl_badge,
+                    "lbl_ranks": lbl_ranks,
+                    "score_bar": score_bar,
+                    "lbl_metrics": lbl_metrics,
+                    "lbl_reason": lbl_reason,
+                    "btn_shield": btn_shield,
+                }
+
+        # Populate card values for each asset
+        for a in report.most_vulnerable_points:
+            widgets = self.warfare_asset_cards.get(a.asset_id)
+            if not widgets:
+                continue
+
+            if a.status == theater_vulnerability.AssetSafetyStatus.VULNERABLE:
+                b_bg, b_fg, border_c = "#7f1d1d", "#fca5a5", "#ef4444"
+                badge_txt = "🚨 VULNERABLE"
+            elif a.status == theater_vulnerability.AssetSafetyStatus.CONTESTED:
+                b_bg, b_fg, border_c = "#78350f", "#fde68a", "#f59e0b"
+                badge_txt = "⚠ CONTESTED"
+            else:
+                b_bg, b_fg, border_c = "#064e3b", "#6ee7b7", "#10b981"
+                badge_txt = "🛡 SAFE"
+
+            widgets["card"].configure(border_color=border_c)
+            widgets["lbl_name"].configure(text=a.asset_name[:27])
+            widgets["lbl_badge"].configure(text=badge_txt, fg_color=b_bg, text_color=b_fg)
+            widgets["lbl_ranks"].configure(
+                text=(
+                    f"Keep-Safe Priority #{a.keep_safe_priority_rank} (Score: {a.keep_safe_priority_score:.0f}) | "
+                    f"Vuln Rank #{a.vulnerability_rank} | Val: {a.strategic_value:.0f}"
+                )
+            )
+            widgets["score_bar"].configure(progress_color=border_c)
+            widgets["score_bar"].set(max(0.02, min(1.0, a.safety_score)))
+
+            tti_str = f"{a.min_tti_s:.1f}s" if a.min_tti_s >= 0 else "N/A"
+            ttidef_str = f"{a.min_tti_def_s:.1f}s" if a.min_tti_def_s >= 0 else "NONE"
+            widgets["lbl_metrics"].configure(
+                text=(
+                    f"Safety: {a.safety_score*100:.1f}% | Vuln: {a.vulnerability_score*100:.1f}% | Leakers: {a.leaker_count}\n"
+                    f"Inbound: {a.inbound_threat_count} | TTI: {tti_str} | TTI_def: {ttidef_str} | Mag Rem: {a.remaining_interceptors_after_raid}"
+                )
+            )
+
+            reason_txt = f"Status: {a.status_reason}"
+            if a.recommended_relocation:
+                reason_txt += f"\nRec: {a.recommended_relocation.rationale}"
+            widgets["lbl_reason"].configure(text=reason_txt)
+
+            if a.recommended_relocation is not None:
+                widgets["btn_shield"].pack(fill="x", padx=8, pady=(0, 6))
+            else:
+                widgets["btn_shield"].pack_forget()
+
+    def _apply_relocation_plan_to_map(self, plan: theater_vulnerability.BatteryRelocationPlan):
+        """Updates battery map marker and WEZ polygon after an Auto-Shield relocation."""
+        b_id = plan.battery_id
+        new_lat = plan.recommended_lat
+        new_lon = plan.recommended_lon
+
+        if b_id in self.map_site_markers:
+            m_obj, s_dict, _ = self.map_site_markers[b_id]
+            m_obj.set_position(new_lat, new_lon)
+            s_dict["lat"] = new_lat
+            s_dict["lon"] = new_lon
+
+        if b_id in self.map_wez_polygons:
+            try:
+                self.map_wez_polygons[b_id].delete()
+            except Exception:
+                pass
+            circle_pts = calculate_circle_points(new_lat, new_lon, plan.wez_radius_km)
+            self.map_wez_polygons[b_id] = self.map_widget.set_polygon(
+                circle_pts,
+                outline_color="#00ff88",
+                fill_color=None,
+                border_width=2,
+            )
+
+    def _on_auto_shield_asset_clicked(self, asset_id: str):
+        """Executes Auto-Shield battery repositioning for a specific vulnerable asset."""
+        plan = self.sim_engine.auto_shield_asset(asset_id)
+        if plan:
+            self._apply_relocation_plan_to_map(plan)
+            self._recompute_and_draw_trajectories()
+            self._update_hud_display()
+            self.lbl_mode_status.configure(
+                text=f"AUTO-SHIELDED: {plan.target_asset_name[:16]}",
+                text_color="#10b981",
+            )
+
+    def _on_auto_shield_all_clicked(self):
+        """Executes Auto-Shield battery repositioning for all vulnerable assets in the theater."""
+        plans = self.sim_engine.auto_shield_all_vulnerable()
+        for plan in plans:
+            self._apply_relocation_plan_to_map(plan)
+        if plans:
+            self._recompute_and_draw_trajectories()
+            self._update_hud_display()
+            self.lbl_mode_status.configure(
+                text=f"AUTO-SHIELDED {len(plans)} ASSET(S)",
+                text_color="#10b981",
+            )
 
     # --------------------------------------------------------------------------
     # PLAYBACK TRANSPORT EVENT HANDLERS
