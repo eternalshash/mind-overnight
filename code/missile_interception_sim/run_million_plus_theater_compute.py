@@ -249,3 +249,59 @@ def execute_million_run_monte_carlo(
                     am_y *= scale
                     am_z *= scale
 
+                # Relative velocity and continuous quadratic sub-step CPA check
+                nvx = vx
+                nvy = vy + (am_y - at_y) * dt
+                nvz = vz + (am_z - at_z) * dt
+
+                drx = nvx * dt
+                dry = nvy * dt
+                drz = nvz * dt
+                dr_sq = drx * drx + dry * dry + drz * drz
+                if dr_sq > 1e-6:
+                    tau = -(rx * drx + ry * dry + rz * drz) / dr_sq
+                    if tau < 0.0:
+                        tau = 0.0
+                    elif tau > 1.0:
+                        tau = 1.0
+                    cx = rx + tau * drx
+                    cy = ry + tau * dry
+                    cz = rz + tau * drz
+                    c_sq = cx * cx + cy * cy + cz * cz
+                    if c_sq < min_dist_sq:
+                        min_dist_sq = c_sq
+
+                rx += drx
+                ry += dry
+                rz += drz
+                vx = nvx
+                vy = nvy
+                vz = nvz
+
+            base_cpa_m = math.sqrt(min_dist_sq)
+
+            # Check baseline interception feasibility
+            in_wez = d_eng_km <= (wez_km * 1.08)
+            has_mag = total_interceptors_demanded <= bat_mag
+            has_kin = tti_def_s < (tti_s - 1.5)
+
+            tot_eng += 1.0
+            sum_tti += tti_s
+            sum_sat_ratio += min(2.0, sat_ratio)
+            sum_cpa += base_cpa_m
+
+            if in_wez and has_kin:
+                sum_tti_def += tti_def_s
+                cnt_tti_def += 1.0
+
+            if in_wez and has_mag and has_kin and base_cpa_m <= 22.0:
+                base_kills += 1.0
+            else:
+                base_leakers += 1.0
+                if not in_wez:
+                    wez_fails += 1.0
+                elif not has_mag:
+                    mag_fails += 1.0
+                else:
+                    kin_fails += 1.0
+
