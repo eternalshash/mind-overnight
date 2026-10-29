@@ -1580,6 +1580,235 @@ class TacticalDesktopApp:
     # --------------------------------------------------------------------------
 
     def _update_warfare_hud_and_markers(self):
+        """
+        Evaluates real-time Theater Warfare asset safety & vulnerability,
+        color-codes target map markers (Green=SAFE, Amber=CONTESTED, Red=VULNERABLE),
+        and refreshes the Theater Warfare HUD tab cards.
+        """
+        report = self.sim_engine.evaluate_theater_vulnerability(self.sim_engine.sim_time_s)
+
+        # 1. Update summary badges & survivability bar
+        self.lbl_safe_badge.configure(text=f"🛡 SAFE: {report.safe_count}")
+        self.lbl_contested_badge.configure(text=f"⚠ CONTESTED: {report.contested_count}")
+        self.lbl_vuln_badge.configure(text=f"🚨 VULNERABLE: {report.vulnerable_count}")
+
+        surv_pct = report.theater_survivability_index
+        surv_color = "#10b981" if surv_pct >= 80.0 else ("#f59e0b" if surv_pct >= 55.0 else "#ef4444")
+        self.lbl_warfare_surv_idx.configure(text=f"SURVIVAL: {surv_pct:.1f}%", text_color=surv_color)
+        self.warfare_surv_bar.configure(progress_color=surv_color)
+        self.warfare_surv_bar.set(max(0.0, min(1.0, surv_pct / 100.0)))
+
+        if report.top_keep_safe_asset_name:
+            self.lbl_top_keep_safe.configure(
+                text=f"★ KEEP SAFE #1: {report.top_keep_safe_asset_name[:34]}"
+            )
+        if report.most_vulnerable_asset_name:
+            self.lbl_most_vulnerable.configure(
+                text=f"🚨 MOST VULNERABLE #1: {report.most_vulnerable_asset_name[:30]}"
+            )
+
+        if report.relocation_recommendations:
+            self.btn_auto_shield_all.configure(
+                state="normal",
+                text=f"⚡ AUTO-SHIELD {len(report.relocation_recommendations)} VULNERABLE POINT(S)",
+                fg_color="#0284c7",
+            )
+        else:
+            self.btn_auto_shield_all.configure(
+                state="disabled",
+                text="✓ ALL POINTS SHIELDED IN WEZ",
+                fg_color="#166534",
+            )
+
+        # Update top navbar system status indicator
+        if report.vulnerable_count > 0:
+            self.lbl_system_status.configure(
+                text=f"● ALERT: {report.vulnerable_count} VULNERABLE POINT(S)",
+                text_color="#ff1744",
+            )
+        elif report.contested_count > 0:
+            self.lbl_system_status.configure(
+                text=f"● DEFENSE CONTESTED ({report.contested_count} SECTOR)",
+                text_color="#f59e0b",
+            )
+        else:
+            self.lbl_system_status.configure(
+                text="● DEFENSE SCREEN ACTIVE (ALL SAFE)",
+                text_color="#00e676",
+            )
+
+        # 2. Dynamically color-code Target Markers on the Map
+        status_palette = {
+            theater_vulnerability.AssetSafetyStatus.SAFE: ("#10b981", "#064e3b", "#6ee7b7", "🛡 [SAFE]"),
+            theater_vulnerability.AssetSafetyStatus.CONTESTED: ("#f59e0b", "#78350f", "#fde68a", "⚠ [CONT]"),
+            theater_vulnerability.AssetSafetyStatus.VULNERABLE: ("#ef4444", "#7f1d1d", "#fca5a5", "🚨 [VULN]"),
+        }
+
+        for a in report.assessments:
+            if a.asset_id in self.map_site_markers:
+                m_obj, s_dict, s_kind = self.map_site_markers[a.asset_id]
+                c_in, c_out, c_txt, prefix = status_palette.get(
+                    a.status, ("#f59e0b", "#78350f", "#fde68a", "🎯")
+                )
+                label_txt = f"{prefix} {a.asset_name[:20]}"
+                try:
+                    m_obj.marker_color_circle = c_in
+                    m_obj.marker_color_outside = c_out
+                    m_obj.text_color = c_txt
+                    m_obj.set_text(label_txt)
+                    canvas = self.map_widget.canvas
+                    if getattr(m_obj, "big_circle", None):
+                        canvas.itemconfig(m_obj.big_circle, fill=c_out, outline=c_out)
+                    if getattr(m_obj, "polygon", None):
+                        canvas.itemconfig(m_obj.polygon, fill=c_in, outline=c_in)
+                    if getattr(m_obj, "canvas_text", None):
+                        canvas.itemconfig(m_obj.canvas_text, fill=c_txt)
+                except Exception:
+                    pass
+
+        # 3. Rebuild/Update Asset Vulnerability Cards in the Theater Warfare Tab
+        current_ids = [a.asset_id for a in report.most_vulnerable_points]
+        if list(self.warfare_asset_cards.keys()) != current_ids:
+            for child in self.warfare_scroll.winfo_children():
+                child.destroy()
+            self.warfare_asset_cards.clear()
+
+            for a in report.most_vulnerable_points:
+                card = ctk.CTkFrame(
+                    self.warfare_scroll,
+                    fg_color="#0f172a",
+                    corner_radius=6,
+                    border_width=1,
+                    border_color="#1e293b",
+                )
+                card.pack(fill="x", pady=4)
+
+                top_row = ctk.CTkFrame(card, fg_color="transparent")
+                top_row.pack(fill="x", padx=8, pady=(6, 2))
+
+                lbl_name = ctk.CTkLabel(
+                    top_row,
+                    text=a.asset_name[:26],
+                    font=ctk.CTkFont(size=12, weight="bold"),
+                    text_color="#f8fafc",
+                )
+                lbl_name.pack(side="left")
+
+                lbl_badge = ctk.CTkLabel(
+                    top_row,
+                    text=a.status.value,
+                    font=ctk.CTkFont(size=10, weight="bold"),
+                    corner_radius=4,
+                    padx=6,
+                    pady=1,
+                )
+                lbl_badge.pack(side="right")
+
+                lbl_ranks = ctk.CTkLabel(
+                    card,
+                    text="",
+                    font=ctk.CTkFont(size=10, weight="bold"),
+                    text_color="#38bdf8",
+                    anchor="w",
+                )
+                lbl_ranks.pack(fill="x", padx=8, pady=0)
+
+                score_bar = ctk.CTkProgressBar(card, height=7, fg_color="#1e293b")
+                score_bar.pack(fill="x", padx=8, pady=3)
+
+                lbl_metrics = ctk.CTkLabel(
+                    card,
+                    text="",
+                    font=ctk.CTkFont(family="Courier", size=10),
+                    text_color="#cbd5e1",
+                    justify="left",
+                    anchor="w",
+                )
+                lbl_metrics.pack(fill="x", padx=8, pady=1)
+
+                lbl_reason = ctk.CTkLabel(
+                    card,
+                    text="",
+                    font=ctk.CTkFont(size=10),
+                    text_color="#94a3b8",
+                    justify="left",
+                    anchor="w",
+                    wraplength=370,
+                )
+                lbl_reason.pack(fill="x", padx=8, pady=(0, 4))
+
+                btn_shield = ctk.CTkButton(
+                    card,
+                    text="🛡 AUTO-SHIELD THIS ASSET",
+                    font=ctk.CTkFont(size=10, weight="bold"),
+                    fg_color="#b91c1c",
+                    hover_color="#dc2626",
+                    height=24,
+                    command=lambda aid=a.asset_id: self._on_auto_shield_asset_clicked(aid),
+                )
+
+                self.warfare_asset_cards[a.asset_id] = {
+                    "card": card,
+                    "lbl_name": lbl_name,
+                    "lbl_badge": lbl_badge,
+                    "lbl_ranks": lbl_ranks,
+                    "score_bar": score_bar,
+                    "lbl_metrics": lbl_metrics,
+                    "lbl_reason": lbl_reason,
+                    "btn_shield": btn_shield,
+                }
+
+        # Populate card values for each asset
+        for a in report.most_vulnerable_points:
+            widgets = self.warfare_asset_cards.get(a.asset_id)
+            if not widgets:
+                continue
+
+            if a.status == theater_vulnerability.AssetSafetyStatus.VULNERABLE:
+                b_bg, b_fg, border_c = "#7f1d1d", "#fca5a5", "#ef4444"
+                badge_txt = "🚨 VULNERABLE"
+            elif a.status == theater_vulnerability.AssetSafetyStatus.CONTESTED:
+                b_bg, b_fg, border_c = "#78350f", "#fde68a", "#f59e0b"
+                badge_txt = "⚠ CONTESTED"
+            else:
+                b_bg, b_fg, border_c = "#064e3b", "#6ee7b7", "#10b981"
+                badge_txt = "🛡 SAFE"
+
+            widgets["card"].configure(border_color=border_c)
+            widgets["lbl_name"].configure(text=a.asset_name[:27])
+            widgets["lbl_badge"].configure(text=badge_txt, fg_color=b_bg, text_color=b_fg)
+            widgets["lbl_ranks"].configure(
+                text=(
+                    f"Keep-Safe Priority #{a.keep_safe_priority_rank} (Score: {a.keep_safe_priority_score:.0f}) | "
+                    f"Vuln Rank #{a.vulnerability_rank} | Val: {a.strategic_value:.0f}"
+                )
+            )
+            widgets["score_bar"].configure(progress_color=border_c)
+            widgets["score_bar"].set(max(0.02, min(1.0, a.safety_score)))
+
+            tti_str = f"{a.min_tti_s:.1f}s" if a.min_tti_s >= 0 else "N/A"
+            ttidef_str = f"{a.min_tti_def_s:.1f}s" if a.min_tti_def_s >= 0 else "NONE"
+            widgets["lbl_metrics"].configure(
+                text=(
+                    f"Safety: {a.safety_score*100:.1f}% | Vuln: {a.vulnerability_score*100:.1f}% | Leakers: {a.leaker_count}\n"
+                    f"Inbound: {a.inbound_threat_count} | TTI: {tti_str} | TTI_def: {ttidef_str} | Mag Rem: {a.remaining_interceptors_after_raid}"
+                )
+            )
+
+            reason_txt = f"Status: {a.status_reason}"
+            if a.recommended_relocation:
+                reason_txt += f"\nRec: {a.recommended_relocation.rationale}"
+            widgets["lbl_reason"].configure(text=reason_txt)
+
+            if a.recommended_relocation is not None:
+                widgets["btn_shield"].pack(fill="x", padx=8, pady=(0, 6))
+            else:
+                widgets["btn_shield"].pack_forget()
+
+    def _on_auto_shield_asset_clicked(self, asset_id: str):
+        pass
+
+    def _on_auto_shield_all_clicked(self):
         pass
 
     # --------------------------------------------------------------------------
