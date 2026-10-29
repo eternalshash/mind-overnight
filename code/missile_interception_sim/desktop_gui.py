@@ -58,6 +58,7 @@ try:
     import map_views
     import physics_engine
     import telemetry
+    import theater_vulnerability
 except ImportError:
     # If launched from another directory, add current folder to sys.path
     CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -69,6 +70,7 @@ except ImportError:
     import map_views
     import physics_engine
     import telemetry
+    import theater_vulnerability
 
 
 # ==============================================================================
