@@ -226,6 +226,23 @@ class TacticalSimEngine:
         else:
             self.selected_track_id = None
 
+        self.evaluate_theater_vulnerability(0.0)
+
+    def evaluate_theater_vulnerability(
+        self, t_sec: Optional[float] = None
+    ) -> theater_vulnerability.TheaterVulnerabilityReport:
+        """Runs the Theater Warfare vulnerability and keep-safe detection engine."""
+        eval_t = self.sim_time_s if t_sec is None else t_sec
+        self.last_vulnerability_report = self.vuln_engine.evaluate_theater(
+            theater_key=self.theater_key,
+            target_assets=self.target_assets,
+            defender_batteries=self.defender_batteries,
+            attacker_launch_sites=self.attacker_launch_sites,
+            tracks=self.tracks,
+            sim_time_s=eval_t,
+        )
+        return self.last_vulnerability_report
+
     def get_track_by_id(self, track_id: str) -> Optional[Dict[str, Any]]:
         for tr in self.tracks:
             if tr["id"] == track_id:
