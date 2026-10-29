@@ -62,3 +62,22 @@ except ImportError:
 # 1. EMBEDDED MULTI-THEATER GEOSPATIAL & ASSET CATALOG (ZERO EXTERNAL DEPS)
 # ==============================================================================
 # Each asset row: [theater_id, asset_idx, lat, lon, strategic_value, blast_tol_km, nearest_bat_dist_km, bat_wez_km, bat_mag, bat_speed_kms, bat_commit_s]
+EMBEDDED_THEATER_ASSETS = np.array([
+    # Theater 0: Eastern Europe / Black Sea
+    [0, 0, 50.45,  30.52, 160.0, 25.0,   0.5,   70.0, 32.0, 1.60, 3.5],  # Kyiv National Strategic C2 HQ
+    [0, 1, 46.49,  30.74, 120.0, 30.0,   1.9,   45.0, 24.0, 0.90, 2.5],  # Odesa Deep-Water Naval Terminal
+    [0, 2, 47.81,  31.22, 145.0, 20.0, 152.6,   45.0, 24.0, 1.60, 3.5],  # Yuzhnoukrainsk Nuclear Power Grid
+    # Theater 1: Persian Gulf / Arabian Peninsula
+    [1, 3, 26.67,  50.16, 160.0, 30.0,   0.5,   80.0, 32.0, 1.60, 3.5],  # Ras Tanura Oil Export Terminal
+    [1, 4, 24.25,  54.55, 150.0, 25.0,   0.5,  150.0, 48.0, 2.60, 4.0],  # Al Dhafra Coalition Airbase
+    [1, 5, 26.21,  50.60, 155.0, 20.0,  67.3,   80.0, 32.0, 1.60, 3.5],  # NSA Bahrain / US 5th Fleet HQ
+    # Theater 2: Taiwan Strait / Indo-Pacific
+    [2, 6, 25.13, 121.55, 160.0, 20.0,  11.7,   70.0, 32.0, 1.60, 3.5],  # Heng Shan Joint Command Bunker
+    [2, 7, 24.81, 120.94, 150.0, 25.0,  78.0,   95.0, 36.0, 1.60, 3.5],  # Hsinchu Airbase & Semiconductor Hub
+    [2, 8, 22.61, 120.28, 135.0, 30.0, 177.6,   95.0, 36.0, 1.60, 3.5],  # Kaohsiung Strategic Naval Complex
+    # Theater 3: CONUS Homeland Defense
+    [3, 9, 38.74, -104.85, 160.0, 25.0, 778.9,  250.0, 48.0, 2.60, 4.0], # NORAD Cheyenne Mountain Complex
+    [3, 10, 41.11, -95.91, 160.0, 25.0, 1390.7, 250.0, 48.0, 4.20, 6.0], # US STRATCOM Offutt AFB
+    [3, 11, 47.50, -111.18, 150.0, 30.0, 910.0, 1000.0, 20.0, 4.20, 6.0], # Malmstrom AFB Nuclear Silo Wing
+], dtype=np.float64)
+
