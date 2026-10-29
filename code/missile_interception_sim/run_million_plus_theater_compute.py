@@ -109,3 +109,102 @@ THREAT_CLASS_NAMES = [
 # ==============================================================================
 
 @njit(parallel=True, fastmath=True)
+def execute_million_run_monte_carlo(
+    n_runs: int,
+    assets_matrix: np.ndarray,
+    sim_steps: int = 32,
+    seed: int = 42,
+):
+    """
+    Executes `n_runs` 3D kinematic engagements in parallel across all CPU cores,
+    performing `sim_steps` 3D True Proportional Navigation (TPN) + atmospheric
+    drag vector integration steps per engagement.
+    For each engagement, simulates:
+    1. Baseline theater deployment (evaluating TTI, TTI_def, WEZ gap, magazine
+       saturation, 3D TPN CPA miss distance, and leaker impact).
+    2. Counterfactual 'Auto-Shield' forward-screen deployment across candidate
+       placement fractions to identify the optimal defensive screen geometry.
+    """
+    n_assets = assets_matrix.shape[0]
+    asset_stats = np.zeros((n_assets, 13), dtype=np.float64)
+    class_stats = np.zeros((4, 6), dtype=np.float64)
+
+    runs_per_asset = max(1, n_runs // n_assets)
+
+    for a_idx in prange(n_assets):
+        strat_val = assets_matrix[a_idx, 4]
+        blast_tol_km = assets_matrix[a_idx, 5]
+        bat_dist_km = assets_matrix[a_idx, 6]
+        wez_km = assets_matrix[a_idx, 7]
+        bat_mag = assets_matrix[a_idx, 8]
+        v_int_kms = assets_matrix[a_idx, 9]
+        commit_s = assets_matrix[a_idx, 10]
+
+        tot_eng = 0.0
+        base_kills = 0.0
+        base_leakers = 0.0
+        wez_fails = 0.0
+        mag_fails = 0.0
+        kin_fails = 0.0
+        sum_tti = 0.0
+        sum_tti_def = 0.0
+        cnt_tti_def = 0.0
+        sum_cpa = 0.0
+        sum_sat_ratio = 0.0
+        shield_kills = 0.0
+        sum_opt_frac = 0.0
+
+        state = np.uint64(seed + (a_idx + 1) * 104729)
+
+        for r in range(runs_per_asset):
+            state = state * np.uint64(6364136223846793005) + np.uint64(1442695040888963407)
+            u1 = float((state >> np.uint64(11)) & np.uint64(0x1FFFFF)) / float(0x200000)
+
+            state = state * np.uint64(6364136223846793005) + np.uint64(1442695040888963407)
+            u2 = float((state >> np.uint64(11)) & np.uint64(0x1FFFFF)) / float(0x200000)
+
+            state = state * np.uint64(6364136223846793005) + np.uint64(1442695040888963407)
+            u3 = float((state >> np.uint64(11)) & np.uint64(0x1FFFFF)) / float(0x200000)
+
+            state = state * np.uint64(6364136223846793005) + np.uint64(1442695040888963407)
+            u4 = float((state >> np.uint64(11)) & np.uint64(0x1FFFFF)) / float(0x200000)
+
+            t_class = int(r % 4)
+            if t_class == 0:
+                speed_kms = 0.065 + 0.035 * u1
+                apogee_km = 0.4 + 1.2 * u2
+                range_km = 180.0 + 280.0 * u3
+                salvo_req = 1.0
+                weave_amp_g = 1.5
+            elif t_class == 1:
+                speed_kms = 0.75 + 0.40 * u1
+                apogee_km = 1.5 + 4.5 * u2
+                range_km = 350.0 + 550.0 * u3
+                salvo_req = 1.0
+                weave_amp_g = 5.0
+            elif t_class == 2:
+                speed_kms = 1.95 + 0.55 * u1
+                apogee_km = 42.0 + 35.0 * u2
+                range_km = 450.0 + 650.0 * u3
+                salvo_req = 2.0
+                weave_amp_g = 14.0
+            else:
+                speed_kms = 3.20 + 2.80 * u1
+                apogee_km = 85.0 + 220.0 * u2
+                range_km = 900.0 + 3500.0 * u3
+                salvo_req = 2.0
+                weave_amp_g = 22.0
+
+            raid_wave_size = 1.0 + math.floor(u4 * u4 * 26.0)
+            total_interceptors_demanded = raid_wave_size * salvo_req
+            sat_ratio = total_interceptors_demanded / max(1.0, bat_mag)
+
+            tti_s = range_km / speed_kms
+            azimuth_cos = math.cos((u2 - 0.5) * 2.2)
+            forward_offset_km = 0.30 * wez_km
+            d_eng_km = math.sqrt(
+                max(1.0, bat_dist_km * bat_dist_km + forward_offset_km * forward_offset_km - 2.0 * bat_dist_km * forward_offset_km * azimuth_cos)
+            )
+            slant_km = math.sqrt(d_eng_km * d_eng_km + (0.45 * apogee_km) * (0.45 * apogee_km))
+            tti_def_s = commit_s + (slant_km / v_int_kms)
+
