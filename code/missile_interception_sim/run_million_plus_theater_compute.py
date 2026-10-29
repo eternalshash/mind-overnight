@@ -486,3 +486,42 @@ def run_high_compute_simulation(
     return weights_payload
 
 
+def main():
+    parser = argparse.ArgumentParser(
+        description="Standalone Million-Plus Run Theater Warfare Monte Carlo & Calibration Engine"
+    )
+    parser.add_argument(
+        "--runs",
+        type=int,
+        default=1_000_000,
+        help="Total number of 3D engagements to simulate (default: 1,000,000)",
+    )
+    parser.add_argument(
+        "--sim-steps",
+        type=int,
+        default=32,
+        help="3D TPN sub-timesteps per terminal engagement (default: 32; use 128+ for deep compute)",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Deterministic random seed (default: 42)",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=str,
+        default=os.path.dirname(os.path.abspath(__file__)),
+        help="Directory to write calibrated weights JSON and telemetry CSV",
+    )
+    args = parser.parse_args()
+    run_high_compute_simulation(
+        n_runs=args.runs,
+        sim_steps=args.sim_steps,
+        seed=args.seed,
+        output_dir=args.output_dir,
+    )
+
+
+if __name__ == "__main__":
+    main()
