@@ -243,6 +243,36 @@ class TacticalSimEngine:
         )
         return self.last_vulnerability_report
 
+    def auto_shield_asset(
+        self, asset_id: str
+    ) -> Optional[theater_vulnerability.BatteryRelocationPlan]:
+        """
+        Relocates the optimal defender battery to shield the specified vulnerable
+        or contested asset, then refreshes the vulnerability report.
+        """
+        report = self.evaluate_theater_vulnerability()
+        for a in report.assessments:
+            if a.asset_id == asset_id and a.recommended_relocation is not None:
+                plan = a.recommended_relocation
+                self.move_site(plan.battery_id, plan.recommended_lat, plan.recommended_lon)
+                self.evaluate_theater_vulnerability()
+                return plan
+        return None
+
+    def auto_shield_all_vulnerable(self) -> List[theater_vulnerability.BatteryRelocationPlan]:
+        """
+        Executes all recommended Auto-Shield battery relocations for vulnerable
+        assets in priority order.
+        """
+        executed_plans: List[theater_vulnerability.BatteryRelocationPlan] = []
+        report = self.evaluate_theater_vulnerability()
+        for plan in list(report.relocation_recommendations):
+            self.move_site(plan.battery_id, plan.recommended_lat, plan.recommended_lon)
+            executed_plans.append(plan)
+        if executed_plans:
+            self.evaluate_theater_vulnerability()
+        return executed_plans
+
     def get_track_by_id(self, track_id: str) -> Optional[Dict[str, Any]]:
         for tr in self.tracks:
             if tr["id"] == track_id:
