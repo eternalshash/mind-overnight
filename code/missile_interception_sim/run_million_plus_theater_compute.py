@@ -405,3 +405,84 @@ def run_high_compute_simulation(
         "optimal_forward_screen_fraction": 0.28,
     }
 
+    # Build per-asset telemetry table
+    rows = []
+    for idx in range(len(ASSET_METADATA)):
+        th_key, aid, aname = ASSET_METADATA[idx]
+        tot = max(1.0, asset_stats[idx, 0])
+        kills = asset_stats[idx, 1]
+        leakers = asset_stats[idx, 2]
+        wez_f = asset_stats[idx, 3]
+        mag_f = asset_stats[idx, 4]
+        kin_f = asset_stats[idx, 5]
+        mean_tti = asset_stats[idx, 6] / tot
+        cnt_def = asset_stats[idx, 8]
+        mean_tti_def = (asset_stats[idx, 7] / cnt_def) if cnt_def > 0 else -1.0
+        mean_cpa = asset_stats[idx, 9] / tot
+        mean_sat = asset_stats[idx, 10] / tot
+        shield_k = asset_stats[idx, 11]
+
+        surv_rate = kills / tot
+        vuln_prob = leakers / tot
+        autoshield_surv_rate = shield_k / tot
+        strat_val = float(EMBEDDED_THEATER_ASSETS[idx, 4])
+
+        status = "VULNERABLE" if vuln_prob >= 0.45 else ("CONTESTED" if vuln_prob >= 0.12 else "SAFE")
+
+        rows.append({
+            "theater_key": th_key,
+            "asset_id": aid,
+            "asset_name": aname,
+            "strategic_value": strat_val,
+            "total_runs": int(tot),
+            "baseline_survival_rate": round(surv_rate, 4),
+            "empirical_vulnerability_prob": round(vuln_prob, 4),
+            "autoshield_survival_rate": round(autoshield_surv_rate, 4),
+            "survival_gain_from_autoshield_pct": round((autoshield_surv_rate - surv_rate) * 100.0, 2),
+            "mean_tti_s": round(mean_tti, 2),
+            "mean_tti_def_s": round(mean_tti_def, 2),
+            "mean_cpa_m": round(mean_cpa, 3),
+            "mean_magazine_saturation_ratio": round(mean_sat, 3),
+            "wez_gap_failure_pct": round(100.0 * wez_f / tot, 2),
+            "magazine_depletion_failure_pct": round(100.0 * mag_f / tot, 2),
+            "kinematic_tti_failure_pct": round(100.0 * kin_f / tot, 2),
+            "empirical_classification": status,
+        })
+
+    df_summary = pd.DataFrame(rows)
+    csv_path = os.path.join(output_dir, "million_run_theater_telemetry_summary.csv")
+    df_summary.to_csv(csv_path, index=False)
+
+    weights_payload = {
+        "metadata": {
+            "total_runs_executed": total_actual_runs,
+            "elapsed_seconds": round(elapsed_s, 3),
+            "throughput_runs_per_sec": round(throughput, 1),
+            "seed": seed,
+            "numba_accelerated": HAS_NUMBA,
+        },
+        "weights": calibrated_weights,
+        "asset_empirical_summary": rows,
+    }
+    json_path = os.path.join(output_dir, "calibrated_vulnerability_weights.json")
+    with open(json_path, "w", encoding="utf-8") as f:
+        json.dump(weights_payload, f, indent=2)
+
+    print("\n[3/3] EMPIRICAL TELEMETRY & ASSET VULNERABILITY SUMMARY:")
+    print("-" * 88)
+    print(f"{'Theater':<15} | {'Asset Name':<38} | {'Status':<10} | {'Surv%':<7} | {'Shield%':<7}")
+    print("-" * 88)
+    for r in rows:
+        print(
+            f"{r['theater_key']:<15} | {r['asset_name'][:38]:<38} | "
+            f"{r['empirical_classification']:<10} | {r['baseline_survival_rate']*100:6.2f}% | "
+            f"{r['autoshield_survival_rate']*100:6.2f}%"
+        )
+    print("-" * 88)
+    print(f"Saved Empirical Calibration JSON : {json_path}")
+    print(f"Saved Million-Run Telemetry CSV  : {csv_path}")
+    print("=" * 88)
+
+    return weights_payload
+
+
