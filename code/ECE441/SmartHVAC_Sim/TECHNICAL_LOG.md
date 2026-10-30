@@ -4,6 +4,12 @@ This technical log is automatically maintained to record engineering implementat
 
 ---
 
+### [2026-10-30] atran14-F23-F28
+* **Commit:** `621e3f9`
+* **Technical Summary:** Updates the hardware pinout report to document the specific circuit components utilized in the fan and heater control subsystems, adding the IRLZ24N MOSFET, LM2596 buck-boost converter, Arduino Uno R4, 12V power supply, and 12V fans.
+
+---
+
 ### [2026-10-29] atran14-F23-F28
 * **Commit:** `668ad00`
 * **Technical Summary:** Arduino/ESP32 Code. Modified files in the Smart HVAC subsystem.
