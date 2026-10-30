@@ -5,6 +5,12 @@ This technical log is automatically maintained to record engineering implementat
 ---
 
 ### [2026-10-30] Shashwat Choudhry
+* **Commit:** `6593aeb`
+* **Technical Summary:** Docs(hvac): add Arduino IDE lab guide, Part 2 multimeter chart, and USB serial bridge. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-10-30] Shashwat Choudhry
 * **Commit:** `415a082`
 * **Technical Summary:** Arduino Updates. Modified files in the Smart HVAC subsystem.
 
