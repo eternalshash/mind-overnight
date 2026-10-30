@@ -27,6 +27,7 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from rpi_server.mqtt_bridge import MQTTEdgeBridge
+from rpi_server.serial_bridge import SerialEdgeBridge
 from rpi_server.storage import HVACEdgeStore
 from testingIot import dispatch_custom_alert, generate_fault_data
 
@@ -34,6 +35,7 @@ from testingIot import dispatch_custom_alert, generate_fault_data
 class RPiEdgeHTTPHandler(SimpleHTTPRequestHandler):
     store: HVACEdgeStore
     mqtt_bridge: MQTTEdgeBridge
+    serial_bridge: Optional[SerialEdgeBridge] = None
     enable_live_alerts: bool = False
     default_email: str = "choudhryshashwat29@gmail.com"
     default_phone: str = "9254075652"
@@ -136,6 +138,7 @@ class RPiEdgeHTTPHandler(SimpleHTTPRequestHandler):
                     "hostname": socket.gethostname(),
                     "control": self.store.get_control_state(),
                     "mqtt": self.mqtt_bridge.get_status(),
+                    "serial": self.serial_bridge.get_status() if self.serial_bridge else {"connected": False},
                     "storage": self.store.get_storage_stats(),
                 },
             )
@@ -151,6 +154,7 @@ class RPiEdgeHTTPHandler(SimpleHTTPRequestHandler):
                     "devices": self.store.latest_by_device,
                     "control": self.store.get_control_state(),
                     "mqtt": self.mqtt_bridge.get_status(),
+                    "serial": self.serial_bridge.get_status() if self.serial_bridge else {"connected": False},
                     "storage": self.store.get_storage_stats(),
                 },
             )
@@ -243,11 +247,17 @@ class RPiEdgeHTTPHandler(SimpleHTTPRequestHandler):
                 bump_seq=bump_seq,
             )
             mqtt_pub = self.mqtt_bridge.publish_control_state(ctrl)
+            serial_pub = (
+                self.serial_bridge.publish_control_state(ctrl, fan_speed=data.get("fan_speed"))
+                if self.serial_bridge
+                else False
+            )
             self._send_json(
                 200,
                 {
                     "status": "ok",
                     "mqtt_published": mqtt_pub,
+                    "serial_published": serial_pub,
                     "control": ctrl,
                 },
             )
@@ -337,9 +347,12 @@ def run_edge_server(
     store = HVACEdgeStore(db_path=db_path)
     mqtt_bridge = MQTTEdgeBridge(store=store, broker_host=mqtt_host, broker_port=mqtt_port)
     mqtt_bridge.start()
+    serial_bridge = SerialEdgeBridge(store=store)
+    serial_bridge.start()
 
     RPiEdgeHTTPHandler.store = store
     RPiEdgeHTTPHandler.mqtt_bridge = mqtt_bridge
+    RPiEdgeHTTPHandler.serial_bridge = serial_bridge
     RPiEdgeHTTPHandler.enable_live_alerts = enable_live_alerts
 
     server = ThreadingHTTPServer((host, port), RPiEdgeHTTPHandler)
@@ -351,6 +364,7 @@ def run_edge_server(
     print(f"   Control API:    http://{host}:{port}/api/control", flush=True)
     print(f"   SQLite DB:      {db_path}", flush=True)
     print(f"   MQTT Broker:    {mqtt_host}:{mqtt_port}", flush=True)
+    print("   USB/Wokwi Bridge: Auto-scanning (/dev/ttyACM*, /dev/cu.usbmodem*, localhost:4000)", flush=True)
     print("=" * 68, flush=True)
 
     try:
@@ -359,6 +373,7 @@ def run_edge_server(
         print("\nShutting down Raspberry Pi Edge Server...", flush=True)
     finally:
         mqtt_bridge.stop()
+        serial_bridge.stop()
         server.server_close()
         store.close()
 
