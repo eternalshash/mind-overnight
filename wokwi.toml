@@ -1,0 +1,17 @@
+[wokwi]
+version = 1
+elf = "code/ECE441/SmartHVAC_Sim/.pio/build/uno_bench/firmware.elf"
+firmware = "code/ECE441/SmartHVAC_Sim/.pio/build/uno_bench/firmware.hex"
+rfc2217ServerPort = 4000
+
+[[chip]]
+name = "bme280"
+binary = "code/ECE441/SmartHVAC_Sim/chips/bme280.chip.wasm"
+
+[[chip]]
+name = "irlz44n"
+binary = "code/ECE441/SmartHVAC_Sim/chips/irlz44n.chip.wasm"
+
+[[chip]]
+name = "lm2596"
+binary = "code/ECE441/SmartHVAC_Sim/chips/lm2596.chip.wasm"

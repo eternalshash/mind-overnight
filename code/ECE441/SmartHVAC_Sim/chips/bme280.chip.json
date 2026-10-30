@@ -1,0 +1,36 @@
+{
+  "name": "Bosch BME280 Sensor (I2C)",
+  "author": "Smart HVAC Group 2 (Andy Tran & Kaleb Cowgur)",
+  "pins": [
+    "VIN",
+    "GND",
+    "SCL",
+    "SDA"
+  ],
+  "controls": [
+    {
+      "id": "temperature",
+      "label": "Room Temperature (°C)",
+      "type": "range",
+      "min": 10,
+      "max": 45,
+      "step": 0.5
+    },
+    {
+      "id": "humidity",
+      "label": "Relative Humidity (%)",
+      "type": "range",
+      "min": 10,
+      "max": 95,
+      "step": 1
+    },
+    {
+      "id": "pressure",
+      "label": "Barometric Pressure (hPa)",
+      "type": "range",
+      "min": 950,
+      "max": 1050,
+      "step": 1
+    }
+  ]
+}

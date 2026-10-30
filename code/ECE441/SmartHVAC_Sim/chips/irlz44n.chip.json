@@ -1,0 +1,13 @@
+{
+  "name": "IRLZ44N Logic-Level MOSFET",
+  "author": "Smart HVAC Group 2 (Andy Tran & Kaleb Cowgur)",
+  "pins": [
+    "G",
+    "D",
+    "S"
+  ],
+  "display": {
+    "width": 168,
+    "height": 56
+  }
+}

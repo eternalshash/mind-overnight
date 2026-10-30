@@ -1,4 +1,17 @@
 [wokwi]
 version = 1
-elf = ".pio/build/esp32dev/firmware.elf"
-firmware = ".pio/build/esp32dev/firmware.bin"
+elf = ".pio/build/uno_bench/firmware.elf"
+firmware = ".pio/build/uno_bench/firmware.hex"
+rfc2217ServerPort = 4000
+
+[[chip]]
+name = "bme280"
+binary = "chips/bme280.chip.wasm"
+
+[[chip]]
+name = "irlz44n"
+binary = "chips/irlz44n.chip.wasm"
+
+[[chip]]
+name = "lm2596"
+binary = "chips/lm2596.chip.wasm"

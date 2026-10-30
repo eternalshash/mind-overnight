@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "author": "Smart HVAC Team Group 2 (Andy Tran, Kaleb Cowgur, Shashwat Choudhry, Haron Abuelhija)",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "wokwi-arduino-uno",
+      "id": "uno",
+      "top": 60,
+      "left": -40,
+      "attrs": {}
+    },
+    {
+      "type": "chip-bme280",
+      "id": "bme280",
+      "top": -110,
+      "left": 210,
+      "attrs": {
+        "temperature": "20.5",
+        "humidity": "48",
+        "pressure": "1013"
+      }
+    },
+    {
+      "type": "chip-irlz44n",
+      "id": "mosfet",
+      "top": 80,
+      "left": 330,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r_fan",
+      "top": 10,
+      "left": 450,
+      "attrs": {
+        "value": "220"
+      }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_fan",
+      "top": -40,
+      "left": 530,
+      "attrs": {
+        "color": "blue",
+        "label": "GDSTIME 5015 Fan (5V via MOSFET)"
+      }
+    },
+    {
+      "type": "chip-lm2596",
+      "id": "buck",
+      "top": 240,
+      "left": -240,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-relay-module",
+      "id": "relay_ptc",
+      "top": 230,
+      "left": 320,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r_heater",
+      "top": 250,
+      "left": 480,
+      "attrs": {
+        "value": "330"
+      }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_heater",
+      "top": 210,
+      "left": 560,
+      "attrs": {
+        "color": "red",
+        "label": "12V PTC Heating Element"
+      }
+    }
+  ],
+  "connections": [
+    [ "uno:5V", "bme280:VIN", "red", [ "v40", "h-60", "v-360", "h170" ] ],
+    [ "uno:GND.1", "bme280:GND", "black", [ "v-130", "h90" ] ],
+    [ "uno:A5", "bme280:SCL", "gold", [ "v50", "h90", "v-370" ] ],
+    [ "uno:A4", "bme280:SDA", "blue", [ "v60", "h110", "v-380" ] ],
+
+    [ "uno:9", "mosfet:G", "green", [ "v-30", "h190", "v60" ] ],
+    [ "uno:GND.2", "mosfet:S", "black", [ "v30", "h180", "v-180" ] ],
+    [ "uno:5V", "r_fan:1", "red", [ "v40", "h280", "v-280" ] ],
+    [ "r_fan:2", "led_fan:A", "red", [ "h20", "v-15" ] ],
+    [ "led_fan:C", "mosfet:D", "blue", [ "v95", "h-100" ] ],
+
+    [ "uno:8", "relay_ptc:IN", "orange", [ "v-40", "h160", "v250" ] ],
+    [ "uno:5V", "relay_ptc:VCC", "red", [ "v40", "h200" ] ],
+    [ "uno:GND.2", "relay_ptc:GND", "black", [ "v30", "h180" ] ],
+
+    [ "buck:GND_IN", "uno:GND.3", "black", [ "h90", "v30", "h250" ] ],
+    [ "buck:OUT_V", "relay_ptc:COM", "purple", [ "h-30", "v110", "h690", "v-110" ] ],
+    [ "relay_ptc:NO", "r_heater:1", "red", [ "h25" ] ],
+    [ "r_heater:2", "led_heater:A", "red", [ "h20", "v-10" ] ],
+    [ "led_heater:C", "buck:GND_OUT", "black", [ "v120", "h-700", "v-70" ] ]
+  ],
+  "serialMonitor": {
+    "display": "always",
+    "newline": "lf"
+  }
+}

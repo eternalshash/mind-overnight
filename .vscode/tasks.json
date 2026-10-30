@@ -1,0 +1,42 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "HVAC Bench: Run Live Multimeter & Fan Speed Sweep",
+      "type": "shell",
+      "command": "python3 ${workspaceFolder}/code/ECE441/SmartHVAC_Sim/test_bench_multimeter.py",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "HVAC Bench: Build Firmware (Wokwi Arduino Uno)",
+      "type": "shell",
+      "command": "~/.platformio/penv/bin/pio run -e uno_bench",
+      "options": {
+        "cwd": "${workspaceFolder}/code/ECE441/SmartHVAC_Sim"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "HVAC Bench: Build Firmware (Lab Arduino Uno R4)",
+      "type": "shell",
+      "command": "~/.platformio/penv/bin/pio run -e uno_r4_wifi",
+      "options": {
+        "cwd": "${workspaceFolder}/code/ECE441/SmartHVAC_Sim"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    }
+  ]
+}
