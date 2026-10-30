@@ -2,7 +2,7 @@ October 29th, 2026
 Andy Tran & Kaleb Cowgur
 
 Hardware Pinout Report
-
+-MOSFET IRLZ24N; LM2596 Buck Boost Converter, 12V Power Supply, Arduino R4 Uno, 12V fans.
 -As of today, October 29th, the hardware team implemented an ESP32 that in conjunction with a 12V Power Supply and a buck booster converter, controls the power to the
 fan and PTC heating element. The hardware team has also implemented switching capabilities for both the PTC element and the fan via a relay through the esp32 and a 
 mosfet through an arduino uno r4. 
