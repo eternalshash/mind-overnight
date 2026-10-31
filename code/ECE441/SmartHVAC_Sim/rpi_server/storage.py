@@ -110,6 +110,11 @@ def normalize_telemetry_payload(raw: Dict[str, Any], default_source: str = "esp3
         "voc_ppb": round(voc_ppb, 0),
         "co2_ppm": round(co2_ppm, 0),
         "pm25_ug": round(pm25_ug, 1),
+        "v_mosfet_gs": round(float(raw.get("v_mosfet_gs", 5.0 * max(0, min(255, fan_pwm)) / 255.0)), 2),
+        "v_fan_eff": round(float(raw.get("v_fan_eff", 4.99 * max(0, min(255, fan_pwm)) / 255.0)), 2),
+        "i_fan_a": round(float(raw.get("i_fan_a", 0.3493 * max(0, min(255, fan_pwm)) / 255.0)), 4),
+        "r_5v_rail_ohm": round(float(raw.get("r_5v_rail_ohm", 5.0 / (0.045 + 0.3493 * max(0, min(255, fan_pwm)) / 255.0))), 2),
+        "r_total_circuit_ohm": round(float(raw.get("r_total_circuit_ohm", 12.0 / ((4.1667 if heater_pwm > 10 else 0.0) + 5.0 * (0.045 + 0.3493 * max(0, min(255, fan_pwm)) / 255.0) / (12.0 * 0.88)))), 2),
     }
 
 
@@ -221,15 +226,20 @@ class HVACEdgeStore:
                     setpoint_c REAL NOT NULL DEFAULT 23.0,
                     demand_limit_w REAL NOT NULL DEFAULT 1000.0,
                     mode_override TEXT NOT NULL DEFAULT 'AUTO',
+                    fan_override_pct INTEGER NOT NULL DEFAULT -1,
                     updated_by TEXT NOT NULL DEFAULT 'boot',
                     updated_at REAL NOT NULL
                 );
                 """
             )
+            try:
+                cur.execute("ALTER TABLE control_state ADD COLUMN fan_override_pct INTEGER NOT NULL DEFAULT -1;")
+            except sqlite3.OperationalError:
+                pass
             cur.execute(
                 """
-                INSERT OR IGNORE INTO control_state (id, command_seq, setpoint_c, demand_limit_w, mode_override, updated_by, updated_at)
-                VALUES (1, 0, 23.0, 1000.0, 'AUTO', 'boot', ?);
+                INSERT OR IGNORE INTO control_state (id, command_seq, setpoint_c, demand_limit_w, mode_override, fan_override_pct, updated_by, updated_at)
+                VALUES (1, 0, 23.0, 1000.0, 'AUTO', -1, 'boot', ?);
                 """,
                 (time.time(),),
             )
@@ -414,6 +424,7 @@ class HVACEdgeStore:
         setpoint_f: Optional[float] = None,
         demand_limit_w: Optional[float] = None,
         mode_override: Optional[str] = None,
+        fan_override_pct: Optional[int] = None,
         updated_by: str = "dashboard",
         bump_seq: bool = True,
     ) -> Dict[str, Any]:
@@ -435,6 +446,12 @@ class HVACEdgeStore:
             if mode_override is not None:
                 new_mode = str(mode_override).strip().upper()[:16]
 
+            row_dict = dict(row)
+            new_fan_ovr = int(row_dict.get("fan_override_pct", -1))
+            if fan_override_pct is not None:
+                fv = int(round(float(fan_override_pct)))
+                new_fan_ovr = -1 if fv < 0 else max(0, min(100, fv))
+
             new_seq = int(row["command_seq"]) + (1 if bump_seq else 0)
             now = time.time()
 
@@ -442,10 +459,10 @@ class HVACEdgeStore:
                 """
                 UPDATE control_state
                 SET command_seq = ?, setpoint_c = ?, demand_limit_w = ?,
-                    mode_override = ?, updated_by = ?, updated_at = ?
+                    mode_override = ?, fan_override_pct = ?, updated_by = ?, updated_at = ?
                 WHERE id = 1;
                 """,
-                (new_seq, new_sp_c, new_lim, new_mode, str(updated_by)[:32], now),
+                (new_seq, new_sp_c, new_lim, new_mode, new_fan_ovr, str(updated_by)[:32], now),
             )
             self._conn.commit()
 

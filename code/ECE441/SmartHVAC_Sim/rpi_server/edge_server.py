@@ -238,18 +238,19 @@ class RPiEdgeHTTPHandler(SimpleHTTPRequestHandler):
         if route == "/api/control":
             updated_by = str(data.get("updated_by", "client"))
             bump_seq = bool(data.get("bump_seq", True))
+            fan_ovr = data.get("fan_speed")
+            if fan_ovr is None:
+                fan_ovr = data.get("fan_override_pct")
             ctrl = self.store.update_control_state(
                 setpoint_c=data.get("setpoint_c"),
                 setpoint_f=data.get("setpoint_f"),
                 demand_limit_w=data.get("demand_limit_w"),
                 mode_override=data.get("mode_override") or data.get("mode"),
+                fan_override_pct=fan_ovr,
                 updated_by=updated_by,
                 bump_seq=bump_seq,
             )
             mqtt_pub = self.mqtt_bridge.publish_control_state(ctrl)
-            fan_ovr = data.get("fan_speed")
-            if fan_ovr is None:
-                fan_ovr = data.get("fan_override_pct")
             serial_pub = (
                 self.serial_bridge.publish_control_state(ctrl, fan_speed=fan_ovr)
                 if self.serial_bridge

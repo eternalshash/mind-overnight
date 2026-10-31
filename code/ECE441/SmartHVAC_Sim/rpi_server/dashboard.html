@@ -75,13 +75,18 @@ th{color:var(--cyan);font-size:9.5px;letter-spacing:.5px;background:#081629}
       <input type="range" id="rngLim" min="300" max="2000" step="50" value="1000">
     </div>
     <div class="ctrl-group">
-      <label><span>MODE OVERRIDE</span></label>
+      <label><span>MODE OVERRIDE</span><b id="lblMode">AUTO</b></label>
       <select id="selMode">
         <option value="AUTO">AUTO (PID SPLIT-RANGE)</option>
         <option value="COOL">FORCE COOLING</option>
         <option value="HEAT">FORCE HEATING</option>
         <option value="ECO">ECO (+2°F DEADBAND)</option>
+        <option value="OFF">SYSTEM OFF</option>
       </select>
+    </div>
+    <div class="ctrl-group">
+      <label><span>PIN 9 MOSFET FAN OVERRIDE (IRLZ44N)</span><b id="lblFan">AUTO (PID)</b></label>
+      <input type="range" id="rngFan" min="-1" max="100" step="1" value="-1">
     </div>
     <button class="btn" id="btnPush">PUSH COMMAND TO ESP32 / SIM</button>
     <div class="msg" id="ctrlMsg"></div>
@@ -119,6 +124,12 @@ th{color:var(--cyan);font-size:9.5px;letter-spacing:.5px;background:#081629}
 <script>
 const $ = id => document.getElementById(id);
 let userDragging = false;
+const bc = typeof BroadcastChannel === 'function' ? new BroadcastChannel('ece441_hvac_ctrl') : null;
+
+function formatFanLabel(v) {
+  const fv = +v;
+  return fv < 0 ? 'AUTO (PID)' : `${fv}% (PWM ${Math.round(fv * 255 / 100)} | V_GS ${(5 * fv / 100).toFixed(2)}V)`;
+}
 
 $('rngSp').addEventListener('input', () => {
   userDragging = true;
@@ -129,12 +140,25 @@ $('rngLim').addEventListener('input', () => {
   userDragging = true;
   $('lblLim').textContent = `${$('rngLim').value} W`;
 });
+$('rngFan').addEventListener('input', () => {
+  userDragging = true;
+  $('lblFan').textContent = formatFanLabel($('rngFan').value);
+});
+$('selMode').addEventListener('change', () => {
+  userDragging = true;
+  if ($('lblMode')) $('lblMode').textContent = $('selMode').value;
+  pushCommand();
+});
+$('rngSp').addEventListener('change', pushCommand);
+$('rngLim').addEventListener('change', pushCommand);
+$('rngFan').addEventListener('change', pushCommand);
 
-$('btnPush').addEventListener('click', async () => {
+async function pushCommand() {
   const payload = {
     setpoint_f: +$('rngSp').value,
     demand_limit_w: +$('rngLim').value,
     mode_override: $('selMode').value,
+    fan_override_pct: +$('rngFan').value,
     updated_by: 'rpi-console'
   };
   const r = await fetch('/api/control', {
@@ -145,10 +169,14 @@ $('btnPush').addEventListener('click', async () => {
   const j = await r.json();
   userDragging = false;
   if (j.control) {
+    if (bc) bc.postMessage(j.control);
     $('cmdSeq').textContent = `SEQ #${j.control.command_seq}`;
-    $('ctrlMsg').textContent = `Pushed Seq #${j.control.command_seq} (${j.control.setpoint_f} °F | ${j.control.mode_override}) -> HTTP + MQTT`;
+    const fanTxt = j.control.fan_override_pct < 0 ? 'FAN AUTO' : `FAN ${j.control.fan_override_pct}%`;
+    $('ctrlMsg').textContent = `Pushed Seq #${j.control.command_seq} (${j.control.setpoint_f} °F | ${j.control.mode_override} | ${fanTxt}) -> Sim + Arduino`;
   }
-});
+}
+
+$('btnPush').addEventListener('click', pushCommand);
 
 function card(l, v, u, s) {
   return `<div class="card"><div class="l">${l}</div><div class="v">${v}<small>${u}</small></div><div class="s">${s}</div></div>`;
@@ -176,6 +204,10 @@ async function refresh() {
       $('rngLim').value = st.control.demand_limit_w;
       $('lblLim').textContent = `${st.control.demand_limit_w.toFixed(0)} W`;
       $('selMode').value = st.control.mode_override || 'AUTO';
+      if ($('lblMode')) $('lblMode').textContent = st.control.mode_override || 'AUTO';
+      const fOvr = typeof st.control.fan_override_pct === 'number' ? st.control.fan_override_pct : -1;
+      $('rngFan').value = fOvr;
+      $('lblFan').textContent = formatFanLabel(fOvr);
     }
 
     const db = st.storage || {};
@@ -190,11 +222,13 @@ async function refresh() {
     const cur = st.latest_telemetry;
     if (cur) {
       $('activeSrc').textContent = `${cur.device_id} (${cur.source.toUpperCase()}) @ ${cur.iso_time.split(' ')[1]}`;
+      const rTot = cur.r_total_circuit_ohm !== undefined ? `${cur.r_total_circuit_ohm.toFixed(2)} Ω` : `dP ${cur.static_pa.toFixed(0)} Pa`;
+      const vGs = cur.v_mosfet_gs !== undefined ? `V_GS ${cur.v_mosfet_gs.toFixed(2)}V` : `VEL ${cur.air_vel_ms.toFixed(2)} m/s`;
       $('liveCards').innerHTML =
-        card('ROOM TEMP', cur.temp_f.toFixed(1), '°F', `${cur.temp_c.toFixed(2)} °C`) +
-        card('FEELS LIKE', cur.apparent_f.toFixed(1), '°F', `RH ${cur.humidity.toFixed(0)}%`) +
-        card('DUCT VELOCITY', cur.air_vel_ms.toFixed(2), 'm/s', `dP ${cur.static_pa.toFixed(0)} Pa`) +
-        card('POWER DRAW', cur.power_w.toFixed(0), 'W', `HTR ${cur.heater_pwm} | FAN ${cur.fan_pwm}`);
+        card('HVAC MODE', cur.mode || 'IDLE', '', `HTR ${cur.heater_pwm} | FAN ${cur.fan_pwm}/255`) +
+        card('ROOM TEMP', cur.temp_f.toFixed(1), '°F', `FEELS ${cur.apparent_f.toFixed(1)} °F | RH ${cur.humidity.toFixed(0)}%`) +
+        card('PIN 9 & DUCT', cur.air_vel_ms.toFixed(2), 'm/s', `${vGs} | R_5V ${(cur.r_5v_rail_ohm || 0).toFixed(1)} Ω`) +
+        card('POWER / CIRCUIT R', cur.power_w.toFixed(0), 'W', `R_TOT(12V) ${rTot}`);
     } else {
       $('liveCards').innerHTML =
         card('ROOM TEMP', '--', '°F', 'Awaiting node') +
