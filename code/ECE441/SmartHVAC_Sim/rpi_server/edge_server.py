@@ -247,8 +247,11 @@ class RPiEdgeHTTPHandler(SimpleHTTPRequestHandler):
                 bump_seq=bump_seq,
             )
             mqtt_pub = self.mqtt_bridge.publish_control_state(ctrl)
+            fan_ovr = data.get("fan_speed")
+            if fan_ovr is None:
+                fan_ovr = data.get("fan_override_pct")
             serial_pub = (
-                self.serial_bridge.publish_control_state(ctrl, fan_speed=data.get("fan_speed"))
+                self.serial_bridge.publish_control_state(ctrl, fan_speed=fan_ovr)
                 if self.serial_bridge
                 else False
             )

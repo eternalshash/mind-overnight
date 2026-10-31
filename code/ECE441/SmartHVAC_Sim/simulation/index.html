@@ -148,6 +148,7 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px}
       <div class="pane-h"><span class="pane-t">Live Telemetry</span>
         <div class="tabs" id="tabs">
           <button class="tab on" data-v="power">POWER</button>
+          <button class="tab" data-v="multimeter">MULTIMETER (V/I/Ω)</button>
           <button class="tab" data-v="forecast">6H FORECAST</button>
           <button class="tab" data-v="thermal">THERMAL</button>
           <button class="tab" data-v="airflow">AIRFLOW</button>
@@ -165,6 +166,7 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px}
         <button class="btn" id="clearAll">CLEAR ALL FAULTS / RESTORE BASELINE</button>
         <div class="grp-h" style="margin-top:10px">ENVIRONMENT AND CONTROL PARAMETERS</div>
         <div class="sl"><div class="h"><span>THERMOSTAT SETPOINT</span><b id="lSp">73.4 F</b></div><input type="range" id="sSp" min="64" max="82" step="1" value="73"></div>
+        <div class="sl"><div class="h"><span>PIN 9 MOSFET FAN OVERRIDE (IRLZ44N)</span><b id="lFanOvr">AUTO (PID)</b></div><input type="range" id="sFanOvr" min="-1" max="100" step="1" value="-1"></div>
         <div class="sl"><div class="h"><span>OUTDOOR TEMPERATURE</span><b id="lOut">82.4 F</b></div><input type="range" id="sOut" min="23" max="108" step="1" value="82"></div>
         <div class="sl"><div class="h"><span>DEMAND LIMIT (LOAD SHEDDING)</span><b id="lLim">1000 W</b></div><input type="range" id="sLim" min="300" max="2000" step="50" value="1000"></div>
         <div class="sl"><div class="h"><span>SIMULATION SPEED</span><b id="lSpd">x40</b></div><input type="range" id="sSpd" min="5" max="120" step="5" value="40"></div>
@@ -216,10 +218,10 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px}
       </div>
 
       <div class="col">
-        <div class="pane-h"><span class="pane-t">ESP32 Controller Response</span><span id="modeBadge" class="badge">IDLE</span></div>
+        <div class="pane-h"><span class="pane-t">Arduino Uno R4 / ESP32 Controller Response</span><span id="modeBadge" class="badge">IDLE</span></div>
         <div class="mcu">
-          <div class="mbox ok" id="mA"><div class="n">MCU-A / PRIMARY ESP32</div><div class="st" id="mAs">RUN - IN CONTROL</div><div class="hb" id="mAh">Heartbeat OK</div></div>
-          <div class="mbox stby" id="mB"><div class="n">MCU-B / REDUNDANT ESP32</div><div class="st" id="mBs">HOT STANDBY</div><div class="hb" id="mBh">Mirroring PID state</div></div>
+          <div class="mbox ok" id="mA"><div class="n">MCU-A / ARDUINO UNO R4 (PIN 9/8/A4/A5)</div><div class="st" id="mAs">RUN - IN CONTROL</div><div class="hb" id="mAh">Heartbeat OK</div></div>
+          <div class="mbox stby" id="mB"><div class="n">MCU-B / REDUNDANT WATCHDOG</div><div class="st" id="mBs">HOT STANDBY</div><div class="hb" id="mBh">Mirroring PID state</div></div>
         </div>
         <div class="grp-h">ACTUATOR OUTPUTS</div>
         <div id="bars"></div>
@@ -295,7 +297,7 @@ const S = {
   t: 14 * 3600, speed: 40,
   T: 24.0, RH: 48, Tout: 28, ToutSet: 28, setpoint: 23, demandLimit: 1000,
   VOC: 140, CO2: 700, PM: 3, PMout: 8,
-  filterH: 0.96, fanAct: 30, damperAct: 0, vel: 2.4, dP: 10, rpm: 840, SAT: 18,
+  filterH: 0.96, fanAct: 30, fanOverride: -1, damperAct: 0, vel: 2.4, dP: 10, rpm: 840, SAT: 18,
   sensA: 24, sensB: 24,
   inj: {}, faultSolve: {}, autoSolve: true,
   ctl: { I: 0, P: 0, comp: 0, heat: 0, fanCmd: 30, damper: 0, mode: 'IDLE', sp: 23, u: 0,
@@ -306,6 +308,9 @@ const S = {
   mcu: { active: 'A', a: 'RUN', b: 'STANDBY', wd: 0, rebootTimer: 0, rebootTry: 0, syncT: 0, failMs: 0 },
   plugs: { wrk: 95, tv: 45, lamp: 10 },
   pw: { comp: 0, heat: 0, fan: 0, plugs: 150, ctrl: 1.5, total: 150 },
+  elec: { fan_pwm: 77, v_supply_12v: 12.0, v_rail_5v: 5.0, v_mosfet_gs: 1.50, v_fan_eff: 1.50,
+          i_fan_a: 0.1048, i_heater_a: 0.0, i_5v_total: 0.1498, i_total_a: 0.1498, i_12v_bus_a: 0.0709,
+          p_5v_w: 0.75, p_heater_w: 0.0, p_bench_w: 0.75, r_fan_ohm: 47.71, r_5v_rail_ohm: 33.38, r_total_circuit_ohm: 169.25 },
   kWh: 0, diag: {}, quiet: true, inspect: null, inspectUntil: 0, wifiPrev: false,
   iotAuto: false, iotSent: 0, iotOnline: false, iotDispatched: {}, iotQueue: [],
   rpiSync: true, rpiOnline: false, rpiPkts: 0, rpiLastCmdSeq: -1, rpiBuffer: [],
@@ -540,9 +545,9 @@ function getRPiServerUrl() {
   return (el ? el.value.trim() : detectDefaultRPiUrl()).replace(/\/+$/, '');
 }
 function buildRPiTelemetrySample() {
-  const c = S.ctl;
+  const c = S.ctl, e = S.elec;
   return {
-    device_id: 'ESP32-SIM',
+    device_id: 'ARDUINO-UNO-R4-SIM',
     source: 'sim',
     temp_c: +c.Tctl.toFixed(2),
     humidity: +S.RH.toFixed(1),
@@ -551,13 +556,26 @@ function buildRPiTelemetrySample() {
     static_pa: +S.dP.toFixed(1),
     power_w: +S.pw.total.toFixed(1),
     heater_pwm: Math.round(clamp(c.heat / 100 * 255, 0, 255)),
-    fan_pwm: Math.round(clamp(S.fanAct / 100 * 255, 0, 255)),
+    fan_pwm: e.fan_pwm,
+    fan_pct: +S.fanAct.toFixed(1),
+    fan_override_pct: S.fanOverride,
     setpoint_c: +S.setpoint.toFixed(2),
     mode: c.mode,
     active_mcu: S.mcu.active,
     voc_ppb: +S.VOC.toFixed(0),
     co2_ppm: +S.CO2.toFixed(0),
-    pm25_ug: +S.PM.toFixed(1)
+    pm25_ug: +S.PM.toFixed(1),
+    v_supply_12v: e.v_supply_12v,
+    v_rail_5v: e.v_rail_5v,
+    v_mosfet_gs: e.v_mosfet_gs,
+    v_fan_eff: e.v_fan_eff,
+    i_fan_a: e.i_fan_a,
+    i_heater_a: e.i_heater_a,
+    i_total_a: e.i_total_a,
+    i_12v_bus_a: e.i_12v_bus_a,
+    r_fan_ohm: e.r_fan_ohm,
+    r_5v_rail_ohm: e.r_5v_rail_ohm,
+    r_total_circuit_ohm: e.r_total_circuit_ohm
   };
 }
 function applyRPiRemoteControl(ctrl) {
@@ -580,7 +598,12 @@ function applyRPiRemoteControl(ctrl) {
     if ($('sLim')) $('sLim').value = S.demandLimit;
     if ($('lLim')) $('lLim').textContent = S.demandLimit + ' W';
   }
-  log('ok', `[RPI->ESP32] Remote command Seq #${ctrl.command_seq} applied: Setpoint ${fF(S.setpoint)} F | Limit ${S.demandLimit} W`);
+  if (typeof ctrl.fan_override_pct === 'number') {
+    S.fanOverride = ctrl.fan_override_pct < 0 ? -1 : clamp(Math.round(ctrl.fan_override_pct), 0, 100);
+    if ($('sFanOvr')) $('sFanOvr').value = S.fanOverride;
+    if ($('lFanOvr')) $('lFanOvr').textContent = S.fanOverride < 0 ? 'AUTO (PID)' : `${S.fanOverride}% (PWM ${Math.round(S.fanOverride * 255 / 100)} | V_GS ${(5 * S.fanOverride / 100).toFixed(2)}V)`;
+  }
+  log('ok', `[RPI->MCU] Remote command Seq #${ctrl.command_seq} applied: Setpoint ${fF(S.setpoint)} F | Limit ${S.demandLimit} W | Fan ${S.fanOverride < 0 ? 'AUTO' : S.fanOverride + '%'}`);
 }
 
 function recordCommMetric(direction, endpoint, rttMs, status, detail) {
@@ -817,12 +840,12 @@ function pushSimControlToRPi() {
   fetch(baseUrl + '/api/control', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ setpoint_c: +S.setpoint.toFixed(2), demand_limit_w: S.demandLimit, updated_by: 'sim-ui' })
+    body: JSON.stringify({ setpoint_c: +S.setpoint.toFixed(2), demand_limit_w: S.demandLimit, fan_override_pct: S.fanOverride, updated_by: 'sim-ui' })
   })
     .then(r => r.ok ? r.json() : null)
     .then(j => {
       const rttMs = +(performance.now() - t0).toFixed(1);
-      recordCommMetric('SIM->PI', '/api/control', rttMs, 200, `Pushed SP ${fF(S.setpoint)} F | Lim ${S.demandLimit} W`);
+      recordCommMetric('SIM->PI', '/api/control', rttMs, 200, `Pushed SP ${fF(S.setpoint)} F | Lim ${S.demandLimit} W | Fan ${S.fanOverride < 0 ? 'AUTO' : S.fanOverride + '%'}`);
       if (j && j.control) S.rpiLastCmdSeq = j.control.command_seq;
     })
     .catch(() => {});
@@ -975,7 +998,9 @@ function controller(dtS, dtR) {
     comp = Math.min(comp, c.compCap);
   }
 
-  c.comp = comp; c.heat = heat; c.fanCmd = clamp(fan, 0, 100); c.damper = damper;
+  c.comp = comp; c.heat = heat;
+  c.fanCmd = S.fanOverride >= 0 ? clamp(S.fanOverride, 0, 100) : clamp(fan, 0, 100);
+  c.damper = damper;
   c.mode = c.blowerFault ? 'INTERLOCK' : c.heatEmerg ? 'HEAT EMERGENCY' : c.winPause ? 'WINDOW PAUSE' :
            c.smokeLock ? 'SMOKE RECIRC' : c.purge ? 'IAQ PURGE' : comp > 0 ? 'COOLING' : heat > 0 ? 'HEATING' : 'IDLE';
 }
@@ -990,7 +1015,11 @@ function plant(dtS) {
   if (inj.clog) S.filterH = Math.max(0.12, S.filterH - 0.015 / 60 * dtS);
 
   // actuators
-  S.fanAct += ((inj.blower ? 0 : c.fanCmd) - S.fanAct) * k(20);
+  if (S.fanOverride >= 0 && !inj.blower) {
+    S.fanAct = clamp(S.fanOverride, 0, 100);
+  } else {
+    S.fanAct += ((inj.blower ? 0 : c.fanCmd) - S.fanAct) * k(20);
+  }
   S.damperAct += (c.damper - S.damperAct) * k(30);
   const h = S.filterH, hf = 0.2 + 0.8 * Math.pow(h, 1.5);
   const flow = S.fanAct / 100 * hf;
@@ -1005,7 +1034,32 @@ function plant(dtS) {
   const airM3s = flow * 0.25;
   S.SAT = airM3s > 0.01 ? clamp(S.T + (Qh - Qc) / (1206 * airM3s), 6, 60) : S.T;
 
-  // electrical power
+  // electrical power & bench multimeter model (Arduino Uno R4 + Pin 9 IRLZ44N MOSFET + Pin 8 12V PTC Relay + LM2596 Buck)
+  const fanPwm = Math.round(clamp((inj.blower ? 0 : S.fanAct) / 100 * 255, 0, 255));
+  const duty = clamp(fanPwm / 255, 0, 1);
+  const iFanPeak = 5.00 / (14.286 + 0.028); // 0.3493 A through GDSTIME 5015 + IRLZ44N R_DS(on)
+  const iFanA = duty * iFanPeak;
+  const vFanEff = +(duty * (5.00 - iFanPeak * 0.028)).toFixed(2);
+  const vGs = +(5.00 * duty).toFixed(2);
+  const htrDuty = clamp(c.heat / 100, 0, 1);
+  const iHeaterA = htrDuty * (12.00 / 2.880); // 4.167 A when 12V 50W PTC Relay (Pin 8) active
+  const i5vTotal = 0.045 + iFanA;
+  const iTotalA = i5vTotal + iHeaterA;
+  const p5vRaw = 5.00 * i5vTotal;
+  const pHeaterRaw = 12.00 * iHeaterA;
+  const pBenchW = +(p5vRaw + pHeaterRaw).toFixed(2);
+  const i12vBusRaw = iHeaterA + p5vRaw / (12.00 * 0.88);
+  const rFanOhm = duty > 0.001 ? +(5.00 / iFanA).toFixed(2) : -1.0;
+  const r5vRailOhm = +(5.00 / i5vTotal).toFixed(2);
+  const rTotalCircuitOhm = +(12.00 / i12vBusRaw).toFixed(2);
+  S.elec = {
+    fan_pwm: fanPwm, v_supply_12v: 12.0, v_rail_5v: 5.0, v_mosfet_gs: vGs, v_fan_eff: vFanEff,
+    i_fan_a: +iFanA.toFixed(4), i_heater_a: +iHeaterA.toFixed(3), i_5v_total: +i5vTotal.toFixed(4),
+    i_total_a: +iTotalA.toFixed(3), i_12v_bus_a: +i12vBusRaw.toFixed(4),
+    p_5v_w: +p5vRaw.toFixed(2), p_heater_w: +pHeaterRaw.toFixed(2), p_bench_w: pBenchW,
+    r_fan_ohm: rFanOhm, r_5v_rail_ohm: r5vRailOhm, r_total_circuit_ohm: rTotalCircuitOhm
+  };
+
   S.plugs.wrk = lerp(S.plugs.wrk, inj.surge ? 380 : 95, k(20));
   S.plugs.tv = c.shed ? 0 : 45;
   S.pw.comp = c.comp / 100 * P.capCool / P.COP;
@@ -1105,11 +1159,12 @@ function diffDiag(d) {
    ===================================================================== */
 const HLEN = 150;
 const H = { lab: [], comp: [], heat: [], fan: [], plugs: [], ctrl: [], limit: [], T: [], TA: [], TB: [], SP: [], AT: [], Tout: [],
-            vel: [], fanCmd: [], fanAct: [], filt: [], dP: [], voc: [], co2: [], pm: [], dmp: [] };
+            vel: [], fanCmd: [], fanAct: [], filt: [], dP: [], voc: [], co2: [], pm: [], dmp: [],
+            r5v: [], rTot: [], iFanMa: [], vGs: [] };
 const F = { lab: [], W: [], To: [], kWh: 0, peakW: 0, peakT: '', avgTo: 0 };
 function push(a, v) { a.push(v); if (a.length > HLEN) a.shift(); }
 function sample() {
-  const c = S.ctl;
+  const c = S.ctl, e = S.elec;
   push(H.lab, clockStr(S.t).slice(0, 5));
   push(H.comp, +f1(S.pw.comp)); push(H.heat, +f1(S.pw.heat)); push(H.fan, +f1(S.pw.fan));
   push(H.plugs, +f1(S.pw.plugs)); push(H.ctrl, +f2(S.pw.ctrl)); push(H.limit, S.demandLimit);
@@ -1117,6 +1172,7 @@ function sample() {
   push(H.AT, +f2(apparentTemp(S.T, S.RH, S.vel))); push(H.Tout, +f2(S.Tout));
   push(H.vel, +f2(S.vel)); push(H.fanCmd, +f1(c.fanCmd)); push(H.fanAct, +f1(S.fanAct)); push(H.filt, +f1(S.filterH * 100)); push(H.dP, +f0(S.dP));
   push(H.voc, +f0(S.VOC)); push(H.co2, +f0(S.CO2)); push(H.pm, +f1(S.PM)); push(H.dmp, +f0(S.damperAct));
+  push(H.r5v, e.r_5v_rail_ohm); push(H.rTot, e.r_total_circuit_ohm); push(H.iFanMa, +(e.i_fan_a * 1000).toFixed(1)); push(H.vGs, e.v_mosfet_gs);
   if (S.inj.wifi) c.buffered++;
   forecast();
 }
@@ -1165,6 +1221,13 @@ function buildChart() {
       ds('Controls', H.ctrl, '#10b981', { fill: '-1', stack: 'p' }),
       ds('Demand limit', H.limit, '#ef4444', { borderDash: [5, 4], borderWidth: 1.2, stack: 'lim' }) ] };
     scales = { x: xAxis(), y: yAxis('WATTS (STACKED)', { stacked: true, min: 0 }) };
+  } else if (view === 'multimeter') {
+    data = { labels: H.lab, datasets: [
+      ds('Total 12V Circuit R (Ω)', H.rTot, '#38bdf8', { yAxisID: 'y', borderWidth: 2 }),
+      ds('5V Rail R (Ω)', H.r5v, '#10b981', { yAxisID: 'y' }),
+      ds('Fan Current I_fan (mA)', H.iFanMa, '#fbbf24', { yAxisID: 'y1', fill: 'origin' }),
+      ds('Pin 9 Gate V_GS (V x50)', H.vGs.map(v => +(v * 50).toFixed(1)), '#c084fc', { yAxisID: 'y1', borderDash: [4, 3] }) ] };
+    scales = { x: xAxis(), y: yAxis('RESISTANCE (OHMS Ω)', { min: 0, suggestedMax: 300 }), y1: yAxis('CURRENT (mA) / V_GS x50', { position: 'right', min: 0, max: 360, grid: { drawOnChartArea: false } }) };
   } else if (view === 'forecast') {
     data = { labels: F.lab, datasets: [
       { type: 'bar', label: 'Predicted avg load per 15 min (W)', data: F.W, backgroundColor: 'rgba(251,191,36,.45)', borderColor: '#fbbf24', borderWidth: 1, yAxisID: 'y' },
@@ -1511,36 +1574,58 @@ window.getCommStats = () => S.commStats;
 
 $('clearAll').addEventListener('click', () => {
   Object.keys(S.inj).forEach(k => { if (S.inj[k]) setFault(k, false); });
-  S.setpoint = 23; S.ToutSet = 28; S.demandLimit = 1000;
+  S.setpoint = 23; S.ToutSet = 28; S.demandLimit = 1000; S.fanOverride = -1;
   S.T = 23.5; S.RH = 48; S.VOC = 140; S.CO2 = 700; S.PM = 3; S.PMout = 8;
   S.filterH = 0.96; S.vel = 2.4; S.dP = 10;
   S.ctl.I = 0; S.ctl.P = 0; S.ctl.comp = 0; S.ctl.heat = 0; S.ctl.fanCmd = 22; S.ctl.damper = 0;
   S.fanAct = 22; S.damperAct = 0; S.rpm = 616; S.ctl.mode = 'IDLE';
   S.mcu.a = 'RUN'; S.mcu.b = 'STANDBY'; S.mcu.active = 'A';
   S.diag = {};
-  $('sSp').value = 73; $('sOut').value = 82; $('sLim').value = 1000; readSliders();
+  $('sSp').value = 73; $('sOut').value = 82; $('sLim').value = 1000;
+  if ($('sFanOvr')) $('sFanOvr').value = -1;
+  readSliders();
   updateCards(); updatePanel();
   log('sim', '[SIM] Baseline restored. Controller returned to normal state.');
 });
 function readSliders() {
   S.setpoint = (+$('sSp').value - 32) * 5/9; S.ToutSet = (+$('sOut').value - 32) * 5/9; S.demandLimit = +$('sLim').value; S.speed = +$('sSpd').value;
+  if ($('sFanOvr')) {
+    const fv = +$('sFanOvr').value;
+    S.fanOverride = fv < 0 ? -1 : clamp(fv, 0, 100);
+    if ($('lFanOvr')) {
+      $('lFanOvr').textContent = S.fanOverride < 0
+        ? 'AUTO (PID)'
+        : `${S.fanOverride}% (PWM ${Math.round(S.fanOverride * 255 / 100)} | V_GS ${(5 * S.fanOverride / 100).toFixed(2)}V)`;
+    }
+    if (S.fanOverride >= 0) {
+      S.ctl.fanCmd = S.fanOverride;
+      if (!S.inj.blower) S.fanAct = S.fanOverride;
+      plant(0.01);
+      if (!S.quiet) { updateCards(); updatePanel(); }
+    }
+  }
   $('lSp').textContent = fF(S.setpoint) + ' F';
   $('lOut').textContent = S.inj.heatwave ? 'HEATWAVE 102.2 F' : fF(S.ToutSet) + ' F';
   $('lLim').textContent = S.demandLimit + ' W';
   $('lSpd').textContent = 'x' + S.speed; $('speedLbl').textContent = 'x' + S.speed;
 }
-['sSp', 'sOut', 'sLim', 'sSpd'].forEach(id => $(id).addEventListener('input', readSliders));
-['sSp', 'sLim'].forEach(id => $(id).addEventListener('change', pushSimControlToRPi));
+['sSp', 'sFanOvr', 'sOut', 'sLim', 'sSpd'].forEach(id => { if ($(id)) $(id).addEventListener('input', readSliders); });
+['sSp', 'sFanOvr', 'sLim'].forEach(id => { if ($(id)) $(id).addEventListener('change', pushSimControlToRPi); });
 
 function card(l, v, u, s, cls) { return `<div class="card ${cls || ''}"><div class="l">${l}</div><div class="v">${v}<small>${u}</small></div><div class="s">${s}</div></div>`; }
 function updateCards() {
-  const c = S.ctl, d = S.diag; let h = '';
+  const c = S.ctl, d = S.diag, e = S.elec; let h = '';
   if (view === 'power') {
     const hv = S.pw.comp + S.pw.heat + S.pw.fan;
     h += card('TOTAL DRAW', f0(S.pw.total), 'W', `HVAC ${f0(hv)} W | PLUGS ${f0(S.pw.plugs)} W`, S.pw.total > S.demandLimit ? 'warn' : '');
     h += card('ENERGY (SIM)', f2(S.kWh), 'kWh', `COST $${f2(S.kWh * P.price)} @ $${P.price}/kWh`);
     h += card('HVAC MODE', c.mode.split(' ')[0], '', `COMP ${f0(c.comp)}% | HTR ${f0(c.heat)}% | FAN ${f0(S.fanAct)}%`, d['E-302'] || d['E-403'] ? 'crit' : '');
     h += card('DEMAND LIMIT', S.demandLimit, 'W', c.shed ? 'SHEDDING: TV PLUG OFF, SP +1.8 F' : 'NO LOAD SHED ACTIVE', c.shed ? 'warn' : '');
+  } else if (view === 'multimeter') {
+    h += card('PIN 9 GATE & FAN V', f2(e.v_fan_eff), 'V', `V_GS ${f2(e.v_mosfet_gs)}V | PWM ${e.fan_pwm}/255 (${S.fanOverride >= 0 ? 'MANUAL' : 'AUTO'})`);
+    h += card('BENCH CURRENT (I)', f0(e.i_5v_total * 1000), 'mA', `FAN ${f0(e.i_fan_a * 1000)}mA | 12V BUS ${f2(e.i_12v_bus_a)}A`);
+    h += card('5V RAIL & FAN R', f2(e.r_5v_rail_ohm), 'Ω', `R_FAN ${e.r_fan_ohm < 0 ? 'OPEN (∞)' : f2(e.r_fan_ohm) + ' Ω'} | R_DS 0.028 Ω`);
+    h += card('TOTAL CIRCUIT R (12V)', f2(e.r_total_circuit_ohm), 'Ω', `BENCH ${f2(e.p_bench_w)} W | HTR ${f2(e.i_heater_a)} A`);
   } else if (view === 'forecast') {
     h += card('NEXT 6 H ENERGY', f2(F.kWh), 'kWh', 'DIURNAL + ENVELOPE + PLUG MODEL');
     h += card('NEXT 6 H COST', '$' + f2(F.kWh * P.price), '', `AVG ${f0(F.kWh / 6 * 1000)} W`);
@@ -1604,10 +1689,12 @@ function updatePanel() {
     bar('BLOWER TACH', S.fanAct, `${f0(S.rpm)} RPM`, c.blowerFault ? '#ef4444' : '#c4b5fd') +
     bar('OA DAMPER', S.damperAct, c.smokeLock ? 'LOCKED' : `${f0(S.damperAct)}%`, c.smokeLock ? '#ef4444' : '#38bdf8');
   $('kv').innerHTML =
-    `<span>Control sensor</span><span>${c.sensorAOk ? 'TS-A' : 'TS-B'} ${fF(c.Tctl)} F</span>` +
+    `<span>Control sensor (A4/A5 I2C)</span><span>${c.sensorAOk ? 'TS-A (BME280)' : 'TS-B'} ${fF(c.Tctl)} F</span>` +
     `<span>PID (P / I / FF)</span><span>${f1(c.P)} / ${f1(c.I)} / ${f1(c.ff)} %</span>` +
-    `<span>Supply air temp</span><span>${fF(S.SAT)} F</span>` +
-    `<span>Smart plugs</span><span>WRK ${f0(S.plugs.wrk)} W | TV ${c.shed ? 'SHED' : '45 W'}</span>`;
+    `<span>Pin 9 IRLZ44N Gate</span><span>V_GS ${f2(S.elec.v_mosfet_gs)} V | PWM ${S.elec.fan_pwm}/255 (${S.fanOverride >= 0 ? 'MANUAL' : 'AUTO'})</span>` +
+    `<span>Bench V / Current</span><span>V_fan ${f2(S.elec.v_fan_eff)} V | I_fan ${f0(S.elec.i_fan_a * 1000)} mA | I_5V ${f0(S.elec.i_5v_total * 1000)} mA</span>` +
+    `<span>Circuit Resistance</span><span>R_5V ${f2(S.elec.r_5v_rail_ohm)} Ω | R_tot(12V) ${f2(S.elec.r_total_circuit_ohm)} Ω</span>` +
+    `<span>Supply air / Plugs</span><span>${fF(S.SAT)} F | WRK ${f0(S.plugs.wrk)} W | TV ${c.shed ? 'SHED' : '45 W'}</span>`;
   // faults
   const list = Object.entries(S.diag).sort((a, b) => SEVRANK[b[1].sev] - SEVRANK[a[1].sev]);
   $('flist').innerHTML = list.length ? list.map(([k, f]) =>
@@ -1688,7 +1775,7 @@ const R = {
 const ctr = o => [X(o.x + o.w / 2), Y(o.y + o.h / 2)];
 const TGT = { thermostat: R.thermostat, iaq: R.iaq, damper: R.damper, ret: R.ret, ahu: R.ahu, window: R.window, tv: R.plugTv, desk: R.desk, bed: R.bed, tsb: R.tsb };
 const DEV = {
-  thermostat: { o: R.thermostat, name: 'CTRL-HUB dual ESP32 + TS-A (BME280)', info: () => `MCU-A ${S.mcu.a}, MCU-B ${S.mcu.b}. TS-A ${fF(S.sensA)} F ${S.ctl.sensorAOk ? '(in loop)' : '(voted out)'}. RH ${f0(S.RH)}%.` },
+  thermostat: { o: R.thermostat, name: 'CTRL-HUB Arduino Uno R4 (Pin 9 MOSFET / Pin 8 Relay / A4-A5 BME280)', info: () => `MCU-A ${S.mcu.a}, MCU-B ${S.mcu.b}. TS-A ${fF(S.sensA)} F ${S.ctl.sensorAOk ? '(in loop)' : '(voted out)'}. Pin 9 V_GS ${f2(S.elec.v_mosfet_gs)}V, R_tot ${f2(S.elec.r_total_circuit_ohm)} Ω.` },
   iaq: { o: R.iaq, name: 'IAQ node (SGP30 VOC/CO2 + PM2.5)', info: () => `VOC ${f0(S.VOC)} ppb, CO2 ${f0(S.CO2)} ppm, PM2.5 ${f1(S.PM)} ug/m3.` },
   tsb: { o: R.tsb, name: 'TS-B redundant temp sensor (SHT31)', info: () => `${fF(S.sensB)} F. Used for cross-check voting against TS-A.` },
   supply: { o: R.supply, name: 'Ceiling supply diffuser', info: () => `Supply air ${fF(S.SAT)} F, duct velocity ${f2(S.vel)} m/s.` },
