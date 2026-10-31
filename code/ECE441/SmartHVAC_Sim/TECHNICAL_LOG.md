@@ -5,6 +5,12 @@ This technical log is automatically maintained to record engineering implementat
 ---
 
 ### [2026-10-30] Shashwat Choudhry
+* **Commit:** `6177394`
+* **Technical Summary:** Sync HVAC Mode Override (FORCE HEATING / FORCE COOLING / ECO / OFF) and Pin 9 Fan Override between RPi Console and Web Digital Twin. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-10-30] Shashwat Choudhry
 * **Commit:** `682888c`
 * **Technical Summary:** Complete Step 2 & Step 3: Refactor Arduino Uno R4 firmware and add live V/I/Ohm multimeter & Pin 9 MOSFET fan override to Web Digital Twin. Modified files in the Smart HVAC subsystem.
 
