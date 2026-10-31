@@ -639,6 +639,11 @@ if (rpiCtrlChannel) {
     if (ev && ev.data) applyRPiRemoteControl(ev.data, true);
   });
 }
+window.addEventListener('storage', ev => {
+  if (ev && ev.key === 'ece441_ctrl_state' && ev.newValue) {
+    try { applyRPiRemoteControl(JSON.parse(ev.newValue), true); } catch (e) {}
+  }
+});
 
 function recordCommMetric(direction, endpoint, rttMs, status, detail) {
   S.commStats.count++;
