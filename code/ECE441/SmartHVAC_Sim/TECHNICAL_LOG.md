@@ -5,6 +5,12 @@ This technical log is automatically maintained to record engineering implementat
 ---
 
 ### [2026-10-30] Shashwat Choudhry
+* **Commit:** `224d32a`
+* **Technical Summary:** Expand LAB_GUIDE.md with simulator screenshots, direct code links, No-Pi teammate guide, hardware implementation blueprints, and multimeter accuracy analysis. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-10-30] Shashwat Choudhry
 * **Commit:** `65f0419`
 * **Technical Summary:** Add No-Pi browser fallback for teammate testing and update labels to Arduino Uno R4 / Sim. Modified files in the Smart HVAC subsystem.
 
