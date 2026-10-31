@@ -5,6 +5,12 @@ This technical log is automatically maintained to record engineering implementat
 ---
 
 ### [2026-10-30] Shashwat Choudhry
+* **Commit:** `682888c`
+* **Technical Summary:** Complete Step 2 & Step 3: Refactor Arduino Uno R4 firmware and add live V/I/Ohm multimeter & Pin 9 MOSFET fan override to Web Digital Twin. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-10-30] Shashwat Choudhry
 * **Commit:** `6593aeb`
 * **Technical Summary:** Docs(hvac): add Arduino IDE lab guide, Part 2 multimeter chart, and USB serial bridge. Modified files in the Smart HVAC subsystem.
 
