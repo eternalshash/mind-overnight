@@ -98,9 +98,9 @@ fn main() {
     let default_float = 3.14; // remember this defaults to f64
 
     // Print the size in bytes of each using `std::mem::size_of_val(&...):
-    // Example: println!("size of small_int: {} byte(s)", std::mem::size_of_val(&small_int));
-
+    // Example: println!("size of small_int: {} byte(s)", std::mem::size_of_val(&small_int));   
     // TODO: Print the size of big_int and default_float below
+    // work on loops next -> 
     
     println!("size of the small int {}", std::mem::size_of_val(&small_int));
     println!("size of the big int {}", std::mem::size_of_val(&big_int));
