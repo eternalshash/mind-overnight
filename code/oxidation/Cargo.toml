@@ -10,6 +10,7 @@ default-run = "oxidation"
 # Run practice revise:      cargo run --bin practiceRevise
 # Run practice 3:           cargo run --bin practiceRust3
 # Run day 2 structs:        cargo run --bin rustday2
+# Run practice tuples:       cargo run --bin practiceTuples
 
 [[bin]]
 name = "oxidation"
@@ -30,3 +31,7 @@ path = "src/practiceRust3.rs"
 [[bin]]
 name = "rustday2"
 path = "src/rustday2.rs"
+
+[[bin]]
+name = "practiceTuples"
+path = "src/practiceTuples.rs"
