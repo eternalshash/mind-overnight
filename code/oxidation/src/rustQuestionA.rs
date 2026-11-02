@@ -25,13 +25,12 @@ fn main(){
     let (a, b, c) = sensor;
     println!("{:?}, {:?}, {:?}", a, b, c);
 
-    
+    println!("One element tuple with value and trailing comma: {:?}", (42u8,));
 
 
 }
 
 /*                
-  3. Comma Quirk:                                                                                        
-      • Declare a 1-element tuple with value 42u8. Verify you used the trailing comma ,.  
+  
 
 */
