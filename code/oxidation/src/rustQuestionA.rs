@@ -5,14 +5,21 @@
 // constructed using parahtness()
 
 // tuples can be used as fucntion arguments and even return values
+/*                
+   Call invert_pair((100, "Altitude")) and print the swapped tuple.
+    1. invert_pair(pair: (i32, &str)) -> (&str, i32)                                                       
+      • Takes a tuple containing an integer and a string slice.                                          
+      • Destructures the tuple.                                                                          
+      • Returns a new tuple with the elements swapped (implicit return, no semicolon!).   
+
+*/
+
 
 
 fn invert_pair(pair: (i32, &str)) -> (&str, i32) {
-    // tuple with int an string slice 
-    // new tuple with swwap 
-    // int string -> string int   
-    let (int_param, string_param) = pair;
-    (string_param, int_param)
+    let (int_param, str_param) = pair;
+    (str_param, int_param)
+    
 }
 
 
@@ -27,10 +34,9 @@ fn main(){
 
     println!("One element tuple with value and trailing comma: {:?}", (42u8,));
 
+    let pair = (100i32, "Altitude"); 
+    println!("Inverted pair is {:?}: ", invert_pair(pair));
 
-}
 
-/*                
-  
 
-*/
+} 
