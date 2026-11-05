@@ -1,6 +1,10 @@
 
-// IRLZ24N MOSFET Fan Speed Control
-// Compatible with Arduino Uno and classic Nano
+// ============================================================================
+// IRLZ24N / IRLZ44N MOSFET Fan Speed Control (ECE 441 Bench Test)
+// Designed for Andy Tran & Kaleb Cowgur
+// Connection: WIRED USB Serial connection to PC (9600 baud)
+// Pinout: Pin 9 -> MOSFET Gate, Common GND with 12V supply return
+// ============================================================================
 
 const int fanPin = 9;  // PWM-capable pin connected to MOSFET gate
 

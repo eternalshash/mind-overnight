@@ -2,18 +2,42 @@
  * ============================================================================
  * ECE 441 Smart HVAC Control - Official Arduino IDE Sketch (.ino)
  * ============================================================================
- * Designed for Andy Tran & Kaleb Cowgur (Arduino IDE -> Arduino Uno R4)
+ * Designed for: Andy Tran & Kaleb Cowgur (ECE 441 Lab Bench)
+ * Target Board: Arduino Uno R4 (or Uno R3 / Nano)
  *
- * Pinout (Matches 10-26-29 Hardware Pinout Report 1:1):
- *   - Pin 9 : IRLZ44N Logic-Level N-Channel MOSFET Gate (PWM Fan Control)
- *   - Pin 8 : 12V PTC Heating Element Relay Module (IN)
- *   - A4    : Bosch BME280 SDA
- *   - A5    : Bosch BME280 SCL
- *   - 5V    : Bosch BME280 VIN & Fan +5V Rail
- *   - GND   : Dedicated Arduino GND to BME280 GND (isolated from Fan return)
+ * ----------------------------------------------------------------------------
+ * 1. CONNECTION MODE: WIRED USB SERIAL (NOT WIRELESS)
+ * ----------------------------------------------------------------------------
+ * - Plug the Arduino directly into your computer or Raspberry Pi using a USB cable.
+ * - Communication is 100% WIRED over USB Serial at 115200 BAUD (No Wi-Fi / BLE needed).
+ * - Raspberry Pi Auto-Discovery: The Python edge server (serial_bridge.py)
+ *   automatically listens on /dev/ttyACM* or /dev/cu.usbmodem*.
+ * - Manual Control: Open Arduino IDE Serial Monitor (set baud rate to 115200, "Both NL & CR").
  *
- * Arduino IDE Serial Monitor Commands (Set baud rate to 115200):
- *   FAN <0-100> | PWM <0-255> | SET <15-30> | HEAT ON | HEAT OFF | AUTO
+ * ----------------------------------------------------------------------------
+ * 2. COMPLETE PINOUT & WIRING GUIDE (Matches 10-26-29 Hardware Report)
+ * ----------------------------------------------------------------------------
+ *   [PIN 9]        -> Gate of IRLZ44N / IRLZ24N N-Channel Logic-Level MOSFET
+ *                     (PWM blower fan speed modulation, 0-255).
+ *   [PIN 8]        -> "IN" control pin of 12V PTC Heater Relay Module.
+ *   [PIN A4]       -> Bosch BME280 SDA (I2C Data).
+ *   [PIN A5]       -> Bosch BME280 SCL (I2C Clock).
+ *   [PIN 5V]       -> Bosch BME280 VIN pin & +5V logic rail.
+ *   [PIN GND #1]   -> Arduino GND tied to Common System Ground (ESP32 GND and
+ *                     LM2596 buck converter negative rail for MOSFET gate reference).
+ *   [PIN GND #2]   -> CRITICAL: Connect BME280 sensor GND DIRECTLY to a dedicated
+ *                     Arduino GND header. DO NOT splice sensor GND into the high-current
+ *                     fan ground return wire (avoids ground bounce & I2C sensor lockups).
+ *
+ * ----------------------------------------------------------------------------
+ * 3. ARDUINO SERIAL MONITOR COMMAND CHEATSHEET (at 115200 Baud):
+ * ----------------------------------------------------------------------------
+ *   - HEAT ON       : Forces PTC heater relay ON (override)
+ *   - HEAT OFF      : Forces PTC heater relay OFF (override)
+ *   - FAN <0-100>   : Sets fan speed in % (e.g. "FAN 50" -> 50% PWM)
+ *   - PWM <0-255>   : Sets raw PWM duty cycle (e.g. "PWM 128")
+ *   - SET <15-30>   : Updates PID target temperature in °C (e.g. "SET 22.5")
+ *   - AUTO          : Restores closed-loop automatic PID temperature regulation
  * ============================================================================
  */
 
