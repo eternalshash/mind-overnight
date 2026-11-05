@@ -5,6 +5,12 @@ This technical log is automatically maintained to record engineering implementat
 ---
 
 ### [2026-11-05] Shashwat Choudhry
+* **Commit:** `3a25c7c`
+* **Technical Summary:** Docs(hvacSIM). Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-05] Shashwat Choudhry
 * **Commit:** `562b5c0`
 * **Technical Summary:** Docs(contributing): document wired USB bench setup, COM7 TinyUSB port, and Web Serial bridge. Modified files in the Smart HVAC subsystem.
 
