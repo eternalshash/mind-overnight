@@ -4,6 +4,12 @@ This technical log is automatically maintained to record engineering implementat
 
 ---
 
+### [2026-11-05] Shashwat Choudhry
+* **Commit:** `bb8eecd`
+* **Technical Summary:** Docs(arduino): clarify wired USB connection and hardware pinout for Andy. Modified files in the Smart HVAC subsystem.
+
+---
+
 ### [2026-10-30] Shashwat Choudhry
 * **Commit:** `224d32a`
 * **Technical Summary:** Expand LAB_GUIDE.md with simulator screenshots, direct code links, No-Pi teammate guide, hardware implementation blueprints, and multimeter accuracy analysis. Modified files in the Smart HVAC subsystem.
