@@ -5,6 +5,12 @@ This technical log is automatically maintained to record engineering implementat
 ---
 
 ### [2026-11-05] Shashwat Choudhry
+* **Commit:** `4c9cd39`
+* **Technical Summary:** Feat(sim): add direct Web Serial USB Arduino connection button for zero-setup bench testing. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-05] Shashwat Choudhry
 * **Commit:** `bb8eecd`
 * **Technical Summary:** Docs(arduino): clarify wired USB connection and hardware pinout for Andy. Modified files in the Smart HVAC subsystem.
 
