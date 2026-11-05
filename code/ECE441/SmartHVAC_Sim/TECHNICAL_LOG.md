@@ -5,6 +5,12 @@ This technical log is automatically maintained to record engineering implementat
 ---
 
 ### [2026-11-05] Shashwat Choudhry
+* **Commit:** `562b5c0`
+* **Technical Summary:** Docs(contributing): document wired USB bench setup, COM7 TinyUSB port, and Web Serial bridge. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-05] Shashwat Choudhry
 * **Commit:** `4c9cd39`
 * **Technical Summary:** Feat(sim): add direct Web Serial USB Arduino connection button for zero-setup bench testing. Modified files in the Smart HVAC subsystem.
 
