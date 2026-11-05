@@ -127,8 +127,9 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px}
     <span><i class="dot" id="hA"></i>MCU-A <b id="hAt">RUN</b></span>
     <span><i class="dot" id="hB"></i>MCU-B <b id="hBt">STANDBY</b></span>
     <span><i class="dot" id="hW"></i>CLOUD <b id="hWt">ONLINE</b></span>
-    <span><i class="dot" id="hPi"></i>RPI SERVER <b id="hPit">STANDBY</b></span>
+    <span><i class="dot" id="hPi"></i>RPI / USB <b id="hPit">STANDBY</b></span>
     <span><i class="dot" id="hIot"></i>IOT GATEWAY <b id="hIott">READY</b></span>
+    <button class="btn" id="btnUsbTop" style="width:auto;margin:0;padding:2px 8px;font-size:10px;border-color:var(--green);color:var(--green);font-weight:bold;cursor:pointer">⚡ CONNECT USB ARDUINO</button>
     <span>SIM <b id="clock" class="cy">14:00:00</b> <span id="speedLbl" style="color:var(--muted)">x40</span></span>
   </div>
 </header>
@@ -206,19 +207,20 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px}
           <button class="btn" id="btnTestIot" style="margin-top:6px;border-color:var(--cyan);color:var(--accent)">SEND TEST ALERT (SMS + EMAIL)</button>
         </div>
         <div class="grp-h" style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">
-          <span>RASPBERRY PI 5 EDGE SERVER (SQLITE)</span>
+          <span>USB ARDUINO / RASPBERRY PI 5 SYNC</span>
           <div style="display:flex;gap:4px;align-items:center">
-            <span id="rpiSyncBadge" class="badge ok" style="cursor:pointer;user-select:none" title="Stream ESP32 telemetry &amp; receive setpoint commands from Raspberry Pi 5">SYNC: ON</span>
-            <span id="rpiLatencyBadge" class="badge" title="Live HTTP Round-Trip Time (latency) in milliseconds">-- ms</span>
+            <span id="rpiSyncBadge" class="badge ok" style="cursor:pointer;user-select:none" title="Stream ESP32/Arduino telemetry &amp; receive setpoint commands">SYNC: ON</span>
+            <span id="rpiLatencyBadge" class="badge" title="Live HTTP/USB Round-Trip Time (latency) in milliseconds">-- ms</span>
             <span id="rpiSyncCount" class="badge">0 PKTS</span>
           </div>
         </div>
         <div class="iot-box">
+          <button class="btn" id="btnConnectUsb" style="margin-bottom:6px;border-color:var(--green);color:var(--green);font-weight:bold;padding:6px 8px">⚡ CONNECT USB ARDUINO DIRECTLY (NO PI / NO PYTHON NEEDED)</button>
           <div class="iot-grid">
             <label for="rpiServerUrl">PI URL</label>
             <input id="rpiServerUrl" class="iot-in" type="text" value="http://raspberrypi.local:8765" placeholder="http://raspberrypi.local:8765">
           </div>
-          <div id="rpiStatusLine" style="margin-top:5px;font-size:9px;color:var(--muted)">SQLite WAL ready | Bidirectional ESP32 telemetry + setpoint sync</div>
+          <div id="rpiStatusLine" style="margin-top:5px;font-size:9px;color:var(--muted)">Click "Connect USB Arduino" above (Chrome/Edge) OR run local RPi server</div>
           <div style="display:flex;gap:6px;margin-top:6px">
             <button class="btn" id="btnExportCsv" style="flex:1;border-color:var(--cyan);color:var(--accent);font-size:9.5px;padding:4px 6px">EXPORT CSV</button>
             <button class="btn" id="btnBenchmarkComm" style="flex:1;border-color:var(--cyan);color:var(--accent);font-size:9.5px;padding:4px 6px">TEST SPEED</button>
@@ -769,6 +771,10 @@ async function runCommSpeedBenchmark(iterations = 20) {
 }
 
 function syncRPiTelemetry() {
+  if (S.usbConnected) {
+    S.rpiOnline = true;
+    return;
+  }
   if (S.quiet || !S.rpiSync || typeof fetch !== 'function') return;
   const sampleObj = buildRPiTelemetrySample();
   if (S.inj.wifi) {
@@ -873,7 +879,10 @@ async function flushRPiBuffer() {
     .catch(() => {});
 }
 function pushSimControlToRPi() {
-  if (!S.rpiSync || !S.rpiOnline || S.inj.wifi || typeof fetch !== 'function') return;
+  if (S.usbConnected) {
+    syncUsbControlFromUI();
+  }
+  if (!S.rpiSync || !S.rpiOnline || S.usbConnected || S.inj.wifi || typeof fetch !== 'function') return;
   const baseUrl = getRPiServerUrl();
   const t0 = performance.now();
   fetch(baseUrl + '/api/control', {
@@ -892,6 +901,252 @@ function pushSimControlToRPi() {
     })
     .catch(() => {});
 }
+
+/* =====================================================================
+   4D. DIRECT USB WEB SERIAL BRIDGE (CHROME / EDGE -> ARDUINO 115200 BAUD)
+   ===================================================================== */
+let usbPort = null;
+let usbReader = null;
+let usbWriter = null;
+let usbRxBuffer = '';
+
+function updateUsbButtonsUI() {
+  const connected = !!S.usbConnected;
+  const topBtn = $('btnUsbTop');
+  const mainBtn = $('btnConnectUsb');
+  if (topBtn) {
+    topBtn.textContent = connected ? '🟢 USB ARDUINO: CONNECTED' : '⚡ CONNECT USB ARDUINO';
+    topBtn.style.background = connected ? 'rgba(16,185,129,0.18)' : '';
+    topBtn.style.borderColor = 'var(--green)';
+    topBtn.style.color = 'var(--green)';
+  }
+  if (mainBtn) {
+    mainBtn.textContent = connected
+      ? '🟢 USB ARDUINO CONNECTED (115200 BAUD) — CLICK TO DISCONNECT'
+      : '⚡ CONNECT USB ARDUINO DIRECTLY (NO PI / NO PYTHON NEEDED)';
+    mainBtn.style.background = connected ? 'rgba(16,185,129,0.18)' : '';
+  }
+  if ($('rpiSyncBadge') && connected) {
+    $('rpiSyncBadge').textContent = 'USB: LIVE';
+    $('rpiSyncBadge').className = 'badge ok';
+  }
+}
+
+async function sendUsbSerialCommand(cmdStr) {
+  if (!S.usbConnected || !usbPort || !usbPort.writable) return false;
+  try {
+    const writer = usbPort.writable.getWriter();
+    const data = new TextEncoder().encode(cmdStr.trim() + '\n');
+    await writer.write(data);
+    writer.releaseLock();
+    recordCommMetric('WEB->USB', 'Serial(115200)', 2.1, 200, `TX: ${cmdStr.trim()}`);
+    log('ok', `[USB->ARDUINO] Sent command: ${cmdStr.trim()}`);
+    return true;
+  } catch (err) {
+    log('warn', `[USB] Failed to write command: ${err && err.message ? err.message : err}`);
+    return false;
+  }
+}
+
+async function syncUsbControlFromUI() {
+  if (!S.usbConnected) return;
+  await sendUsbSerialCommand(`SET ${S.setpoint.toFixed(1)}`);
+  if (S.modeOverride === 'HEAT') {
+    await sendUsbSerialCommand('HEAT ON');
+    await sendUsbSerialCommand(`FAN ${S.fanOverride >= 0 ? S.fanOverride : 100}`);
+  } else if (S.modeOverride === 'COOL') {
+    await sendUsbSerialCommand('HEAT OFF');
+    await sendUsbSerialCommand(`FAN ${S.fanOverride >= 0 ? S.fanOverride : 100}`);
+  } else if (S.modeOverride === 'OFF') {
+    await sendUsbSerialCommand('HEAT OFF');
+    await sendUsbSerialCommand('FAN 0');
+  } else {
+    if (S.fanOverride >= 0) {
+      await sendUsbSerialCommand(`FAN ${S.fanOverride}`);
+    } else {
+      await sendUsbSerialCommand('AUTO');
+    }
+  }
+}
+
+async function syncUsbOnFault(id, on) {
+  if (!S.usbConnected) return;
+  if (!on) {
+    const remaining = Object.values(S.inj).filter(Boolean).length;
+    if (remaining === 0) {
+      await sendUsbSerialCommand('AUTO');
+      toast('ok', 'USB ARDUINO RESTORED', 'Fault Cleared -> Closed-Loop PID Restored', 'Sent: AUTO to Arduino Uno R4 over USB', 'Pin 9 PWM & Pin 8 Relay back on BME280 PID');
+    }
+    return;
+  }
+  if (id === 'blower') {
+    await sendUsbSerialCommand('HEAT OFF');
+    await sendUsbSerialCommand('FAN 0');
+    toast('crit', 'USB ARDUINO HARDWARE INTERLOCK', 'Blower Fault -> Forced Relay OFF & Fan 0%', 'Sent: HEAT OFF | FAN 0 to physical Arduino', 'Prevents PTC heater thermal runaway');
+  } else if (id === 'clog') {
+    await sendUsbSerialCommand('FAN 100');
+    toast('warn', 'USB ARDUINO BOOST', 'Filter Clog -> Boosting Physical Fan to 100%', 'Sent: FAN 100 (PWM 255) to Pin 9 MOSFET', 'Compensating for static pressure drop');
+  } else if (id === 'voc') {
+    await sendUsbSerialCommand('FAN 100');
+    toast('warn', 'USB ARDUINO PURGE', 'High VOC/CO2 -> Max Ventilation Purge (100% Fan)', 'Sent: FAN 100 to physical Arduino', 'Flushing zone air');
+  } else if (id === 'smoke') {
+    await sendUsbSerialCommand('HEAT OFF');
+    await sendUsbSerialCommand('FAN 40');
+    toast('crit', 'USB ARDUINO SMOKE LOCKOUT', 'Wildfire Smoke -> Heater OFF, Recirc Fan 40%', 'Sent: HEAT OFF | FAN 40 to physical Arduino', 'MERV-13 recirculation mode');
+  } else if (id === 'heatwave' || id === 'surge') {
+    await sendUsbSerialCommand('HEAT OFF');
+    await sendUsbSerialCommand('FAN 100');
+    toast('crit', 'USB ARDUINO EMERGENCY COOLING', 'Thermal Spike -> Heater OFF, Fan 100% Max Cooling', 'Sent: HEAT OFF | FAN 100 to physical Arduino', 'Mitigating indoor heat stress');
+  } else if (id === 'window') {
+    await sendUsbSerialCommand('HEAT OFF');
+    await sendUsbSerialCommand('FAN 0');
+    toast('warn', 'USB ARDUINO ENVELOPE PAUSE', 'Window Open -> Paused Heater & Fan (0%)', 'Sent: HEAT OFF | FAN 0 to physical Arduino', 'Preventing conditioning outdoors');
+  } else if (id === 'mcu') {
+    await sendUsbSerialCommand('HEAT OFF');
+    toast('crit', 'USB ARDUINO FAIL-SAFE', 'Primary MCU Fault -> Gated Heater Relay OFF', 'Sent: HEAT OFF to physical Arduino', 'Hardware pull-down safety state');
+  }
+}
+
+function handleArduinoUsbLine(line) {
+  const trimmed = line.trim();
+  if (!trimmed) return;
+  if (!trimmed.startsWith('{')) {
+    log('sim', `[ARDUINO-USB] ${trimmed}`);
+    return;
+  }
+  try {
+    const d = JSON.parse(trimmed);
+    S.rpiOnline = true;
+    S.rpiPkts++;
+    if ($('rpiSyncCount')) {
+      $('rpiSyncCount').textContent = `${S.rpiPkts} PKTS`;
+      $('rpiSyncCount').className = 'badge ok';
+    }
+    if (typeof d.temp_c === 'number' && !isNaN(d.temp_c)) {
+      S.T = d.temp_c;
+      if (!S.inj.sensor) S.sensA = d.temp_c;
+      S.sensB = d.temp_c;
+      S.ctl.Tctl = d.temp_c;
+    }
+    if (typeof d.humidity === 'number' && !isNaN(d.humidity)) {
+      S.RH = d.humidity;
+    }
+    if (typeof d.feels_like_c === 'number' && !isNaN(d.feels_like_c)) {
+      S.ctl.AT = d.feels_like_c;
+    }
+    if (typeof d.fan_pwm === 'number') {
+      S.elec.fan_pwm = d.fan_pwm;
+      const pct = clamp((d.fan_pwm / 255) * 100, 0, 100);
+      S.fanAct = pct;
+      S.ctl.fanCmd = pct;
+      S.rpm = Math.round(pct * 28);
+    }
+    if (typeof d.heater_relay === 'number') {
+      S.ctl.heat = d.heater_relay ? 100 : 0;
+    }
+    if (typeof d.air_velocity_ms === 'number') S.vel = d.air_velocity_ms;
+    if (typeof d.v_supply_12v === 'number') S.elec.v_supply_12v = d.v_supply_12v;
+    if (typeof d.v_rail_5v === 'number') S.elec.v_rail_5v = d.v_rail_5v;
+    if (typeof d.v_mosfet_gs === 'number') S.elec.v_mosfet_gs = d.v_mosfet_gs;
+    if (typeof d.v_fan_eff === 'number') S.elec.v_fan_eff = d.v_fan_eff;
+    if (typeof d.i_fan_a === 'number') S.elec.i_fan_a = d.i_fan_a;
+    if (typeof d.i_heater_a === 'number') S.elec.i_heater_a = d.i_heater_a;
+    if (typeof d.i_total_a === 'number') {
+      S.elec.i_total_a = d.i_total_a;
+      S.elec.i_5v_total = (d.i_fan_a || 0) + 0.045;
+    }
+    if (typeof d.i_12v_bus_a === 'number') S.elec.i_12v_bus_a = d.i_12v_bus_a;
+    if (typeof d.power_w === 'number') {
+      S.elec.p_bench_w = d.power_w;
+      S.pw.heat = d.heater_relay ? 38.4 : 0;
+      S.pw.fan = +(S.elec.v_rail_5v * S.elec.i_fan_a).toFixed(2);
+      S.pw.total = +(S.pw.plugs + d.power_w).toFixed(1);
+    }
+    if (typeof d.r_fan_ohm === 'number') S.elec.r_fan_ohm = d.r_fan_ohm;
+    if (typeof d.r_5v_rail_ohm === 'number') S.elec.r_5v_rail_ohm = d.r_5v_rail_ohm;
+    if (typeof d.r_total_circuit_ohm === 'number') S.elec.r_total_circuit_ohm = d.r_total_circuit_ohm;
+
+    recordCommMetric('USB->WEB', 'Serial(115200)', 1.5, 200, `Arduino RX #${S.rpiPkts}`);
+    if ($('rpiStatusLine')) {
+      $('rpiStatusLine').textContent = `USB LIVE (115200 baud) | Temp: ${fF(S.T)}°F (${S.T.toFixed(1)}°C) | RH: ${S.RH.toFixed(0)}% | Fan PWM: ${S.elec.fan_pwm}/255 | Relay: ${d.heater_relay ? 'ON' : 'OFF'}`;
+      $('rpiStatusLine').style.color = '#6ee7b7';
+    }
+    updateCards();
+    updatePanel();
+  } catch (e) {
+    // Ignore partial line parse errors
+  }
+}
+
+async function connectUsbArduino() {
+  if (S.usbConnected && usbPort) {
+    try {
+      S.usbConnected = false;
+      S.rpiOnline = false;
+      if (usbReader) { await usbReader.cancel(); usbReader = null; }
+      await usbPort.close();
+      usbPort = null;
+    } catch (e) {}
+    updateUsbButtonsUI();
+    if ($('rpiStatusLine')) {
+      $('rpiStatusLine').textContent = 'USB Arduino disconnected.';
+      $('rpiStatusLine').style.color = 'var(--muted)';
+    }
+    log('warn', '[USB] Disconnected from Arduino USB serial port.');
+    updatePanel();
+    return;
+  }
+
+  if (!('serial' in navigator)) {
+    alert('Web Serial requires Google Chrome or Microsoft Edge on desktop. Please open this URL in Chrome or Edge, then click Connect USB Arduino.');
+    return;
+  }
+
+  try {
+    usbPort = await navigator.serial.requestPort();
+    await usbPort.open({ baudRate: 115200 });
+    S.usbConnected = true;
+    S.rpiSync = true;
+    S.rpiOnline = true;
+    S.quiet = false;
+    updateUsbButtonsUI();
+    updatePanel();
+    if ($('rpiStatusLine')) {
+      $('rpiStatusLine').textContent = '🟢 Connected to Arduino over USB (115200 baud)! Streaming live telemetry & fault commands...';
+      $('rpiStatusLine').style.color = '#6ee7b7';
+    }
+    log('ok', '[USB] Connected directly to Arduino Uno R4 at 115200 baud via Web Serial!');
+    toast('ok', 'USB ARDUINO CONNECTED', 'Direct Web Serial Link Active (115200 Baud)', 'Live BME280 telemetry & fault actuator overrides enabled', 'Toggle any fault or slider to control the physical bench!');
+
+    const decoder = new TextDecoderStream();
+    usbPort.readable.pipeTo(decoder.writable).catch(() => {});
+    usbReader = decoder.readable.getReader();
+
+    while (S.usbConnected && usbReader) {
+      const { value, done } = await usbReader.read();
+      if (done) break;
+      if (value) {
+        usbRxBuffer += value;
+        const lines = usbRxBuffer.split(/\r?\n/);
+        usbRxBuffer = lines.pop() || '';
+        for (const line of lines) {
+          handleArduinoUsbLine(line);
+        }
+      }
+    }
+  } catch (err) {
+    S.usbConnected = false;
+    updateUsbButtonsUI();
+    const msg = err && err.message ? err.message : String(err);
+    if (!/No port selected|aborted/i.test(msg)) {
+      log('crit', `[USB] Could not open port: ${msg} (Make sure Arduino IDE Serial Monitor is CLOSED!)`);
+      alert(`Could not open Arduino USB port:\n${msg}\n\nIMPORTANT: Close the Serial Monitor in Arduino IDE first so the port isn't locked!`);
+    }
+  }
+}
+
+if ($('btnUsbTop')) $('btnUsbTop').addEventListener('click', connectUsbArduino);
+if ($('btnConnectUsb')) $('btnConnectUsb').addEventListener('click', connectUsbArduino);
 
 /* =====================================================================
    5. DUAL-MCU SUPERVISOR (watchdog, failover, reboot)
@@ -1466,6 +1721,7 @@ function setFault(id, on) {
   }
   const n = Object.values(S.inj).filter(Boolean).length;
   $('injCount').textContent = `${n} INJECTED`; $('injCount').className = 'badge' + (n ? ' warn' : '');
+  syncUsbOnFault(id, on);
 }
 
 function solveFault(id, reason) {
@@ -1740,8 +1996,8 @@ function updatePanel() {
   setDot('hB', m.b === 'ACTIVE' ? '#10b981' : '#f59e0b'); $('hBt').textContent = m.b;
   setDot('hW', S.inj.wifi ? '#ef4444' : '#10b981'); $('hWt').textContent = S.inj.wifi ? 'OFFLINE' : 'ONLINE';
   if ($('hPi')) {
-    setDot('hPi', S.rpiOnline ? '#10b981' : S.rpiSync ? '#38bdf8' : '#f59e0b');
-    $('hPit').textContent = S.rpiOnline ? `SYNC (${S.rpiPkts})` : S.rpiSync ? 'ARMED' : 'OFF';
+    setDot('hPi', (S.usbConnected || S.rpiOnline) ? '#10b981' : S.rpiSync ? '#38bdf8' : '#f59e0b');
+    $('hPit').textContent = S.usbConnected ? `USB LIVE (${S.rpiPkts})` : S.rpiOnline ? `SYNC (${S.rpiPkts})` : S.rpiSync ? 'ARMED' : 'OFF';
   }
   if ($('hIot')) {
     setDot('hIot', !S.iotAuto ? '#f59e0b' : S.iotOnline ? '#10b981' : '#38bdf8');
