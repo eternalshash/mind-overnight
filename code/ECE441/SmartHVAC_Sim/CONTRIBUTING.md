@@ -139,7 +139,51 @@ The repository includes the configuration files pre-configured for the project:
 
 ---
 
-## 4. Git Collaboration and Pull Request Workflow
+## 4. Physical Lab Bench Setup: Wired USB Connection & Web Serial (`COM7` / `TinyUSB`)
+
+For physical bench testing in the ECE 441 lab (designed with **Andy Tran** & **Kaleb Cowgur**), the hardware testbed runs [`SmartHVAC_Arduino_Bench/SmartHVAC_Arduino_Bench.ino`](SmartHVAC_Arduino_Bench/SmartHVAC_Arduino_Bench.ino) on an **Arduino Uno R4** (or ESP32/Arduino dual-rail configuration).
+
+### A. Wired USB Serial Architecture (`115200` Baud — Not Wireless)
+
+* **Connection Type:** The Arduino bench firmware communicates over a **100% wired USB connection** at **`115200` baud** (no Wi-Fi, campus network login, or mobile hotspot is required).
+* **Port & USB Stack Identification:** On the lab bench computer, the board enumerates via the **`TinyUSB`** CDC serial stack on **`COM7`** (e.g., `TinyUSB (COM7)` on Windows, or `/dev/cu.usbmodem*` / `/dev/ttyACM*` on macOS/Linux).
+* **Data Cable Requirement:** Always verify that the USB-C cable carries `D+/D-` data lines (check that **`COM7` / `TinyUSB`** appears in the Arduino IDE Port menu when plugged in; power-only charging cables will light up the board's LEDs without registering a COM port).
+* **Port Lock Warning:** Only one application can hold an exclusive lock on **`COM7` (`TinyUSB`)** at a time. **You must close the Arduino IDE Serial Monitor window** before connecting the web dashboard or Python edge bridge.
+
+### B. Lab Bench Hardware Pinout (Matches 10-26-29 Hardware Report)
+
+| Arduino Uno R4 Pin | Connected Component / Signal | Engineering Notes & Safety Constraints |
+| :--- | :--- | :--- |
+| **Pin 9 (PWM)** | `IRLZ44N` / `IRLZ24N` N-Channel MOSFET **Gate** | Modulates 5V/12V blower fan speed (`analogWrite` `0–255` duty cycle). |
+| **Pin 8 (Digital)** | 12V PTC Heating Element Relay Module (**`IN`**) | Switches the high-current 12V PTC heating element (`HIGH` = ON, `LOW` = OFF). |
+| **Pin A4 (`SDA`)** | Bosch `BME280` **`SDA`** | I2C serial data line (`0x76` primary / `0x77` secondary address). |
+| **Pin A5 (`SCL`)** | Bosch `BME280` **`SCL`** | I2C serial clock line. |
+| **5V Rail** | Bosch `BME280` **`VIN`** & Fan `+5V` Rail | Supplies regulated 5V power. |
+| **GND (System #1)** | Common Ground (`ESP32 GND` + `LM2596` Buck Return) | Essential common reference for MOSFET gate-to-source ($V_{GS}$) switching. |
+| **GND (Sensor #2)** | Dedicated Arduino **`GND`** to `BME280 GND` | **CRITICAL:** Wire `BME280 GND` directly to a dedicated Arduino `GND` pin—do **not** splice into the high-current fan return wire (prevents ground bounce and I2C sensor lockups). |
+
+### C. Connecting the Live Digital Twin Directly over USB (Web Serial — No Pi Needed)
+
+The Digital Twin web interface ([`simulation/index.html`](simulation/index.html)) includes a built-in **Web Serial API (`navigator.serial`)** bridge so any laptop in the lab can connect directly to the Arduino over USB with zero Python or Raspberry Pi setup:
+
+1. **Flash the Sketch:** Upload [`SmartHVAC_Arduino_Bench.ino`](SmartHVAC_Arduino_Bench/SmartHVAC_Arduino_Bench.ino) in the Arduino IDE using port **`COM7` (`TinyUSB`)**, then **close the Arduino IDE Serial Monitor**.
+2. **Open the Digital Twin in Chrome or Edge:** Navigate to the [Live Digital Twin Simulation](https://eternalshash.github.io/mind-overnight/code/ECE441/SmartHVAC_Sim/simulation/index.html) (or `http://localhost:8765/simulation/index.html`).
+3. **Click `⚡ CONNECT USB ARDUINO`:** Click the green **`⚡ CONNECT USB ARDUINO`** button in the top header bar (or inside the bottom-left **USB ARDUINO / RASPBERRY PI 5 SYNC** panel).
+4. **Select `COM7` (`TinyUSB`):** In the browser popup, select **`TinyUSB (COM7)`** and click **Connect**.
+5. **Verify Live Sync:**
+   * The header status immediately turns bright green (`🟢 USB ARDUINO: CONNECTED` / `USB LIVE`).
+   * Real-time BME280 temperature, relative humidity, Steadman "Feels Like" apparent temperature, and circuit $V / I / \Omega$ telemetry stream at 1 Hz from **`COM7`** into the dashboard charts.
+6. **Bidirectional Fault & Actuator Control:**
+   * **Injecting Simulated Faults:** Toggling faults on the web dashboard automatically dispatches hardware mitigation commands over **`COM7` (`TinyUSB`)** to the physical bench:
+     * *Filter Clogging (`E-301`) / High VOC (`E-101`):* Sends `FAN 100` (boosts physical MOSFET fan to 100% PWM).
+     * *Blower Motor Failure (`E-302`) / Window Open (`E-402`):* Sends `HEAT OFF` and `FAN 0` (hardware safety interlock).
+     * *Heatwave (`E-403`) / Load Surge (`E-404`):* Sends `HEAT OFF` and `FAN 100` (emergency maximum cooling).
+     * *Clearing Faults:* Sends `AUTO` to restore autonomous closed-loop PID regulation on the Arduino.
+   * **Manual Serial Commands (`115200` Baud):** You can also test directly via Serial Monitor using `HEAT ON`, `HEAT OFF`, `FAN <0-100>`, `PWM <0-255>`, `SET <15-30>`, and `AUTO`.
+
+---
+
+## 5. Git Collaboration and Pull Request Workflow
 
 We maintain a strict branch and PR workflow. Direct pushes to `main` and `develop` are prohibited.
 
@@ -298,7 +342,7 @@ To satisfy course requirements emphasizing technical depth and engineering accou
 
 ---
 
-## 5. Visual Documentation and System Media
+## 6. Visual Documentation and System Media
 
 The following references illustrate system operation across hardware, simulation, and telemetry pipelines:
 
@@ -335,7 +379,7 @@ Developers can hover over physical ESP32 pins during active execution to trace l
 
 ---
 
-## 6. Important Project Links and Resources
+## 7. Important Project Links and Resources
 
 * **GitHub Repository:** [eternalshash/mind-overnight](https://github.com/eternalshash/mind-overnight)
 * **Live Digital Twin Simulation:** [Smart HVAC CAD Interface](https://eternalshash.github.io/mind-overnight/code/ECE441/SmartHVAC_Sim/simulation/index.html)
