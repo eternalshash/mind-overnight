@@ -6,13 +6,10 @@
  * Target Board: Arduino Uno R4 (or Uno R3 / Nano)
  * Re check this ->
  * ----------------------------------------------------------------------------
- * 1. CONNECTION MODE: WIRED USB SERIAL (NOT WIRELESS) — COM7 / TinyUSB
+ * 1. CONNECTION MODE: WIRED USB SERIAL (NOT WIRELESS)
  * ----------------------------------------------------------------------------
- * - Plug the Arduino directly into your computer or Raspberry Pi using a data USB cable.
+ * - Plug the Arduino directly into your computer or Raspberry Pi using a USB cable.
  * - Communication is 100% WIRED over USB Serial at 115200 BAUD (No Wi-Fi / BLE needed).
- * - Lab Bench Port: Enumerates as TinyUSB on COM7 (Windows) or /dev/cu.usbmodem* (macOS).
- * - Web Digital Twin Direct Connect: Click "CONNECT USB ARDUINO" in Chrome/Edge and
- *   select TinyUSB (COM7) (make sure Arduino IDE Serial Monitor is CLOSED first).
  * - Raspberry Pi Auto-Discovery: The Python edge server (serial_bridge.py)
  *   automatically listens on /dev/ttyACM* or /dev/cu.usbmodem*.
  * - Manual Control: Open Arduino IDE Serial Monitor (set baud rate to 115200, "Both NL & CR").
