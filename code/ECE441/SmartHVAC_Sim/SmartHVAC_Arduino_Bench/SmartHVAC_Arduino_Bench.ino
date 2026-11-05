@@ -4,7 +4,7 @@
  * ============================================================================
  * Designed for: Andy Tran & Kaleb Cowgur (ECE 441 Lab Bench)
  * Target Board: Arduino Uno R4 (or Uno R3 / Nano)
- *
+ * Re check this ->
  * ----------------------------------------------------------------------------
  * 1. CONNECTION MODE: WIRED USB SERIAL (NOT WIRELESS)
  * ----------------------------------------------------------------------------
