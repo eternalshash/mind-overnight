@@ -5,6 +5,48 @@ This technical log is automatically maintained to record engineering implementat
 ---
 
 ### [2026-11-05] Shashwat Choudhry
+* **Commit:** `fe88e15`
+* **Technical Summary:** Feat(mobile): add dedicated touch Mobile Site, Desktop/Mobile switcher, and network-first PWA cache. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-05] Shashwat Choudhry
+* **Commit:** `73b180a`
+* **Technical Summary:** Feat(sim): add live Digital Multimeter equations modal and breadboard probe guide. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-05] Shashwat Choudhry
+* **Commit:** `e6d1075`
+* **Technical Summary:** Implemented an interactive Serial Comms Watchdog panel in the simulation interface to monitor 1 Hz USB heartbeat packets against a 2.5-second trip threshold. The update includes simulated E-204 trip test and reset controls to demonstrate fail-safe heater cutoff mechanics that mitigate 12V PTC thermal runaway during communication losses.
+
+---
+
+### [2026-11-05] Shashwat Choudhry
+* **Commit:** `00c5feb`
+* **Technical Summary:** Added an emergency hardware cutoff and bench test drawer to the simulation interface for direct actuator override. The interface introduces a master kill switch to force Pin 8 low and Pin 9 to 0V, along with dedicated PWM duty cycle controls (0%, 50%, and 100%) for Pin 9 MOSFET fan testing.
+
+---
+
+### [2026-11-05] Shashwat Choudhry
+* **Commit:** `6696939`
+* **Technical Summary:** Added an A4/A5 I2C BME280 signal pipeline interface displaying analog bridge voltage, 20-bit Sigma-Delta ADC quantization, and calibrated temperature data. Updated the USB serial parser to lock live hardware temperature telemetry into system control states while deriving corresponding 20-bit raw ADC counts and sense voltages.
+
+---
+
+### [2026-11-05] Shashwat Choudhry
+* **Commit:** `456efbb`
+* **Technical Summary:** Rescaled the residential load-shedding demand limit range from 300–2000 W to 500–3500 W across the simulation and edge dashboard control interfaces. Additionally, updated the default baseline demand limit from 1000 W to 1500 W in the SQLite control-state storage schema and initial UI parameters.
+
+---
+
+### [2026-11-05] Shashwat Choudhry
+* **Commit:** `0c73517`
+* **Technical Summary:** Implemented an emergency cutoff command (`KILL`/`OFF`) to immediately de-energize the heater relay on Pin 8 and force fan MOSFET Pin 9 PWM to zero, alongside a `PING`/`PONG` serial responder. Extended the periodic JSON telemetry to output an incrementing heartbeat sequence counter, BME280 I2C bus pin mapping (A4/A5), and calculated 20-bit ADC raw register and sensing voltage metrics.
+
+---
+
+### [2026-11-05] Shashwat Choudhry
 * **Commit:** `3a25c7c`
 * **Technical Summary:** Docs(hvacSIM). Modified files in the Smart HVAC subsystem.
 
