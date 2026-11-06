@@ -32,6 +32,7 @@
  * ----------------------------------------------------------------------------
  * 3. ARDUINO SERIAL MONITOR COMMAND CHEATSHEET (at 115200 Baud):
  * ----------------------------------------------------------------------------
+ *   - KILL / OFF    : Emergency direct hardware cutoff (Relay Pin 8 LOW & Fan Pin 9 0V)
  *   - HEAT ON       : Forces PTC heater relay ON (override)
  *   - HEAT OFF      : Forces PTC heater relay OFF (override)
  *   - FAN <0-100>   : Sets fan speed in % (e.g. "FAN 50" -> 50% PWM)
@@ -90,6 +91,7 @@ long last_command_seq  = -1;
 
 unsigned long last_control_ms   = 0;
 unsigned long last_telemetry_ms = 0;
+unsigned long heartbeat_seq     = 0;
 char serial_rx_buf[192];
 uint8_t serial_rx_len = 0;
 
@@ -189,6 +191,23 @@ static void printMultimeterSummary(const CircuitMetrics &cm) {
 }
 
 static void handleSerialCommand(const char* line) {
+    if (strncasecmp(line, "KILL", 4) == 0 || strcasecmp(line, "OFF") == 0) {
+        manual_heater_mode = 0;
+        heater_relay_on = false;
+        digitalWrite(PIN_HEATER_RELAY, LOW);
+        manual_fan_pwm = 0;
+        current_fan_pwm = 0;
+        analogWrite(PIN_FAN_MOSFET, 0);
+        Serial.println(F("{\"ack\":\"emergency_cutoff\",\"relay_pin_8\":0,\"fan_pin_9_pwm\":0}"));
+        printMultimeterSummary(computeCircuitMetrics(heater_relay_on, current_fan_pwm));
+        return;
+    }
+    if (strncasecmp(line, "PING", 4) == 0) {
+        Serial.print(F("{\"ack\":\"pong\",\"hb_seq\":"));
+        Serial.print(heartbeat_seq);
+        Serial.println(F("}"));
+        return;
+    }
     if (strncasecmp(line, "AUTO", 4) == 0 || strstr(line, "\"auto\"")) {
         manual_fan_pwm = -1;
         manual_heater_mode = -1;
@@ -415,6 +434,16 @@ void loop() {
             Serial.print(cm.r_total_circuit_ohm, 2);
             Serial.print(F(",\"bme_ok\":"));
             Serial.print(bme_online ? 1 : 0);
+            // BME280 internal 20-bit Sigma-Delta ADC register equivalent & A4/A5 I2C pipeline telemetry
+            long adc_raw_20b = constrain((long)((last_temp_c + 40.0f) * 8388.6f), 0L, 1048575L);
+            float v_sense_mv = (adc_raw_20b / 1048575.0f) * 3300.0f;
+            Serial.print(F(",\"adc_raw_20b\":"));
+            Serial.print(adc_raw_20b);
+            Serial.print(F(",\"v_sense_mv\":"));
+            Serial.print(v_sense_mv, 1);
+            Serial.print(F(",\"i2c_pins\":\"A4_SDA_A5_SCL\""));
+            Serial.print(F(",\"hb_seq\":"));
+            Serial.print(++heartbeat_seq);
             Serial.println(F("}"));
             printMultimeterSummary(cm);
         }
