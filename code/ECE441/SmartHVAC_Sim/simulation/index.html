@@ -178,7 +178,7 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px}
         <div class="sl"><div class="h"><span>THERMOSTAT SETPOINT</span><b id="lSp">73.4 F</b></div><input type="range" id="sSp" min="64" max="82" step="1" value="73"></div>
         <div class="sl"><div class="h"><span>PIN 9 MOSFET FAN OVERRIDE (IRLZ44N)</span><b id="lFanOvr">AUTO (PID)</b></div><input type="range" id="sFanOvr" min="-1" max="100" step="1" value="-1"></div>
         <div class="sl"><div class="h"><span>OUTDOOR TEMPERATURE</span><b id="lOut">82.4 F</b></div><input type="range" id="sOut" min="23" max="108" step="1" value="82"></div>
-        <div class="sl"><div class="h"><span>DEMAND LIMIT (LOAD SHEDDING)</span><b id="lLim">1000 W</b></div><input type="range" id="sLim" min="300" max="2000" step="50" value="1000"></div>
+        <div class="sl"><div class="h"><span>DEMAND LIMIT (LOAD SHEDDING)</span><b id="lLim">1500 W</b></div><input type="range" id="sLim" min="500" max="3500" step="50" value="1500"></div>
         <div class="sl"><div class="h"><span>SIMULATION SPEED</span><b id="lSpd">x40</b></div><input type="range" id="sSpd" min="5" max="120" step="5" value="40"></div>
         <div class="grp-h" style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">
           <span>IOT SMS / EMAIL ALERT GATEWAY</span>
@@ -306,7 +306,7 @@ const INJ_MAP = {
    ===================================================================== */
 const S = {
   t: 14 * 3600, speed: 40,
-  T: 24.0, RH: 48, Tout: 28, ToutSet: 28, setpoint: 23, demandLimit: 1000,
+  T: 24.0, RH: 48, Tout: 28, ToutSet: 28, setpoint: 23, demandLimit: 1500,
   VOC: 140, CO2: 700, PM: 3, PMout: 8,
   filterH: 0.96, fanAct: 30, fanOverride: -1, modeOverride: 'AUTO', damperAct: 0, vel: 2.4, dP: 10, rpm: 840, SAT: 18,
   sensA: 24, sensB: 24,
@@ -608,7 +608,7 @@ function applyRPiRemoteControl(ctrl, forceApply = false) {
     if ($('lSp')) $('lSp').textContent = fF(S.setpoint) + ' F';
   }
   if (typeof ctrl.demand_limit_w === 'number') {
-    S.demandLimit = clamp(ctrl.demand_limit_w, 300, 2000);
+    S.demandLimit = clamp(ctrl.demand_limit_w, 500, 3500);
     if ($('sLim')) $('sLim').value = S.demandLimit;
     if ($('lLim')) $('lLim').textContent = S.demandLimit + ' W';
   }
@@ -1884,14 +1884,14 @@ window.getCommStats = () => S.commStats;
 
 $('clearAll').addEventListener('click', () => {
   Object.keys(S.inj).forEach(k => { if (S.inj[k]) setFault(k, false); });
-  S.setpoint = 23; S.ToutSet = 28; S.demandLimit = 1000; S.fanOverride = -1; S.modeOverride = 'AUTO';
+  S.setpoint = 23; S.ToutSet = 28; S.demandLimit = 1500; S.fanOverride = -1; S.modeOverride = 'AUTO';
   S.T = 23.5; S.RH = 48; S.VOC = 140; S.CO2 = 700; S.PM = 3; S.PMout = 8;
   S.filterH = 0.96; S.vel = 2.4; S.dP = 10;
   S.ctl.I = 0; S.ctl.P = 0; S.ctl.comp = 0; S.ctl.heat = 0; S.ctl.fanCmd = 22; S.ctl.damper = 0;
   S.fanAct = 22; S.damperAct = 0; S.rpm = 616; S.ctl.mode = 'IDLE';
   S.mcu.a = 'RUN'; S.mcu.b = 'STANDBY'; S.mcu.active = 'A';
   S.diag = {};
-  $('sSp').value = 73; $('sOut').value = 82; $('sLim').value = 1000;
+  $('sSp').value = 73; $('sOut').value = 82; $('sLim').value = 1500;
   if ($('sFanOvr')) $('sFanOvr').value = -1;
   if ($('sModeOvr')) $('sModeOvr').value = 'AUTO';
   readSliders();

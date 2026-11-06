@@ -224,7 +224,7 @@ class HVACEdgeStore:
                     id INTEGER PRIMARY KEY CHECK (id = 1),
                     command_seq INTEGER NOT NULL DEFAULT 0,
                     setpoint_c REAL NOT NULL DEFAULT 23.0,
-                    demand_limit_w REAL NOT NULL DEFAULT 1000.0,
+                    demand_limit_w REAL NOT NULL DEFAULT 1500.0,
                     mode_override TEXT NOT NULL DEFAULT 'AUTO',
                     fan_override_pct INTEGER NOT NULL DEFAULT -1,
                     updated_by TEXT NOT NULL DEFAULT 'boot',
@@ -239,7 +239,7 @@ class HVACEdgeStore:
             cur.execute(
                 """
                 INSERT OR IGNORE INTO control_state (id, command_seq, setpoint_c, demand_limit_w, mode_override, fan_override_pct, updated_by, updated_at)
-                VALUES (1, 0, 23.0, 1000.0, 'AUTO', -1, 'boot', ?);
+                VALUES (1, 0, 23.0, 1500.0, 'AUTO', -1, 'boot', ?);
                 """,
                 (time.time(),),
             )
