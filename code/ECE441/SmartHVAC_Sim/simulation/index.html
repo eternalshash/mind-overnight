@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ECE 441 Smart HVAC - Blueprint Digital Twin</title>
+<link rel="manifest" href="manifest.json">
+<script>
+if (!navigator.webdriver && window.innerWidth < 720 && /Mobi|Android|iPhone|iPod/i.test(navigator.userAgent) && !location.search.includes('view=desktop') && !location.hash) {
+  location.replace('mobile.html' + location.search);
+}
+</script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
 :root{
@@ -170,6 +176,7 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px}
     <span><i class="dot" id="hPi"></i>RPI / USB <b id="hPit">STANDBY</b></span>
     <span><i class="dot" id="hIot"></i>IOT GATEWAY <b id="hIott">READY</b></span>
     <button class="btn" id="btnUsbTop" style="width:auto;margin:0;padding:2px 8px;font-size:10px;border-color:var(--green);color:var(--green);font-weight:bold;cursor:pointer">⚡ CONNECT USB ARDUINO</button>
+    <a class="btn" href="mobile.html" style="width:auto;margin:0;padding:2px 8px;font-size:10px;border-color:var(--cyan);color:var(--accent);text-decoration:none;font-weight:bold" title="Switch to touch-optimized Mobile View">📱 MOBILE SITE</a>
     <span>SIM <b id="clock" class="cy">14:00:00</b> <span id="speedLbl" style="color:var(--muted)">x40</span></span>
   </div>
 </header>
@@ -2908,6 +2915,9 @@ syncRPiTelemetry();
 buildChart(); updateCards(); updatePanel();
 setInterval(tick, 200);
 requestAnimationFrame(render);
+if ('serviceWorker' in navigator && !navigator.webdriver) {
+  navigator.serviceWorker.register('sw.js').then(r => r.update()).catch(() => {});
+}
 </script>
 </body>
 </html>

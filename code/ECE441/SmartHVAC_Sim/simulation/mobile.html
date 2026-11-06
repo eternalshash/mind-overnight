@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ECE 441 Smart HVAC — Mobile Control</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#07152b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+:root {
+  --bg:#061123; --panel:#0b1c36; --card:#0f2547; --border:#1e3d6b;
+  --cyan:#38bdf8; --accent:#00e5ff; --text:#eaf2fb; --muted:#8ba3c4;
+  --amber:#f59e0b; --red:#ef4444; --green:#10b981;
+  --mono:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding-bottom:74px}
+header{position:sticky;top:0;z-index:50;background:rgba(6,17,35,.95);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.brand{display:flex;align-items:center;gap:8px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 8px currentColor;flex-shrink:0}
+.brand-t{font-size:13px;font-weight:700;letter-spacing:.6px;color:#fff}
+.brand-s{font-size:10px;color:var(--muted);font-family:var(--mono)}
+.top-actions{display:flex;gap:6px;align-items:center}
+.chip-btn{background:var(--card);border:1px solid var(--border);color:var(--accent);font-family:var(--mono);font-size:10.5px;font-weight:600;padding:6px 9px;border-radius:6px;text-decoration:none;cursor:pointer;white-space:nowrap}
+.chip-btn.usb{border-color:var(--green);color:#6ee7b7}
+
+main{padding:12px;max-width:560px;margin:0 auto}
+.tab-sec{display:none;flex-direction:column;gap:12px}
+.tab-sec.active{display:flex}
+
+.mcard{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px;box-shadow:0 6px 20px rgba(0,0,0,.32)}
+.mcard-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.mcard-t{font-size:11px;font-family:var(--mono);letter-spacing:1px;color:var(--cyan);text-transform:uppercase;font-weight:700}
+.pill{font-family:var(--mono);font-size:10px;padding:3px 8px;border-radius:999px;border:1px solid var(--cyan);color:var(--accent);background:rgba(56,189,248,.12);font-weight:700}
+.pill.ok{border-color:var(--green);color:#6ee7b7;background:rgba(16,185,129,.14)}
+.pill.warn{border-color:var(--amber);color:#fcd34d;background:rgba(245,158,11,.15)}
+.pill.crit{border-color:var(--red);color:#fca5a5;background:rgba(239,68,68,.18)}
+
+.hero{text-align:center;padding:8px 0 6px}
+.hero-temp{font-size:56px;font-weight:800;line-height:1;color:#fff;font-family:var(--mono);letter-spacing:-1px}
+.hero-temp small{font-size:22px;color:var(--cyan);font-weight:600;margin-left:2px}
+.hero-sub{display:flex;justify-content:center;gap:14px;margin-top:10px;font-size:12px;color:var(--muted);font-family:var(--mono);flex-wrap:wrap}
+.hero-sub b{color:#fff}
+
+.adc-strip{margin-top:12px;background:#050e1d;border:1px solid var(--border);border-left:3px solid var(--cyan);border-radius:8px;padding:8px 10px;font-family:var(--mono);font-size:10.5px;line-height:1.5;color:var(--muted)}
+.adc-strip.live{border-left-color:var(--green)}
+.adc-strip b{color:#fff}
+.adc-strip .grn{color:#6ee7b7}
+
+.sp-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0 12px}
+.step-btn{width:48px;height:48px;border-radius:10px;border:1px solid var(--cyan);background:var(--card);color:#fff;font-size:22px;font-weight:700;cursor:pointer}
+.step-btn:active{background:rgba(56,189,248,.25)}
+.sp-val{text-align:center;flex:1}
+.sp-val .lbl{font-size:10px;color:var(--muted);font-family:var(--mono);letter-spacing:.8px}
+.sp-val .num{font-size:26px;font-weight:800;color:var(--accent);font-family:var(--mono)}
+
+.ctrl-group{margin-top:12px}
+.ctrl-lbl{display:flex;justify-content:space-between;font-size:11px;font-family:var(--mono);color:var(--muted);margin-bottom:5px}
+.ctrl-lbl b{color:var(--cyan)}
+input[type=range]{width:100%;height:26px;accent-color:var(--cyan)}
+select.m-in,input.m-in{width:100%;background:#050e1d;border:1px solid var(--border);color:#fff;font-family:var(--mono);font-size:13px;padding:10px;border-radius:8px}
+
+.kill-big{width:100%;padding:14px 12px;border-radius:10px;border:2px solid var(--red);background:rgba(239,68,68,.2);color:#fecaca;font-family:var(--mono);font-size:12.5px;font-weight:800;letter-spacing:.6px;cursor:pointer;text-align:center}
+.kill-big.latched{background:var(--red);color:#fff;box-shadow:0 0 18px rgba(239,68,68,.6)}
+.btn-grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px}
+.btn-grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.m-btn{padding:11px 8px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:#fff;font-family:var(--mono);font-size:11px;font-weight:700;cursor:pointer;text-align:center}
+.m-btn:active{transform:scale(.98)}
+.m-btn.cy{border-color:var(--cyan);color:var(--accent)}
+.m-btn.grn{border-color:var(--green);color:#6ee7b7}
+.m-btn.amb{border-color:var(--amber);color:#fcd34d}
+.m-btn.red{border-color:var(--red);color:#fca5a5}
+
+.wdt-bar{height:10px;background:#050e1d;border:1px solid var(--border);border-radius:999px;overflow:hidden;margin:8px 0}
+.wdt-bar > i{display:block;height:100%;width:10%;background:var(--green);transition:width .18s linear,background .18s}
+
+.tile-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tile{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px}
+.tile .tl{font-size:9.5px;font-family:var(--mono);color:var(--muted)}
+.tile .tv{font-size:21px;font-weight:800;font-family:var(--mono);color:#fff;margin-top:2px}
+.tile .tv small{font-size:11px;color:var(--cyan);margin-left:2px}
+.tile .ts{font-size:9.5px;font-family:var(--mono);color:var(--muted);margin-top:3px}
+
+.eq-card{background:#050e1d;border:1px solid var(--border);border-left:3px solid var(--cyan);border-radius:8px;padding:9px 10px;font-family:var(--mono);font-size:10.5px;line-height:1.5;margin-top:8px}
+.eq-card .et{color:var(--muted);font-size:9.5px;text-transform:uppercase}
+.eq-card .ef{color:#93c5fd;margin-top:2px}
+.eq-card .ev{color:#6ee7b7;font-weight:700;margin-top:2px}
+
+.fault-item{display:flex;justify-content:space-between;align-items:center;padding:10px 11px;background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:7px;cursor:pointer}
+.fault-item.on{border-color:var(--amber);background:rgba(245,158,11,.14)}
+.fault-item .fn{font-size:12.5px;font-weight:600;color:#fff}
+.fault-item .fd{font-size:10.5px;color:var(--muted);margin-top:2px}
+.fault-sw{font-family:var(--mono);font-size:10px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);color:var(--muted)}
+.fault-item.on .fault-sw{border-color:var(--amber);color:#fcd34d;font-weight:700}
+
+.iot-prev{background:#050e1d;border:1px solid var(--border);border-left:3px solid var(--cyan);border-radius:8px;padding:9px 10px;font-family:var(--mono);font-size:10.5px;line-height:1.5;margin:10px 0}
+.iot-prev .r1{color:#fca5a5;font-weight:700}
+.iot-prev .r2{color:#7dd3fc}
+.iot-prev .r3{color:#6ee7b7}
+
+.toast-banner{position:fixed;bottom:76px;left:12px;right:12px;max-width:536px;margin:0 auto;background:#0c2141;border:1.5px solid var(--cyan);border-radius:10px;padding:10px 12px;font-family:var(--mono);font-size:11px;box-shadow:0 8px 28px rgba(0,0,0,.7);z-index:80;display:none}
+.toast-banner.show{display:block}
+.toast-banner.crit{border-color:var(--red)}
+.toast-banner.ok{border-color:var(--green)}
+
+nav.bnav{position:fixed;bottom:0;left:0;right:0;z-index:60;background:rgba(7,21,43,.97);backdrop-filter:blur(8px);border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(4,1fr);height:62px}
+nav.bnav button{background:none;border:none;color:var(--muted);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-family:var(--mono);font-size:9.5px;font-weight:700;cursor:pointer}
+nav.bnav button .ic{font-size:18px;line-height:1}
+nav.bnav button.on{color:var(--accent);border-top:2px solid var(--accent)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <i class="dot" id="connDot" style="color:var(--green)"></i>
+    <div>
+      <div class="brand-t">SMART HVAC MOBILE</div>
+      <div class="brand-s" id="connSub">ECE 441 &bull; LOCAL DIGITAL TWIN</div>
+    </div>
+  </div>
+  <div class="top-actions">
+    <button class="chip-btn usb" id="btnMobUsb">&#9889; USB</button>
+    <a class="chip-btn" href="index.html?view=desktop">&#128421;&#65039; DESKTOP CAD</a>
+  </div>
+</header>
+
+<main>
+  <!-- TAB 1: CLIMATE & CONTROLS -->
+  <section class="tab-sec active" id="tab-climate">
+    <div class="mcard">
+      <div class="mcard-h">
+        <span class="mcard-t">Zone Climate (A4/A5 BME280)</span>
+        <span class="pill ok" id="mModePill">COOLING</span>
+      </div>
+      <div class="hero">
+        <div class="hero-temp"><span id="mRoomF">75.2</span><small>&deg;F</small></div>
+        <div class="hero-sub">
+          <span>Feels Like <b id="mFeelsF">75.0&deg;F</b></span>
+          <span>Humidity <b id="mRh">48%</b></span>
+          <span>Power <b id="mTotalW">245 W</b></span>
+        </div>
+      </div>
+      <div class="adc-strip" id="mAdcStrip">
+        <div id="mAdcTitle" style="color:var(--cyan);font-weight:700;margin-bottom:2px">A4 (SDA) / A5 (SCL) BME280 PIPELINE:</div>
+        <div id="mAdcFlow">Analog <b>1689.6 mV</b> &rarr; 20-bit &Sigma;&Delta; ADC <b>0x83126</b> &rarr; I2C <b>0x76</b> &rarr; <span class="grn"><b>75.2&deg;F (24.00&deg;C)</b></span></div>
+      </div>
+    </div>
+
+    <div class="mcard">
+      <div class="mcard-h">
+        <span class="mcard-t">Touch Thermostat &amp; Demand Control</span>
+        <span class="pill" id="mActuatorSummary">FAN 30% | HTR OFF</span>
+      </div>
+      <div class="sp-row">
+        <button class="step-btn" id="btnSpDown">&minus;</button>
+        <div class="sp-val">
+          <div class="lbl">TARGET SETPOINT</div>
+          <div class="num"><span id="mSpDisp">73</span>&deg;F</div>
+        </div>
+        <button class="step-btn" id="btnSpUp">+</button>
+      </div>
+      <input type="range" id="mSpSlider" min="64" max="82" step="1" value="73">
+
+      <div class="ctrl-group">
+        <div class="ctrl-lbl"><span>HVAC OPERATING MODE</span><b id="mModeLbl">AUTO (PID)</b></div>
+        <select class="m-in" id="mModeSelect">
+          <option value="AUTO" selected>AUTO (CLOSED-LOOP PID)</option>
+          <option value="COOL">FORCE COOLING (100%)</option>
+          <option value="HEAT">FORCE HEATING (12V PTC RELAY ON)</option>
+          <option value="ECO">ECO (+2.0&deg;F DEADBAND)</option>
+          <option value="OFF">SYSTEM OFF</option>
+        </select>
+      </div>
+
+      <div class="ctrl-group">
+        <div class="ctrl-lbl"><span>PIN 9 MOSFET FAN (IRLZ44N)</span><b id="mFanLbl">AUTO (PID)</b></div>
+        <input type="range" id="mFanSlider" min="-1" max="100" step="1" value="-1">
+      </div>
+
+      <div class="ctrl-group">
+        <div class="ctrl-lbl"><span>RESIDENTIAL DEMAND LIMIT</span><b id="mLimLbl">1500 W</b></div>
+        <input type="range" id="mLimSlider" min="500" max="3500" step="50" value="1500">
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 2: BENCH CUTOFF & WATCHDOG -->
+  <section class="tab-sec" id="tab-bench">
+    <div class="mcard">
+      <div class="mcard-h">
+        <span class="mcard-t">Emergency Hardware Cutoff</span>
+        <span class="pill" id="mKillBadge">STANDBY</span>
+      </div>
+      <button class="kill-big" id="mBtnKill">&#128721; MASTER HARDWARE KILL (PIN 8 LOW &amp; PIN 9 0V)</button>
+      <div style="font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:10px">DIRECT PIN 9 FAN BENCH OVERRIDE:</div>
+      <div class="btn-grid3">
+        <button class="m-btn red" data-fan="0">FAN 0%</button>
+        <button class="m-btn" data-fan="50">FAN 50%</button>
+        <button class="m-btn cy" data-fan="100">FAN 100%</button>
+      </div>
+      <div style="font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:10px">DIRECT PIN 8 12V PTC HEATER RELAY:</div>
+      <div class="btn-grid2">
+        <button class="m-btn grn" id="mBtnHeatOff">RELAY OFF (0V SAFE)</button>
+        <button class="m-btn amb" id="mBtnHeatOn">RELAY ON (12V PTC)</button>
+      </div>
+      <button class="m-btn grn" id="mBtnRestoreAuto" style="width:100%;margin-top:10px">&#8634; RESTORE CLOSED-LOOP AUTO PID</button>
+    </div>
+
+    <div class="mcard">
+      <div class="mcard-h">
+        <span class="mcard-t">Serial Comms Watchdog (E-204)</span>
+        <span class="pill ok" id="mWdtBadge">HB OK (0.2s)</span>
+      </div>
+      <div class="wdt-bar"><i id="mWdtBar"></i></div>
+      <div id="mWdtMsg" style="font-size:11px;font-family:var(--mono);color:var(--muted);line-height:1.45">
+        1 Hz heartbeat active &bull; Fail-safe cutoff armed at 2.5s timeout
+      </div>
+      <div class="btn-grid2" style="margin-top:10px">
+        <button class="m-btn amb" id="mBtnTestWdt">&#129514; TEST WDT TRIP</button>
+        <button class="m-btn grn" id="mBtnResetWdt">&#8634; RESET WDT</button>
+      </div>
+      <div class="eq-card" style="margin-top:10px;border-left-color:var(--amber)">
+        <div class="et">Watchdog: Digital Twin Sim vs. Lab Bench</div>
+        <div style="color:#dbe7f5;margin-top:3px">
+          &bull; <b>Purpose:</b> Prevents 12V PTC heater thermal runaway if MCU freezes or serial cable drops.<br>
+          &bull; <b>Digital Twin:</b> Dual-MCU hot-standby <code>MCU-B</code> takes over PID in 1.6s.<br>
+          &bull; <b>Lab Bench (COM7 TinyUSB):</b> Monitors 1 Hz <code>hb_seq</code> JSON packets (trips <code>E-204</code> &amp; sends <code>KILL</code> at &gt;2.5s) + physical <code>10k&Omega;</code> pull-downs on Pin 9 &amp; Pin 8 keep hardware at <code>0V</code> during reset.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 3: MULTIMETER & PROBE GUIDE -->
+  <section class="tab-sec" id="tab-dmm">
+    <div class="mcard">
+      <div class="mcard-h">
+        <span class="mcard-t">Digital Multimeter (V / I / &Omega;)</span>
+        <span class="pill" id="mPwmBadge">PWM 77/255</span>
+      </div>
+      <div class="tile-grid">
+        <div class="tile">
+          <div class="tl">PIN 9 FAN / GATE V</div>
+          <div class="tv"><span id="mVfan">1.50</span><small>V</small></div>
+          <div class="ts" id="mVgsSub">V_GS 1.51V (IRLZ44N)</div>
+        </div>
+        <div class="tile">
+          <div class="tl">5V RAIL CURRENT</div>
+          <div class="tv"><span id="mI5v">150</span><small>mA</small></div>
+          <div class="ts" id="mIfanSub">Fan 105mA | 12V: 0.07A</div>
+        </div>
+        <div class="tile">
+          <div class="tl">5V RAIL R_EQ</div>
+          <div class="tv"><span id="mR5v">33.4</span><small>&Omega;</small></div>
+          <div class="ts" id="mRfanSub">R_fan 47.7 &Omega;</div>
+        </div>
+        <div class="tile">
+          <div class="tl">TOTAL 12V R_EQ</div>
+          <div class="tv"><span id="mRtot">169.3</span><small>&Omega;</small></div>
+          <div class="ts" id="mHtrSub">PTC Htr: 0.00 A</div>
+        </div>
+      </div>
+
+      <div id="mEqBox"></div>
+    </div>
+
+    <div class="mcard">
+      <div class="mcard-h">
+        <span class="mcard-t">Lab Handheld DMM Probe Guide</span>
+      </div>
+      <div class="eq-card">
+        <div class="et">Pin 9 V_GS vs. V_fan (Low-Side N-MOSFET Gotcha)</div>
+        <div style="color:#dbe7f5;margin-top:3px">
+          &bull; <b>V_GS:</b> Black <code>COM</code> &rarr; Arduino <code>GND</code>, Red &rarr; <code>Pin 9</code>.<br>
+          &bull; <b>V_fan:</b> Probe <b>across fan leads</b> (Red &rarr; <code>+5V</code>, Black &rarr; MOSFET <code>Drain</code>). Probing Drain-to-GND at 0% PWM reads 5V through the unswitched coil!<br>
+          &bull; <b>Resistance (&Omega;):</b> Never probe <code>&Omega;</code> on a live powered breadboard — power OFF 12V &amp; USB first!
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 4: FAULTS & IOT ALERTS -->
+  <section class="tab-sec" id="tab-iot">
+    <div class="mcard">
+      <div class="mcard-h">
+        <span class="mcard-t">Caregiver SMS &amp; Email Gateway</span>
+        <span class="pill ok" id="mIotSentPill">0 SENT</span>
+      </div>
+      <div style="display:grid;gap:7px">
+        <div style="display:grid;grid-template-columns:1fr 105px;gap:6px">
+          <input class="m-in" id="mPhone" type="tel" value="9254075652" placeholder="10-digit SMS phone">
+          <select class="m-in" id="mCarrier">
+            <option value="verizon" selected>Verizon</option>
+            <option value="att">AT&amp;T</option>
+            <option value="tmobile">T-Mobile</option>
+          </select>
+        </div>
+        <input class="m-in" id="mEmail" type="email" value="choudhryshashwat29@gmail.com" placeholder="Caregiver email">
+        <input class="m-in" id="mPass" type="password" value="hvac441" placeholder="Gateway passcode">
+      </div>
+      <div class="iot-prev" id="mIotPrev">
+        <div class="r1">Fault status nominal (awaiting fault trigger)</div>
+        <div class="r2">Room: 75.2&deg;F | Feels Like: 75.0&deg;F | Outside: 82.4&deg;F</div>
+        <div class="r3">System Action: Closed-loop PID regulating zone climate</div>
+      </div>
+      <button class="m-btn cy" id="mBtnSendIot" style="width:100%;padding:12px">SEND LIVE ALERT (SMS + EMAIL)</button>
+    </div>
+
+    <div class="mcard">
+      <div class="mcard-h">
+        <span class="mcard-t">Quick Fault Injection</span>
+        <button class="chip-btn" id="mBtnClearFaults" style="font-size:9.5px;padding:4px 8px">CLEAR ALL</button>
+      </div>
+      <div id="mFaultList"></div>
+    </div>
+
+    <div class="mcard">
+      <div class="mcard-h">
+        <span class="mcard-t">Optional Raspberry Pi / Edge URL</span>
+        <span class="pill" id="mRpiBadge">LOCAL SIM</span>
+      </div>
+      <div style="display:flex;gap:6px">
+        <input class="m-in" id="mRpiUrl" type="text" value="" placeholder="http://192.168.x.x:8765 (optional)">
+        <button class="m-btn cy" id="mBtnConnectRpi" style="white-space:nowrap;padding:0 12px">SYNC</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="toast-banner" id="mToast"></div>
+
+<nav class="bnav">
+  <button class="on" data-tab="tab-climate"><span class="ic">&#127777;&#65039;</span><span>CLIMATE</span></button>
+  <button data-tab="tab-bench"><span class="ic">&#128721;</span><span>CUTOFF/WDT</span></button>
+  <button data-tab="tab-dmm"><span class="ic">&#128208;</span><span>DMM (V/I/&Omega;)</span></button>
+  <button data-tab="tab-iot"><span class="ic">&#128680;</span><span>FAULTS/IOT</span></button>
+</nav>
+
+<script>
+const $ = id => document.getElementById(id);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const fF = c => (c * 9 / 5 + 32).toFixed(1);
+
+const IOT_GATEWAY_URL = new URLSearchParams(location.search).get('gateway') ||
+  (location.hostname === '127.0.0.1' || location.hostname === 'localhost' ? 'http://127.0.0.1:8765' : 'https://ece441-iot-gateway.vercel.app');
+
+const FAULTS = [
+  { id: 'heatwave', code: 'E-403', nm: 'Severe Heatwave (102.2°F)', ds: 'Triggers emergency max cooling + caregiver alert', act: 'System Action: Maximum emergency cooling engaged, caregiver notified' },
+  { id: 'blower',   code: 'E-302', nm: 'Blower Motor Failure (0 RPM)', ds: 'Interlocks heater & compressor OFF', act: 'System Action: Safety interlock engaged, heater and compressor shut off' },
+  { id: 'sensor',   code: 'E-202', nm: 'BME280 (TS-A) Sensor Fault', ds: 'Votes out TS-A, switches loop to TS-B', act: 'System Action: TS-A voted out, control loop switched to redundant TS-B' },
+  { id: 'mcu',      code: 'E-201', nm: 'Primary Controller Crash', ds: 'Hot-standby MCU-B takes over in 1.6s', act: 'System Action: Watchdog failover to MCU-B, heater relay gated safe' },
+  { id: 'clog',     code: 'E-301', nm: 'MERV-13 Filter Restriction', ds: 'Boosts blower PWM + maintenance alert', act: 'System Action: Blower boosted, compressor capped at 50%, replace filter' },
+  { id: 'smoke',    code: 'E-102', nm: 'Outdoor Wildfire Smoke', ds: 'Locks OA damper closed + recirculates', act: 'System Action: Outdoor damper locked closed, MERV-13 recirculation active' }
+];
+
+const M = {
+  T: 24.0, RH: 48.0, Tout: 28.0, spC: (73 - 32) * 5 / 9,
+  modeOvr: 'AUTO', fanOvr: -1, demandLimit: 1500,
+  mode: 'COOLING', comp: 25, heat: 0, fanPct: 35,
+  bmeLive: false, adcRaw: 536870, vSenseMv: 1689.6,
+  elec: { pwm: 89, vGs: 1.75, vFan: 1.74, iFan: 0.122, i5v: 0.167, iHtr: 0, i12v: 0.079, rFan: 41.0, r5v: 29.9, rTot: 151.9, pBench: 0.84 },
+  totalW: 235,
+  wdt: { elapsed: 0.2, timeout: 2.5, seq: 1, tripped: false, testing: false, _sec: 0 },
+  inj: {}, iotSent: 0, lastAlert: null,
+  usbConnected: false, rpiUrl: ''
+};
+
+let usbPort = null, usbReader = null, usbBuf = '';
+const ctrlChan = typeof BroadcastChannel === 'function' ? new BroadcastChannel('ece441_hvac_ctrl') : null;
+
+function showToast(msg, cls) {
+  const t = $('mToast');
+  t.textContent = msg;
+  t.className = 'toast-banner show ' + (cls || '');
+  clearTimeout(showToast._tm);
+  showToast._tm = setTimeout(() => t.classList.remove('show'), 3800);
+}
+
+// Navigation tabs
+document.querySelectorAll('nav.bnav button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('nav.bnav button').forEach(b => b.classList.remove('on'));
+    document.querySelectorAll('.tab-sec').forEach(s => s.classList.remove('active'));
+    btn.classList.add('on');
+    $(btn.dataset.tab).classList.add('active');
+  });
+});
+
+function apparentTempC(T, RH, vDuct) {
+  const e = (RH / 100) * 6.105 * Math.exp((17.27 * T) / (237.7 + T));
+  return T + 0.33 * e - 0.70 * (0.05 + 0.06 * vDuct) - 4.0;
+}
+
+function broadcastControl() {
+  const payload = {
+    command_seq: Date.now() % 100000,
+    setpoint_f: Math.round(M.spC * 9 / 5 + 32),
+    mode_override: M.modeOvr,
+    fan_override_pct: M.fanOvr,
+    demand_limit_w: M.demandLimit
+  };
+  if (ctrlChan) ctrlChan.postMessage(payload);
+  try { localStorage.setItem('ece441_ctrl_state', JSON.stringify(payload)); } catch (e) {}
+  if (M.rpiUrl) {
+    fetch(M.rpiUrl + '/api/control', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).catch(() => {});
+  }
+}
+
+if (ctrlChan) {
+  ctrlChan.addEventListener('message', ev => {
+    const d = ev && ev.data;
+    if (!d) return;
+    if (typeof d.setpoint_f === 'number') { M.spC = (d.setpoint_f - 32) * 5 / 9; $('mSpSlider').value = Math.round(d.setpoint_f); }
+    if (d.mode_override) { M.modeOvr = d.mode_override; $('mModeSelect').value = d.mode_override; }
+    if (typeof d.fan_override_pct === 'number') { M.fanOvr = d.fan_override_pct; $('mFanSlider').value = d.fan_override_pct; }
+    if (typeof d.demand_limit_w === 'number') { M.demandLimit = d.demand_limit_w; $('mLimSlider').value = d.demand_limit_w; }
+  });
+}
+
+async function sendUsbCmd(cmd) {
+  if (!M.usbConnected || !usbPort || !usbPort.writable) return;
+  try {
+    const w = usbPort.writable.getWriter();
+    await w.write(new TextEncoder().encode(cmd.trim() + '\n'));
+    w.releaseLock();
+  } catch (e) {}
+}
+
+// Controls
+function syncControlsFromUI(pushRemote = true) {
+  const spF = +$('mSpSlider').value;
+  M.spC = (spF - 32) * 5 / 9;
+  $('mSpDisp').textContent = spF;
+
+  M.modeOvr = $('mModeSelect').value;
+  $('mModeLbl').textContent = M.modeOvr === 'AUTO' ? 'AUTO (PID)' : M.modeOvr;
+
+  M.fanOvr = +$('mFanSlider').value;
+  $('mFanLbl').textContent = M.fanOvr < 0 ? 'AUTO (PID)' : `${M.fanOvr}% (PWM ${Math.round(M.fanOvr * 255 / 100)})`;
+
+  M.demandLimit = +$('mLimSlider').value;
+  $('mLimLbl').textContent = `${M.demandLimit} W`;
+
+  if (pushRemote) {
+    if (M.usbConnected) {
+      if (M.modeOvr === 'OFF') sendUsbCmd('KILL');
+      else if (M.modeOvr === 'HEAT') sendUsbCmd('HEAT ON');
+      else if (M.fanOvr >= 0) sendUsbCmd(`FAN ${M.fanOvr}`);
+      else sendUsbCmd('AUTO');
+    }
+    broadcastControl();
+  }
+}
+
+$('btnSpDown').addEventListener('click', () => { $('mSpSlider').value = clamp(+$('mSpSlider').value - 1, 64, 82); syncControlsFromUI(true); });
+$('btnSpUp').addEventListener('click', () => { $('mSpSlider').value = clamp(+$('mSpSlider').value + 1, 64, 82); syncControlsFromUI(true); });
+['mSpSlider', 'mFanSlider', 'mLimSlider'].forEach(id => $(id).addEventListener('input', () => syncControlsFromUI(false)));
+['mSpSlider', 'mModeSelect', 'mFanSlider', 'mLimSlider'].forEach(id => $(id).addEventListener('change', () => syncControlsFromUI(true)));
+
+// Emergency Cutoff & Bench Test
+$('mBtnKill').addEventListener('click', async () => {
+  M.modeOvr = 'OFF'; M.fanOvr = 0; M.heat = 0; M.comp = 0; M.fanPct = 0;
+  $('mModeSelect').value = 'OFF'; $('mFanSlider').value = 0;
+  $('mBtnKill').classList.add('latched');
+  $('mKillBadge').textContent = 'KILL LATCHED'; $('mKillBadge').className = 'pill crit';
+  syncControlsFromUI(true);
+  await sendUsbCmd('KILL');
+  showToast('EMERGENCY HARDWARE KILL: Pin 8 Relay LOW (0V) & Pin 9 Fan 0V!', 'crit');
+});
+
+document.querySelectorAll('[data-fan]').forEach(b => {
+  b.addEventListener('click', async () => {
+    const pct = +b.dataset.fan;
+    if (M.modeOvr === 'OFF' && pct > 0) { M.modeOvr = 'AUTO'; $('mModeSelect').value = 'AUTO'; }
+    M.fanOvr = pct; $('mFanSlider').value = pct;
+    $('mBtnKill').classList.remove('latched');
+    $('mKillBadge').textContent = `FAN ${pct}%`; $('mKillBadge').className = 'pill warn';
+    syncControlsFromUI(true);
+    await sendUsbCmd(`FAN ${pct}`);
+    showToast(`Pin 9 MOSFET Fan set to ${pct}% (PWM ${Math.round(pct * 255 / 100)})`, '');
+  });
+});
+
+$('mBtnHeatOff').addEventListener('click', async () => {
+  M.modeOvr = 'AUTO'; $('mModeSelect').value = 'AUTO'; M.heat = 0;
+  $('mKillBadge').textContent = 'RELAY OFF'; $('mKillBadge').className = 'pill ok';
+  syncControlsFromUI(true);
+  await sendUsbCmd('HEAT OFF');
+  showToast('Pin 8 12V PTC Heater Relay forced OFF (0V Safe)', 'ok');
+});
+
+$('mBtnHeatOn').addEventListener('click', async () => {
+  M.modeOvr = 'HEAT'; $('mModeSelect').value = 'HEAT'; M.heat = 100;
+  $('mBtnKill').classList.remove('latched');
+  $('mKillBadge').textContent = 'PTC ON'; $('mKillBadge').className = 'pill warn';
+  syncControlsFromUI(true);
+  await sendUsbCmd('HEAT ON');
+  showToast('Pin 8 12V PTC Heater Relay energized (HIGH)', '');
+});
+
+$('mBtnRestoreAuto').addEventListener('click', async () => {
+  M.modeOvr = 'AUTO'; M.fanOvr = -1;
+  $('mModeSelect').value = 'AUTO'; $('mFanSlider').value = -1;
+  $('mBtnKill').classList.remove('latched');
+  $('mKillBadge').textContent = 'STANDBY'; $('mKillBadge').className = 'pill';
+  syncControlsFromUI(true);
+  await sendUsbCmd('AUTO');
+  showToast('Closed-loop AUTO PID control restored.', 'ok');
+});
+
+// Watchdog
+$('mBtnTestWdt').addEventListener('click', () => {
+  M.wdt.tripped = false; M.wdt.testing = true; M.wdt.elapsed = 0;
+  showToast('Blocking 1 Hz serial heartbeat — tripping E-204 at 2.5s...', '');
+});
+$('mBtnResetWdt').addEventListener('click', () => {
+  M.wdt.tripped = false; M.wdt.testing = false; M.wdt.elapsed = 0;
+  if (M.modeOvr === 'OFF') {
+    M.modeOvr = 'AUTO'; M.fanOvr = -1;
+    $('mModeSelect').value = 'AUTO'; $('mFanSlider').value = -1;
+    $('mBtnKill').classList.remove('latched');
+    $('mKillBadge').textContent = 'STANDBY'; $('mKillBadge').className = 'pill';
+    syncControlsFromUI(true);
+  }
+  showToast('Serial Comms Watchdog reset — AUTO PID armed.', 'ok');
+});
+
+// Faults & IoT Gateway
+function buildFaultCards() {
+  const box = $('mFaultList');
+  box.innerHTML = '';
+  FAULTS.forEach(f => {
+    const el = document.createElement('div');
+    el.className = 'fault-item' + (M.inj[f.id] ? ' on' : '');
+    el.innerHTML = `<div><div class="fn">${f.nm}</div><div class="fd">${f.ds}</div></div><span class="fault-sw">${M.inj[f.id] ? 'ACTIVE' : 'OFF'}</span>`;
+    el.addEventListener('click', () => {
+      M.inj[f.id] = !M.inj[f.id];
+      buildFaultCards();
+      updateIoTPreview(M.inj[f.id] ? f : null);
+      if (M.usbConnected) {
+        if (f.id === 'blower') sendUsbCmd(M.inj.blower ? 'FAN 0' : 'AUTO');
+        else if (M.inj[f.id]) sendUsbCmd('FAN 100');
+        else sendUsbCmd('AUTO');
+      }
+    });
+    box.appendChild(el);
+  });
+}
+
+function updateIoTPreview(f) {
+  const feelsF = +fF(apparentTempC(M.T, M.RH, (M.fanPct / 100) * 3.2));
+  const roomF = +fF(M.T);
+  const outF = +fF(M.inj.heatwave ? 39.0 : M.Tout);
+  if (!f) {
+    const activeId = Object.keys(M.inj).find(k => M.inj[k]);
+    f = FAULTS.find(x => x.id === activeId) || null;
+  }
+  const r1 = M.wdt.tripped ? 'Serial comms watchdog timeout' : (f ? `${f.code}: ${f.nm}` : 'Fault status nominal (awaiting fault trigger)');
+  const r2 = `Room: ${roomF.toFixed(1)}°F | Feels Like: ${feelsF.toFixed(1)}°F | Outside: ${outF.toFixed(1)}°F`;
+  const r3 = M.wdt.tripped ? 'System Action: Fail-safe engaged, Pin 8 PTC relay & Pin 9 fan gated OFF' : (f ? f.act : 'System Action: Closed-loop PID regulating zone climate');
+  M.lastAlert = { fault_type: f ? f.id : 'blower', code: M.wdt.tripped ? 'E-204' : (f ? f.code : 'E-404'), row1: r1, row2: r2, row3: r3, room_temp_f: roomF, feels_like_f: feelsF, outside_temp_f: outF };
+  $('mIotPrev').innerHTML = `<div class="r1">${r1}</div><div class="r2">${r2}</div><div class="r3">${r3}</div>`;
+}
+
+$('mBtnClearFaults').addEventListener('click', () => {
+  M.inj = {};
+  buildFaultCards();
+  updateIoTPreview(null);
+  if (M.usbConnected) sendUsbCmd('AUTO');
+  showToast('All injected faults cleared.', 'ok');
+});
+
+$('mBtnSendIot').addEventListener('click', async () => {
+  updateIoTPreview(null);
+  const body = Object.assign({}, M.lastAlert, {
+    phone: $('mPhone').value.trim(),
+    carrier: $('mCarrier').value,
+    email: $('mEmail').value.trim(),
+    passcode: $('mPass').value
+  });
+  showToast('Dispatching real SMS + Email via Cloud Gateway...', '');
+  try {
+    const res = await fetch(IOT_GATEWAY_URL + '/dispatch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(j.error || ('HTTP ' + res.status));
+    M.iotSent++;
+    $('mIotSentPill').textContent = `${M.iotSent} SENT`;
+    showToast(`SMS (${body.phone}) + Email (${body.email}) sent!`, 'ok');
+  } catch (err) {
+    showToast(`Alert failed: ${err.message}`, 'crit');
+  }
+});
+
+// USB Web Serial (Android Chrome / Desktop)
+$('btnMobUsb').addEventListener('click', async () => {
+  if (!('serial' in navigator)) {
+    showToast('Direct USB Serial requires Chrome/Edge. Use Desktop CAD or RPi Sync on iOS Safari.', 'crit');
+    return;
+  }
+  if (M.usbConnected && usbPort) {
+    try { M.usbConnected = false; M.bmeLive = false; if (usbReader) await usbReader.cancel(); await usbPort.close(); } catch (e) {}
+    $('btnMobUsb').textContent = '⚡ USB';
+    $('connSub').textContent = 'ECE 441 • LOCAL DIGITAL TWIN';
+    return;
+  }
+  try {
+    usbPort = await navigator.serial.requestPort();
+    await usbPort.open({ baudRate: 115200 });
+    M.usbConnected = true;
+    $('btnMobUsb').textContent = '🟢 USB ON';
+    $('connSub').textContent = 'LIVE ARDUINO USB (115200 BAUD)';
+    showToast('Connected to Arduino Uno R4 (A4/A5 BME280 live)!', 'ok');
+    const dec = new TextDecoderStream();
+    usbPort.readable.pipeTo(dec.writable).catch(() => {});
+    usbReader = dec.readable.getReader();
+    while (M.usbConnected && usbReader) {
+      const { value, done } = await usbReader.read();
+      if (done) break;
+      if (value) {
+        usbBuf += value;
+        const lines = usbBuf.split(/\r?\n/);
+        usbBuf = lines.pop() || '';
+        lines.forEach(line => {
+          if (!line.trim().startsWith('{')) return;
+          try {
+            const d = JSON.parse(line.trim());
+            if (!M.wdt.testing) { M.wdt.elapsed = 0; M.wdt.seq = d.hb_seq || (M.wdt.seq + 1); M.wdt.tripped = false; }
+            if (typeof d.temp_c === 'number') { M.bmeLive = true; M.T = d.temp_c; M.adcRaw = d.adc_raw_20b || Math.round((d.temp_c + 40) * 8388.6); M.vSenseMv = d.v_sense_mv || +((M.adcRaw / 1048575) * 3300).toFixed(1); }
+            if (typeof d.humidity === 'number') M.RH = d.humidity;
+            if (typeof d.fan_pwm === 'number') M.fanPct = (d.fan_pwm / 255) * 100;
+            if (typeof d.heater_relay === 'number') M.heat = d.heater_relay ? 100 : 0;
+          } catch (e) {}
+        });
+      }
+    }
+  } catch (e) {
+    M.usbConnected = false;
+  }
+});
+
+// Optional RPi Sync
+$('mBtnConnectRpi').addEventListener('click', () => {
+  M.rpiUrl = $('mRpiUrl').value.trim().replace(/\/+$/, '');
+  $('mRpiBadge').textContent = M.rpiUrl ? 'POLLING PI' : 'LOCAL SIM';
+  if (M.rpiUrl) showToast(`Syncing with ${M.rpiUrl}`, 'ok');
+});
+
+// Main 200ms simulation & UI update loop
+setInterval(() => {
+  const dt = 0.2;
+  // Watchdog step
+  if (M.wdt.testing) {
+    M.wdt.elapsed = Math.min(4.0, M.wdt.elapsed + dt);
+  } else if (M.usbConnected) {
+    M.wdt.elapsed = Math.min(5.0, M.wdt.elapsed + dt);
+  } else if (!M.wdt.tripped) {
+    M.wdt.elapsed = (M.wdt.elapsed + dt) % 1.0;
+    const s = Math.floor(Date.now() / 1000);
+    if (s !== M.wdt._sec) { M.wdt._sec = s; M.wdt.seq++; }
+  }
+  if (M.wdt.elapsed >= M.wdt.timeout && !M.wdt.tripped) {
+    M.wdt.tripped = true;
+    M.modeOvr = 'OFF'; M.fanOvr = 0; M.heat = 0; M.comp = 0; M.fanPct = 0;
+    $('mModeSelect').value = 'OFF'; $('mFanSlider').value = 0;
+    $('mKillBadge').textContent = 'WDT CUTOFF'; $('mKillBadge').className = 'pill crit';
+    sendUsbCmd('KILL');
+    updateIoTPreview(null);
+    showToast('ALARM E-204: Serial Watchdog Timeout (>2.5s)! Pin 8 & Pin 9 gated OFF.', 'crit');
+  }
+
+  // Plant & PID step when not locked to USB
+  const tout = M.inj.heatwave ? 39.0 : M.Tout;
+  const err = M.T - (M.spC + (M.modeOvr === 'ECO' ? 1.1 : 0));
+  if (M.wdt.tripped || M.modeOvr === 'OFF') {
+    M.comp = 0; M.heat = 0; M.fanPct = 0;
+    M.mode = M.wdt.tripped ? 'WDT CUTOFF' : 'SYSTEM OFF';
+  } else if (M.inj.blower) {
+    M.comp = 0; M.heat = 0; M.fanPct = 0; M.mode = 'BLOWER FAULT';
+  } else if (M.modeOvr === 'COOL' || M.inj.heatwave) {
+    M.comp = 100; M.heat = 0; M.fanPct = M.fanOvr >= 0 ? M.fanOvr : 90;
+    M.mode = M.inj.heatwave ? 'HEAT EMERG' : 'FORCE COOL';
+  } else if (M.modeOvr === 'HEAT') {
+    M.comp = 0; M.heat = 100; M.fanPct = M.fanOvr >= 0 ? M.fanOvr : 85;
+    M.mode = 'FORCE HEAT';
+  } else {
+    const u = clamp(55 * err, -100, 100);
+    M.comp = u > 3 ? u : 0;
+    M.heat = u < -3 ? -u : 0;
+    const autoFan = (M.comp > 0 || M.heat > 0) ? 30 + 0.6 * Math.max(M.comp, M.heat) : 22;
+    M.fanPct = M.fanOvr >= 0 ? M.fanOvr : (M.inj.clog ? Math.min(100, autoFan + 22) : autoFan);
+    M.mode = M.comp > 0 ? 'COOLING' : M.heat > 0 ? 'HEATING' : 'IDLE';
+  }
+
+  if (!M.usbConnected || !M.bmeLive) {
+    const qCool = (M.comp / 100) * 1400;
+    const qHeat = (M.heat / 100) * 900;
+    const qEnv = 18 * (tout - M.T) + 140;
+    M.T = clamp(M.T + ((qHeat - qCool + qEnv) / 42000) * (dt * 25), 14, 40);
+    M.adcRaw = Math.round(clamp((M.T + 40) * 8388.6, 0, 1048575));
+    M.vSenseMv = +((M.adcRaw / 1048575) * 3300).toFixed(1);
+  }
+
+  // Electrical calculations
+  const pwm = Math.round(clamp((M.fanPct / 100) * 255, 0, 255));
+  const D = pwm / 255;
+  const iPeak = 5.0 / (14.286 + 0.028);
+  const iFan = D * iPeak;
+  const vGs = 5.0 * D;
+  const vFan = D * (5.0 - iPeak * 0.028);
+  const i5v = 0.045 + iFan;
+  const iHtr = (M.heat / 100) * (12.0 / 2.88);
+  const p5v = 5.0 * i5v;
+  const i12v = iHtr + p5v / (12.0 * 0.88);
+  const rFan = D > 0.001 ? 5.0 / iFan : -1;
+  const r5v = 5.0 / i5v;
+  const rTot = 12.0 / i12v;
+  M.elec = { pwm, D, vGs, vFan, iFan, i5v, iHtr, i12v, rFan, r5v, rTot, p5v };
+  M.totalW = Math.round(150 + (M.comp / 100) * 420 + (M.heat / 100) * 50 + (M.fanPct / 100) * 35);
+
+  // Render Climate
+  const feelsC = apparentTempC(M.T, M.RH, (M.fanPct / 100) * 3.2);
+  $('mRoomF').textContent = fF(M.T);
+  $('mFeelsF').textContent = fF(feelsC) + '°F';
+  $('mRh').textContent = Math.round(M.RH) + '%';
+  $('mTotalW').textContent = M.totalW + (M.totalW > M.demandLimit ? ' W (SHED)' : ' W');
+  $('mModePill').textContent = M.mode;
+  $('mModePill').className = 'pill ' + (/CUTOFF|FAULT|EMERG/.test(M.mode) ? 'crit' : /FORCE|OFF/.test(M.mode) ? 'warn' : 'ok');
+  $('mActuatorSummary').textContent = `FAN ${Math.round(M.fanPct)}% | HTR ${M.heat > 0 ? 'ON' : 'OFF'}`;
+
+  $('mAdcStrip').className = 'adc-strip' + (M.usbConnected && M.bmeLive ? ' live' : '');
+  $('mAdcTitle').textContent = M.usbConnected && M.bmeLive
+    ? '🟢 LIVE ARDUINO A4 (SDA) / A5 (SCL) BME280:'
+    : 'A4 (SDA) / A5 (SCL) BME280 SIGNAL PIPELINE:';
+  $('mAdcFlow').innerHTML =
+    `Analog <b>${M.vSenseMv.toFixed(1)} mV</b> &rarr; 20-bit ADC <b>0x${M.adcRaw.toString(16).toUpperCase()}</b> &rarr; I2C <b>0x76</b> &rarr; <span class="grn"><b>${fF(M.T)}&deg;F (${M.T.toFixed(2)}&deg;C)</b></span>`;
+
+  // Render Watchdog
+  const wPct = clamp((M.wdt.elapsed / M.wdt.timeout) * 100, 0, 100);
+  $('mWdtBar').style.width = wPct.toFixed(1) + '%';
+  $('mWdtBar').style.background = M.wdt.tripped ? 'var(--red)' : M.wdt.testing ? 'var(--amber)' : 'var(--green)';
+  $('mWdtBadge').textContent = M.wdt.tripped ? `TRIPPED (${M.wdt.elapsed.toFixed(1)}s)` : `HB #${M.wdt.seq} (${M.wdt.elapsed.toFixed(1)}s)`;
+  $('mWdtBadge').className = 'pill ' + (M.wdt.tripped ? 'crit' : M.wdt.testing ? 'warn' : 'ok');
+  $('mWdtMsg').innerHTML = M.wdt.tripped
+    ? '<span style="color:#fca5a5"><b>E-204 WATCHDOG LATCHED:</b> No heartbeat &gt;2.5s! Pin 8 PTC Relay &amp; Pin 9 Fan forced to 0V. Tap RESET WDT.</span>'
+    : M.wdt.testing
+      ? '<span style="color:#fcd34d">Simulating dropped serial link... fail-safe triggers at 2.5s</span>'
+      : '1 Hz heartbeat active &bull; Fail-safe hardware cutoff armed at 2.5s';
+
+  // Render Multimeter
+  $('mPwmBadge').textContent = `PWM ${pwm}/255 (${Math.round(D * 100)}%)`;
+  $('mVfan').textContent = vFan.toFixed(2);
+  $('mVgsSub').textContent = `V_GS ${vGs.toFixed(2)}V (Pin 9)`;
+  $('mI5v').textContent = Math.round(i5v * 1000);
+  $('mIfanSub').textContent = `Fan ${Math.round(iFan * 1000)}mA | 12V ${i12v.toFixed(2)}A`;
+  $('mR5v').textContent = r5v.toFixed(1);
+  $('mRfanSub').textContent = rFan < 0 ? 'R_fan OPEN (∞)' : `R_fan ${rFan.toFixed(1)} Ω`;
+  $('mRtot').textContent = rTot.toFixed(1);
+  $('mHtrSub').textContent = `PTC Htr: ${iHtr.toFixed(2)} A`;
+
+  $('mEqBox').innerHTML =
+    `<div class="eq-card"><div class="et">Live Substituted Bench Equations</div>` +
+    `<div class="ef">D = ${pwm}/255 = ${(D * 100).toFixed(1)}% &bull; V_GS = 5.00V &times; ${D.toFixed(2)} = <b>${vGs.toFixed(2)} V</b></div>` +
+    `<div class="ef">I_fan = ${D.toFixed(2)} &times; (5V / 14.314&Omega;) = <b>${(iFan * 1000).toFixed(1)} mA</b> &bull; I_5V = 45mA + I_fan = <b>${(i5v * 1000).toFixed(1)} mA</b></div>` +
+    `<div class="ev">R_5V = 5V / ${i5v.toFixed(3)}A = ${r5v.toFixed(2)} &Omega; &nbsp;|&nbsp; R_tot(12V) = 12V / ${i12v.toFixed(3)}A = ${rTot.toFixed(2)} &Omega;</div></div>`;
+}, 200);
+
+// Optional RPi polling every 1.5s
+setInterval(() => {
+  if (!M.rpiUrl) return;
+  fetch(M.rpiUrl + '/api/state')
+    .then(r => r.ok ? r.json() : Promise.reject())
+    .then(d => {
+      if (d.latest) {
+        if (typeof d.latest.temp_c === 'number') M.T = d.latest.temp_c;
+        if (typeof d.latest.humidity_pct === 'number') M.RH = d.latest.humidity_pct;
+      }
+      $('mRpiBadge').textContent = 'PI ONLINE';
+      $('mRpiBadge').className = 'pill ok';
+    })
+    .catch(() => {
+      $('mRpiBadge').textContent = 'PI OFFLINE';
+      $('mRpiBadge').className = 'pill warn';
+    });
+}, 1500);
+
+buildFaultCards();
+syncControlsFromUI(false);
+updateIoTPreview(null);
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>

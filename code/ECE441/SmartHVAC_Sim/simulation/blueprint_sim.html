@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ECE 441 Smart HVAC - Blueprint Digital Twin</title>
+<link rel="manifest" href="manifest.json">
+<script>
+if (!navigator.webdriver && window.innerWidth < 720 && /Mobi|Android|iPhone|iPod/i.test(navigator.userAgent) && !location.search.includes('view=desktop') && !location.hash) {
+  location.replace('mobile.html' + location.search);
+}
+</script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
 :root{
@@ -59,9 +65,23 @@ main{flex:1;display:flex;min-height:0}
 .card .v{font-size:18px;font-weight:bold;color:#fff;margin-top:2px;white-space:nowrap}
 .card .v small{font-size:10px;color:var(--cyan);font-weight:normal;margin-left:3px}
 .card .s{font-size:9px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.card.warn{border-color:var(--amber)} .card.crit{border-color:var(--red)}
-.card.warn .v{color:#fcd34d} .card.crit .v{color:#fca5a5}
-.chartbox{position:relative;height:210px;background:#081629;border:1px solid var(--border);padding:6px}
+.card.warn{border-color:var(--amber)} .card.crit{border-color:var(--red)} .card.ok{border-color:var(--green)}
+.card.warn .v{color:#fcd34d} .card.crit .v{color:#fca5a5} .card.ok .v{color:#6ee7b7}
+.adc-bar{display:flex;justify-content:space-between;align-items:center;gap:8px;background:#071529;border:1px solid var(--border);border-left:3px solid var(--cyan);padding:4px 8px;margin-bottom:6px;font-size:9.5px;color:var(--muted);flex-wrap:wrap}
+.adc-bar.live{border-left-color:var(--green);background:rgba(16,185,129,.07)}
+.adc-bar .stage{color:var(--text)} .adc-bar .arr{color:var(--cyan);margin:0 3px}
+.bench-drawer{margin-top:8px;border:1px solid var(--border);background:#07152a}
+.bench-drawer summary{cursor:pointer;padding:6px 8px;font-size:9.5px;letter-spacing:.8px;color:var(--amber);display:flex;justify-content:space-between;align-items:center;user-select:none;list-style:none}
+.bench-drawer summary::-webkit-details-marker{display:none}
+.bench-drawer summary:hover{background:rgba(245,158,11,.08);color:#fff}
+.bench-drawer[open]{border-color:var(--amber)}
+.bench-body{padding:8px;border-top:1px solid var(--border);background:#061224}
+.kill-btn{width:100%;background:rgba(239,68,68,.16);border:1px solid var(--red);color:#fca5a5;font-family:var(--mono);font-size:10.5px;font-weight:bold;padding:7px 8px;cursor:pointer;letter-spacing:1px}
+.kill-btn:hover{background:var(--red);color:#fff}
+.kill-btn.latched{background:var(--red);color:#fff;box-shadow:0 0 12px rgba(239,68,68,.45)}
+.bench-row{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:6px}
+.bench-row2{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:5px}
+.chartbox{position:relative;height:198px;background:#081629;border:1px solid var(--border);padding:6px}
 #bottom{flex:1;display:grid;grid-template-columns:1fr 1fr;min-height:0}
 .col{padding:10px 12px;overflow-y:auto;min-height:0}
 .col+.col{border-left:1px solid var(--border)}
@@ -91,6 +111,15 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px}
 .mbox .st{font-size:12px;font-weight:bold;margin-top:2px}
 .mbox .hb{font-size:9px;color:var(--muted);margin-top:2px}
 .mbox.ok{border-color:var(--green)} .mbox.bad{border-color:var(--red)} .mbox.stby{border-color:var(--amber)}
+.wdt-box{border:1px solid var(--border);background:#071529;padding:6px 8px;margin-bottom:6px}
+.wdt-box.trip{border-color:var(--red);background:rgba(239,68,68,.12);box-shadow:0 0 12px rgba(239,68,68,.28)}
+.wdt-box.warn{border-color:var(--amber);background:rgba(245,158,11,.08)}
+.wdt-prog{height:6px;background:#050d1a;border:1px solid var(--border);margin:5px 0;position:relative;overflow:hidden}
+.wdt-prog > i{display:block;height:100%;width:0%;background:var(--green);transition:width .18s linear,background .18s}
+.wdt-info{margin-top:5px;border-top:1px dashed var(--border);padding-top:4px;font-size:9px;color:var(--muted);line-height:1.4}
+.wdt-info summary{cursor:pointer;color:var(--cyan);font-size:9px;letter-spacing:.5px;user-select:none;list-style:none}
+.wdt-info summary::-webkit-details-marker{display:none}
+.wdt-info b{color:#fff}
 .bar{display:grid;grid-template-columns:96px 1fr 70px;align-items:center;gap:6px;font-size:10px;margin:3px 0}
 .bar .tr{height:8px;background:#081629;border:1px solid var(--border);position:relative}
 .bar .fl{position:absolute;left:0;top:0;bottom:0;background:var(--cyan);transition:width .2s}
@@ -118,6 +147,23 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px}
 #log div{color:#7dd3fc;word-break:break-word}
 #log .warn{color:#fcd34d} #log .crit{color:#f87171} #log .ok{color:#6ee7b7} #log .sim{color:#c4b5fd}
 .red{color:var(--red)} .amb{color:var(--amber)} .grn{color:var(--green)} .cy{color:var(--accent)}
+.dmm-strip{display:none;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;padding:4px 8px;background:rgba(56,189,248,.09);border:1px solid var(--cyan);font-size:9.5px;color:#dbe7f5}
+.dmm-strip.on{display:flex}
+.dmm-modal-bg{display:none;position:fixed;inset:0;z-index:999;background:rgba(3,9,20,.82);backdrop-filter:blur(3px);align-items:center;justify-content:center;padding:16px}
+.dmm-modal-bg.open{display:flex}
+.dmm-modal{width:min(880px,96vw);max-height:90vh;overflow-y:auto;background:#07152b;border:1.5px solid var(--cyan);box-shadow:0 16px 48px rgba(0,0,0,.75);padding:12px 14px;color:var(--text)}
+.dmm-head{display:flex;justify-content:space-between;align-items:center;gap:10px;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:10px}
+.dmm-head h2{font-size:12px;letter-spacing:1.2px;color:#fff;margin:0}
+.dmm-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+@media(max-width:760px){.dmm-grid{grid-template-columns:1fr}}
+.dmm-eq{background:#050d1a;border:1px solid var(--border);border-left:3px solid var(--cyan);padding:7px 9px;font-size:9.5px;line-height:1.5}
+.dmm-eq .et{font-size:9px;color:var(--muted);letter-spacing:.7px;text-transform:uppercase;margin-bottom:2px}
+.dmm-eq .ef{color:#93c5fd;font-size:9.5px}
+.dmm-eq .ev{color:#6ee7b7;font-weight:bold;font-size:10.5px;margin-top:2px}
+.dmm-tbl{width:100%;border-collapse:collapse;font-size:9.5px;background:#050d1a;border:1px solid var(--border)}
+.dmm-tbl th,.dmm-tbl td{border:1px solid var(--border);padding:6px 7px;text-align:left;vertical-align:top;line-height:1.4}
+.dmm-tbl th{background:#0c2141;color:var(--accent);font-size:9px;letter-spacing:.6px;text-transform:uppercase}
+.dmm-tbl code{color:#fcd34d;background:rgba(245,158,11,.1);padding:1px 4px}
 </style>
 </head>
 <body>
@@ -130,6 +176,7 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px}
     <span><i class="dot" id="hPi"></i>RPI / USB <b id="hPit">STANDBY</b></span>
     <span><i class="dot" id="hIot"></i>IOT GATEWAY <b id="hIott">READY</b></span>
     <button class="btn" id="btnUsbTop" style="width:auto;margin:0;padding:2px 8px;font-size:10px;border-color:var(--green);color:var(--green);font-weight:bold;cursor:pointer">⚡ CONNECT USB ARDUINO</button>
+    <a class="btn" href="mobile.html" style="width:auto;margin:0;padding:2px 8px;font-size:10px;border-color:var(--cyan);color:var(--accent);text-decoration:none;font-weight:bold" title="Switch to touch-optimized Mobile View">📱 MOBILE SITE</a>
     <span>SIM <b id="clock" class="cy">14:00:00</b> <span id="speedLbl" style="color:var(--muted)">x40</span></span>
   </div>
 </header>
@@ -157,6 +204,14 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px}
         </div>
       </div>
       <div class="cards" id="cards"></div>
+      <div class="dmm-strip" id="dmmHelpStrip">
+        <span><b>DIGITAL TWIN vs. LAB BENCH DMM:</b> Live Ohm's Law &amp; MOSFET switching derivations (Pin 9 IRLZ44N + Pin 8 PTC Relay)</span>
+        <button class="btn" id="btnOpenDmmModal" style="width:auto;margin:0;padding:3px 9px;border-color:var(--cyan);color:var(--accent);font-weight:bold;font-size:9.5px">&#128208; EQUATIONS &amp; LAB PROBE GUIDE</button>
+      </div>
+      <div class="adc-bar" id="bmeAdcBar">
+        <span><b id="bmeSrcTag" style="color:var(--cyan)">BME280 (A4 SDA / A5 SCL): SIMULATED</b></span>
+        <span id="bmeAdcFlow">Analog Bridge <b class="stage">1666 mV</b><span class="arr">&rarr;</span>20-bit &Sigma;&Delta; ADC <b class="stage">0x81333</b><span class="arr">&rarr;</span>I2C <b class="stage">0x76 (A4/A5)</b><span class="arr">&rarr;</span>Digital <b class="grn">75.2&deg;F (24.00&deg;C)</b></span>
+      </div>
       <div class="chartbox"><canvas id="chart"></canvas></div>
     </div>
 
@@ -178,8 +233,29 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px}
         <div class="sl"><div class="h"><span>THERMOSTAT SETPOINT</span><b id="lSp">73.4 F</b></div><input type="range" id="sSp" min="64" max="82" step="1" value="73"></div>
         <div class="sl"><div class="h"><span>PIN 9 MOSFET FAN OVERRIDE (IRLZ44N)</span><b id="lFanOvr">AUTO (PID)</b></div><input type="range" id="sFanOvr" min="-1" max="100" step="1" value="-1"></div>
         <div class="sl"><div class="h"><span>OUTDOOR TEMPERATURE</span><b id="lOut">82.4 F</b></div><input type="range" id="sOut" min="23" max="108" step="1" value="82"></div>
-        <div class="sl"><div class="h"><span>DEMAND LIMIT (LOAD SHEDDING)</span><b id="lLim">1000 W</b></div><input type="range" id="sLim" min="300" max="2000" step="50" value="1000"></div>
+        <div class="sl"><div class="h"><span>DEMAND LIMIT (LOAD SHEDDING)</span><b id="lLim">1500 W</b></div><input type="range" id="sLim" min="500" max="3500" step="50" value="1500"></div>
         <div class="sl"><div class="h"><span>SIMULATION SPEED</span><b id="lSpd">x40</b></div><input type="range" id="sSpd" min="5" max="120" step="5" value="40"></div>
+        <details class="bench-drawer" id="benchDrawer">
+          <summary>
+            <span>&#9656; EMERGENCY HARDWARE CUTOFF / BENCH TEST DRAWER</span>
+            <span id="killStateBadge" class="badge">STANDBY</span>
+          </summary>
+          <div class="bench-body">
+            <button class="kill-btn" id="btnMasterKill">&#128721; MASTER HARDWARE KILL (ALL OFF: PIN 8 LOW &amp; PIN 9 0V)</button>
+            <div style="font-size:8.5px;color:var(--muted);margin-top:6px;letter-spacing:.5px">DIRECT PIN 9 MOSFET FAN BENCH TEST:</div>
+            <div class="bench-row">
+              <button class="btn" id="btnBenchFan0" style="margin:0;padding:5px 4px;font-size:9px;border-color:var(--red);color:#fca5a5">FAN OFF (0%)</button>
+              <button class="btn" id="btnBenchFan50" style="margin:0;padding:5px 4px;font-size:9px">FAN 50% (128)</button>
+              <button class="btn" id="btnBenchFan100" style="margin:0;padding:5px 4px;font-size:9px;border-color:var(--cyan);color:var(--accent)">FAN 100% (255)</button>
+            </div>
+            <div style="font-size:8.5px;color:var(--muted);margin-top:6px;letter-spacing:.5px">DIRECT PIN 8 12V PTC HEATER RELAY TEST:</div>
+            <div class="bench-row2">
+              <button class="btn" id="btnBenchHeatOff" style="margin:0;padding:5px 4px;font-size:9px;border-color:var(--green);color:#6ee7b7">RELAY OFF (0V SAFE)</button>
+              <button class="btn" id="btnBenchHeatOn" style="margin:0;padding:5px 4px;font-size:9px;border-color:var(--amber);color:#fcd34d">RELAY ON (12V PTC)</button>
+            </div>
+            <button class="btn" id="btnBenchAuto" style="margin-top:6px;border-color:var(--green);color:var(--green);font-size:9.5px">&#8634; RESTORE CLOSED-LOOP AUTO PID</button>
+          </div>
+        </details>
         <div class="grp-h" style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">
           <span>IOT SMS / EMAIL ALERT GATEWAY</span>
           <div style="display:flex;gap:4px;align-items:center">
@@ -234,6 +310,26 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px}
           <div class="mbox ok" id="mA"><div class="n">MCU-A / ARDUINO UNO R4 (PIN 9/8/A4/A5)</div><div class="st" id="mAs">RUN - IN CONTROL</div><div class="hb" id="mAh">Heartbeat OK</div></div>
           <div class="mbox stby" id="mB"><div class="n">MCU-B / REDUNDANT WATCHDOG</div><div class="st" id="mBs">HOT STANDBY</div><div class="hb" id="mBh">Mirroring PID state</div></div>
         </div>
+        <div class="wdt-box" id="wdtPanel">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+            <span style="font-size:9.5px;color:#fff;letter-spacing:.5px"><b>SERIAL COMMS WATCHDOG</b> (1Hz USB / 2.5s TRIP)</span>
+            <span id="wdtBadge" class="badge ok">HB OK (0.2s)</span>
+          </div>
+          <div class="wdt-prog"><i id="wdtBar"></i></div>
+          <div id="wdtDetail" style="font-size:9px;color:var(--muted)">Monitoring 1 Hz TinyUSB (COM7) heartbeat packets &bull; Fail-safe cutoff armed</div>
+          <div style="display:flex;gap:5px;margin-top:5px">
+            <button class="btn" id="btnTestWdt" style="flex:1;margin:0;padding:4px 6px;font-size:9px;border-color:var(--amber);color:#fcd34d">&#129514; TEST WATCHDOG TRIP (2.5s)</button>
+            <button class="btn" id="btnResetWdt" style="flex:0 0 auto;width:auto;margin:0;padding:4px 8px;font-size:9px;border-color:var(--green);color:var(--green)">&#8634; RESET</button>
+          </div>
+          <details class="wdt-info">
+            <summary>&#9432; HOW WATCHDOG WORKS: PURPOSE &amp; SIM vs. REAL LAB BENCH &#9662;</summary>
+            <div style="margin-top:4px">
+              &bull; <b>Core Safety Goal:</b> Prevents hazardous 12V PTC heater thermal runaway ("latched-ON" state) if firmware hangs, USB serial disconnects, or logic power browns out.<br>
+              &bull; <b>In Digital Twin Sim:</b> Models a redundant dual-MCU supervisor where hot-standby <b>MCU-B</b> detects missed 1 Hz heartbeats (&gt;1.6s) from <b>MCU-A</b> and executes bumpless PID takeover.<br>
+              &bull; <b>In Physical Lab Bench (Arduino Uno R4 / COM7):</b> Combines (1) <b>Serial Heartbeat Watchdog</b> monitoring 1 Hz <code>hb_seq</code> USB packets (trips <code>E-204</code> alarm &amp; commands <code>KILL</code> at &gt;2.5s silence) + (2) <b>10k&Omega; Hardware Pull-Down Resistors</b> on Pin 9 MOSFET Gate &amp; Pin 8 Relay so power loss defaults physically to <code>0V (OFF)</code>.
+            </div>
+          </details>
+        </div>
         <div class="grp-h">ACTUATOR OUTPUTS</div>
         <div id="bars"></div>
         <div class="kv" id="kv"></div>
@@ -245,6 +341,59 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px}
     </div>
   </section>
 </main>
+
+<div class="dmm-modal-bg" id="dmmModal" role="dialog" aria-modal="true" aria-labelledby="dmmModalTitle">
+  <div class="dmm-modal">
+    <div class="dmm-head">
+      <div>
+        <span class="badge" style="margin-right:6px">ECE 441 BENCH INSTRUMENTATION</span>
+        <h2 id="dmmModalTitle" style="display:inline">DIGITAL MULTIMETER (V / I / &Omega;) — LIVE EQUATIONS &amp; LAB BENCH PROBE GUIDE</h2>
+      </div>
+      <button class="btn" id="btnCloseDmmModal" style="width:auto;margin:0;padding:4px 10px;border-color:var(--red);color:#fca5a5;font-weight:bold">&#10005; CLOSE (VIEW GRAPH)</button>
+    </div>
+    <div style="font-size:9.5px;color:var(--muted);margin-bottom:8px">
+      Live values below update every 200 ms from the active circuit state (<b class="cy">Arduino Uno R4 + Pin 9 IRLZ44N N-MOSFET + 5V GDSTIME Blower + Pin 8 12V 50W PTC Relay + LM2596 Buck</b>):
+    </div>
+    <div class="dmm-grid" id="dmmLiveEqGrid"></div>
+    <div class="grp-h" style="margin:8px 0 5px;color:var(--accent)">SIMULATED MULTIMETER vs. PHYSICAL HANDHELD LAB MULTIMETER (WHERE TO PROBE ON BREADBOARD)</div>
+    <table class="dmm-tbl">
+      <thead>
+        <tr>
+          <th style="width:17%">Quantity</th>
+          <th style="width:28%">Physical Breadboard Probe Placement</th>
+          <th style="width:27%">Digital Twin Calculation</th>
+          <th style="width:28%">Real Lab Handheld DMM Behavior</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>Pin 9 Gate Drive (<code>V_GS</code>)</b></td>
+          <td><b>Black (<code>COM</code>):</b> Common Arduino <code>GND</code><br><b>Red (<code>V&Omega;mA</code>):</b> Arduino <code>Pin 9</code> / IRLZ44N <b>Gate</b> (left leg)</td>
+          <td>Computes exact PWM duty-averaged DC voltage: <code>5.00V &times; (PWM / 255)</code>.</td>
+          <td>DC-V mode low-pass averages the 490 Hz PWM square wave to match <code>5.0V &times; D</code>; an oscilloscope shows pulses toggling <code>0V &harr; 5.0V</code>.</td>
+        </tr>
+        <tr>
+          <td><b>Effective Fan Voltage (<code>V_fan</code>)</b></td>
+          <td><b>Red (<code>V&Omega;mA</code>):</b> <code>+5V</code> Fan Rail<br><b>Black (<code>COM</code>):</b> IRLZ44N <b>Drain</b> (center leg / Fan <code>-</code> wire)</td>
+          <td>Subtracts MOSFET conduction drop: <code>D &times; (5.00V &minus; I_peak &times; 0.028&Omega;)</code>.</td>
+          <td><b>Lab Gotcha:</b> Because IRLZ44N is a <i>low-side switch</i> on GND, probing Drain-to-GND at 0% PWM reads <code>5.0V</code>! Always probe <b>across the fan leads</b> (<code>+5V</code> to <code>Drain</code>).</td>
+        </tr>
+        <tr>
+          <td><b>Branch Currents (<code>I_fan</code>, <code>I_12V</code>)</b></td>
+          <td><b>Series Break Only:</b> Open <code>+5V</code> fan lead (or <code>+12V</code> supply lead) and bridge gap in series using <code>mA</code> / <code>10A</code> fused jack.</td>
+          <td>Models steady-state coil load (<code>14.29&Omega;</code> fan = <code>349mA</code> max; <code>2.88&Omega;</code> PTC = <code>4.17A</code>) + LM2596 buck efficiency (<code>&eta;=88%</code>).</td>
+          <td><b>Never probe Amps in parallel!</b> Cold 12V PTC ceramic exhibits a brief <code>~5A</code> inrush spike before self-limiting to <code>~4.1A</code> at 70&deg;C equilibrium.</td>
+        </tr>
+        <tr>
+          <td><b>Circuit Resistance (<code>R_5V</code>, <code>R_tot</code>)</b></td>
+          <td><b>Unpowered Static Test:</b> Disconnect 12V barrel &amp; USB power first, then probe across Fan leads or PTC leads in <code>&Omega;</code> mode.</td>
+          <td>Displays live <i>dynamic operating impedance</i> <code>R_eq = V_rail / I_branch</code> while energized.</td>
+          <td><b>Safety Rule:</b> Never put a physical DMM in <code>&Omega;</code> mode on a live powered 12V/5V rail (reads <code>OL</code> or blows meter fuse). Measure <code>V</code> and <code>I</code> live, or power OFF first!</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
 
 <script>
 /* =====================================================================
@@ -306,7 +455,7 @@ const INJ_MAP = {
    ===================================================================== */
 const S = {
   t: 14 * 3600, speed: 40,
-  T: 24.0, RH: 48, Tout: 28, ToutSet: 28, setpoint: 23, demandLimit: 1000,
+  T: 24.0, RH: 48, Tout: 28, ToutSet: 28, setpoint: 23, demandLimit: 1500,
   VOC: 140, CO2: 700, PM: 3, PMout: 8,
   filterH: 0.96, fanAct: 30, fanOverride: -1, modeOverride: 'AUTO', damperAct: 0, vel: 2.4, dP: 10, rpm: 840, SAT: 18,
   sensA: 24, sensB: 24,
@@ -325,6 +474,9 @@ const S = {
   kWh: 0, diag: {}, quiet: true, inspect: null, inspectUntil: 0, wifiPrev: false,
   iotAuto: false, iotSent: 0, iotOnline: false, iotDispatched: {}, iotQueue: [],
   rpiSync: true, rpiOnline: false, rpiPkts: 0, rpiLastCmdSeq: -1, rpiBuffer: [],
+  usbConnected: false,
+  bme: { hasLive: false, tempC: 24.0, rh: 48.0, pressHpa: 1013.25, bmeOk: true, adcRaw20b: 536870, vSenseMv: 1689.6 },
+  wdt: { elapsedS: 0.2, timeoutS: 2.5, lastHbSeq: 1, tripped: false, testBlocking: false, _lastSimSec: 0 },
   commLog: [], commStats: { count: 0, minMs: 9999, maxMs: 0, avgMs: 0, lastMs: 0, totalMs: 0 }
 };
 
@@ -373,7 +525,7 @@ if (new URLSearchParams(location.search).get('autosend') === '1') {
 }
 const CODE_TO_FAULT = {
   'E-101': 'voc', 'E-102': 'smoke', 'E-201': 'mcu', 'E-202': 'sensor',
-  'E-203': 'wifi', 'E-301': 'clog', 'E-302': 'blower', 'E-401': 'surge',
+  'E-203': 'wifi', 'E-204': 'wdt', 'E-301': 'clog', 'E-302': 'blower', 'E-401': 'surge',
   'E-402': 'window', 'E-403': 'heatwave', 'E-404': 'surge'
 };
 
@@ -409,6 +561,11 @@ function buildIoTAlertPayload(idOrCode) {
     row1 = 'Cloud link lost (Wi-Fi outage)';
     row2 = `Room: ${roomF.toFixed(1)}°F | Feels Like: ${feelsF.toFixed(1)}°F | Outside: ${outF.toFixed(1)}°F`;
     row3 = 'System Action: Autonomous local edge PID active, buffering telemetry';
+  } else if (fId === 'wdt' || idOrCode === 'E-204') {
+    code = 'E-204';
+    row1 = 'Serial comms watchdog timeout';
+    row2 = `Room: ${roomF.toFixed(1)}°F | Last HB Seq: #${S.wdt.lastHbSeq} | Silence: ${S.wdt.elapsedS.toFixed(1)}s`;
+    row3 = 'System Action: Fail-safe engaged, Pin 8 PTC relay and Pin 9 fan gated OFF';
   } else if (fId === 'clog' || idOrCode === 'E-301') {
     code = 'E-301';
     row1 = 'Air filter severely restricted';
@@ -608,7 +765,7 @@ function applyRPiRemoteControl(ctrl, forceApply = false) {
     if ($('lSp')) $('lSp').textContent = fF(S.setpoint) + ' F';
   }
   if (typeof ctrl.demand_limit_w === 'number') {
-    S.demandLimit = clamp(ctrl.demand_limit_w, 300, 2000);
+    S.demandLimit = clamp(ctrl.demand_limit_w, 500, 3500);
     if ($('sLim')) $('sLim').value = S.demandLimit;
     if ($('lLim')) $('lLim').textContent = S.demandLimit + ' W';
   }
@@ -1018,18 +1175,38 @@ function handleArduinoUsbLine(line) {
     const d = JSON.parse(trimmed);
     S.rpiOnline = true;
     S.rpiPkts++;
+    if (!S.wdt.testBlocking) {
+      S.wdt.elapsedS = 0;
+      S.wdt.lastHbSeq = typeof d.hb_seq === 'number' ? d.hb_seq : S.rpiPkts;
+      if (S.wdt.tripped) {
+        S.wdt.tripped = false;
+        log('ok', `[WATCHDOG] Live USB heartbeat restored (seq #${S.wdt.lastHbSeq}). E-204 cleared.`);
+      }
+    }
     if ($('rpiSyncCount')) {
       $('rpiSyncCount').textContent = `${S.rpiPkts} PKTS`;
       $('rpiSyncCount').className = 'badge ok';
     }
     if (typeof d.temp_c === 'number' && !isNaN(d.temp_c)) {
+      S.bme.hasLive = true;
+      S.bme.tempC = d.temp_c;
       S.T = d.temp_c;
       if (!S.inj.sensor) S.sensA = d.temp_c;
       S.sensB = d.temp_c;
       S.ctl.Tctl = d.temp_c;
+      const rawAdc = typeof d.adc_raw_20b === 'number' ? d.adc_raw_20b : Math.round(clamp((d.temp_c + 40) * 8388.6, 0, 1048575));
+      S.bme.adcRaw20b = rawAdc;
+      S.bme.vSenseMv = typeof d.v_sense_mv === 'number' ? d.v_sense_mv : +((rawAdc / 1048575) * 3300).toFixed(1);
     }
     if (typeof d.humidity === 'number' && !isNaN(d.humidity)) {
+      S.bme.rh = d.humidity;
       S.RH = d.humidity;
+    }
+    if (typeof d.pressure_hpa === 'number' && !isNaN(d.pressure_hpa)) {
+      S.bme.pressHpa = d.pressure_hpa;
+    }
+    if (typeof d.bme_ok === 'number') {
+      S.bme.bmeOk = d.bme_ok === 1;
     }
     if (typeof d.feels_like_c === 'number' && !isNaN(d.feels_like_c)) {
       S.ctl.AT = d.feels_like_c;
@@ -1082,6 +1259,7 @@ async function connectUsbArduino() {
   if (S.usbConnected && usbPort) {
     try {
       S.usbConnected = false;
+      S.bme.hasLive = false;
       S.rpiOnline = false;
       if (usbReader) { await usbReader.cancel(); usbReader = null; }
       await usbPort.close();
@@ -1124,7 +1302,16 @@ async function connectUsbArduino() {
 
     while (S.usbConnected && usbReader) {
       const { value, done } = await usbReader.read();
-      if (done) break;
+      if (done) {
+        if (S.usbConnected) {
+          S.usbConnected = false;
+          S.bme.hasLive = false;
+          S.wdt.testBlocking = true;
+          updateUsbButtonsUI();
+          log('crit', '[USB] Serial stream closed unexpectedly! Serial watchdog counting toward 2.5s fail-safe...');
+        }
+        break;
+      }
       if (value) {
         usbRxBuffer += value;
         const lines = usbRxBuffer.split(/\r?\n/);
@@ -1135,9 +1322,16 @@ async function connectUsbArduino() {
       }
     }
   } catch (err) {
+    const wasLive = S.usbConnected;
     S.usbConnected = false;
+    S.bme.hasLive = false;
     updateUsbButtonsUI();
     const msg = err && err.message ? err.message : String(err);
+    if (wasLive && /lost|disconnect|NetworkError|BreakError/i.test(msg)) {
+      S.wdt.testBlocking = true;
+      log('crit', `[USB] Physical USB cable lost (${msg})! Serial watchdog timing out...`);
+      return;
+    }
     if (!/No port selected|aborted/i.test(msg)) {
       log('crit', `[USB] Could not open port: ${msg} (Make sure Arduino IDE Serial Monitor is CLOSED!)`);
       alert(`Could not open Arduino USB port:\n${msg}\n\nIMPORTANT: Close the Serial Monitor in Arduino IDE first so the port isn't locked!`);
@@ -1182,12 +1376,56 @@ function mcuStep(dtR) {
 }
 const controllerAlive = () => (S.mcu.active === 'A' && S.mcu.a === 'RUN') || S.mcu.active === 'B';
 
+function serialWatchdogStep(dtR) {
+  if (S.quiet) return;
+  const w = S.wdt;
+  if (w.testBlocking) {
+    w.elapsedS = Math.min(w.timeoutS + 1.5, w.elapsedS + dtR);
+  } else if (S.usbConnected) {
+    w.elapsedS = Math.min(w.timeoutS + 5.0, w.elapsedS + dtR);
+  } else if (!w.tripped) {
+    w.elapsedS = (w.elapsedS + dtR) % 1.0;
+    const secNow = Math.floor(S.t / Math.max(1, S.speed));
+    if (secNow !== w._lastSimSec) {
+      w._lastSimSec = secNow;
+      w.lastHbSeq++;
+    }
+  }
+  if (w.elapsedS >= w.timeoutS && !w.tripped) {
+    w.tripped = true;
+    S.modeOverride = 'OFF';
+    S.fanOverride = 0;
+    S.ctl.heat = 0;
+    S.ctl.comp = 0;
+    S.ctl.fanCmd = 0;
+    S.fanAct = 0;
+    S.rpm = 0;
+    S.ctl.mode = 'WATCHDOG CUTOFF';
+    if ($('sModeOvr')) $('sModeOvr').value = 'OFF';
+    if ($('sFanOvr')) $('sFanOvr').value = 0;
+    updateKillDrawerUI('WDT CUTOFF', 'crit');
+    if (S.usbConnected) {
+      sendUsbSerialCommand('KILL');
+    }
+    pushSimControlToRPi();
+  }
+}
+
 /* =====================================================================
    6. SENSORS
    ===================================================================== */
 function sensors() {
+  if (S.usbConnected && S.bme.hasLive) {
+    S.T = S.bme.tempC;
+    S.sensB = S.bme.tempC;
+    S.sensA = S.inj.sensor ? 17.2 : S.bme.tempC;
+    return;
+  }
   S.sensB = S.T + 0.05 + noise(0.03);
   S.sensA = S.inj.sensor ? 17.2 + noise(0.01) : S.T - 0.04 + noise(0.03);
+  const rawAdc = Math.round(clamp((S.sensA + 40) * 8388.6, 0, 1048575));
+  S.bme.adcRaw20b = rawAdc;
+  S.bme.vSenseMv = +((rawAdc / 1048575) * 3300).toFixed(1);
 }
 function apparentTemp(T, RH, vDuct) {
   // Steadman apparent temperature: AT = Ta + 0.33e - 0.70v - 4.00 (v = room air speed)
@@ -1304,7 +1542,8 @@ function controller(dtS, dtR) {
   c.comp = comp; c.heat = heat;
   c.fanCmd = S.fanOverride >= 0 ? clamp(S.fanOverride, 0, 100) : clamp(fan, 0, 100);
   c.damper = damper;
-  c.mode = c.blowerFault ? 'INTERLOCK' :
+  c.mode = S.wdt.tripped ? 'WATCHDOG CUTOFF' :
+           c.blowerFault ? 'INTERLOCK' :
            S.modeOverride === 'HEAT' ? 'FORCE HEATING' :
            S.modeOverride === 'COOL' ? 'FORCE COOLING' :
            S.modeOverride === 'OFF' ? 'SYSTEM OFF' :
@@ -1379,16 +1618,19 @@ function plant(dtS) {
   S.pw.total = S.pw.comp + S.pw.heat + S.pw.fan + S.pw.plugs + S.pw.ctrl;
   S.kWh += S.pw.total * dtS / 3.6e6;
 
-  // thermal balance
+  // thermal balance & humidity (locked to physical A4/A5 BME280 when Arduino USB is connected)
   const achInf = inj.window ? 6 : 0.4, achOA = S.damperAct / 100 * 4;
-  const UA = P.UA + (inj.window ? P.UAwin : 0);
-  const gains = S.plugs.wrk * 0.95 + S.plugs.tv * 0.9 + S.plugs.lamp + 80 + S.pw.fan * 0.9 + S.pw.ctrl;
-  const Q = Qh - Qc + gains + (UA + P.kVent * (achInf + achOA)) * (S.Tout - S.T);
-  S.T += Q / P.C * dtS;
-
-  // humidity
-  const rhT = clamp(50 + (achInf + achOA) * 1.5 - c.comp * 0.12 - c.heat * 0.08, 25, 75);
-  S.RH += (rhT - S.RH) * k(1200);
+  if (S.usbConnected && S.bme.hasLive) {
+    S.T = S.bme.tempC;
+    S.RH = S.bme.rh;
+  } else {
+    const UA = P.UA + (inj.window ? P.UAwin : 0);
+    const gains = S.plugs.wrk * 0.95 + S.plugs.tv * 0.9 + S.plugs.lamp + 80 + S.pw.fan * 0.9 + S.pw.ctrl;
+    const Q = Qh - Qc + gains + (UA + P.kVent * (achInf + achOA)) * (S.Tout - S.T);
+    S.T += Q / P.C * dtS;
+    const rhT = clamp(50 + (achInf + achOA) * 1.5 - c.comp * 0.12 - c.heat * 0.08, 25, 75);
+    S.RH += (rhT - S.RH) * k(1200);
+  }
 
   // IAQ mass balance (rates per hour)
   const ach = achInf + achOA, hr = dtS / 3600;
@@ -1415,6 +1657,9 @@ function diagnose(alive) {
     msg: `TS-A reads ${fF(S.sensA)} F, TS-B reads ${fF(S.sensB)} F. Cross-check failed.`, act: 'TS-A voted out. Control loop running on redundant TS-B.' };
   if (inj.wifi) d['E-203'] = { sev: 'info', title: 'CLOUD LINK LOST', target: 'thermostat', short: `${c.buffered} BUFFERED`,
     msg: 'MQTT broker unreachable. Remote dashboard offline.', act: `Edge autonomy: local PID unaffected. ${c.buffered} telemetry samples buffered.` };
+  if (S.wdt && S.wdt.tripped) d['E-204'] = { sev: 'crit', title: 'SERIAL WATCHDOG TIMEOUT', target: 'thermostat', short: 'FAIL-SAFE OFF',
+    msg: `No Arduino USB heartbeat for ${S.wdt.elapsedS.toFixed(1)} s (> ${S.wdt.timeoutS.toFixed(1)} s limit, last seq #${S.wdt.lastHbSeq}).`,
+    act: 'Fail-safe cutoff engaged: Pin 8 PTC Relay -> LOW (0V) & Pin 9 Fan MOSFET -> 0V (0%).' };
   if (c.purge) d['E-101'] = { sev: 'warn', title: 'POOR INDOOR AIR QUALITY', target: 'iaq', short: `VOC ${f0(S.VOC)} CO2 ${f0(S.CO2)}`,
     msg: `VOC ${f0(S.VOC)} ppb, CO2 ${f0(S.CO2)} ppm.`,
     act: c.smokeLock ? 'Purge INHIBITED by smoke lockout. Recirculating only.' : 'Ventilation purge: OA damper 100%, blower 85%.' };
@@ -1571,9 +1816,48 @@ function buildChart() {
     plugins: { legend: { labels: { color: '#dbe7f5', font: { family: MONO, size: 9 }, boxWidth: 10, boxHeight: 8 } },
                tooltip: { backgroundColor: 'rgba(7,21,43,.95)', borderColor: '#1f3d6b', borderWidth: 1, titleFont: { family: MONO }, bodyFont: { family: MONO, size: 10 } } } } });
 }
+function renderDmmModal() {
+  const grid = $('dmmLiveEqGrid');
+  if (!grid) return;
+  const e = S.elec, c = S.ctl;
+  const duty = clamp(e.fan_pwm / 255, 0, 1);
+  const htrDuty = clamp(c.heat / 100, 0, 1);
+  const rFanStr = e.r_fan_ohm < 0 ? 'OPEN (\u221e \u03a9)' : `${f2(e.r_fan_ohm)} \u03a9`;
+  grid.innerHTML =
+    `<div class="dmm-eq"><div class="et">1. Pin 9 PWM Duty &amp; MOSFET Gate Voltage (V_GS)</div>` +
+    `<div class="ef">D = PWM / 255 = ${e.fan_pwm} / 255 = <b>${(duty * 100).toFixed(1)}%</b><br>V_GS = 5.00V &times; D = 5.00V &times; ${duty.toFixed(3)}</div>` +
+    `<div class="ev">V_GS = ${f2(e.v_mosfet_gs)} V &nbsp;|&nbsp; V_fan,eff = ${f2(e.v_fan_eff)} V (R_DS(on) = 0.028 &Omega;)</div></div>` +
+    `<div class="dmm-eq"><div class="et">2. 5V Rail &amp; GDSTIME Blower Current (I_fan, I_5V)</div>` +
+    `<div class="ef">I_fan = D &times; [5.00V / (14.286&Omega; + 0.028&Omega;)] = ${duty.toFixed(3)} &times; 349.3 mA<br>I_5V = I_MCU (45.0 mA) + I_fan (${(e.i_fan_a * 1000).toFixed(1)} mA)</div>` +
+    `<div class="ev">I_fan = ${(e.i_fan_a * 1000).toFixed(1)} mA &nbsp;|&nbsp; I_5V,total = ${(e.i_5v_total * 1000).toFixed(1)} mA (${f2(e.p_5v_w)} W)</div></div>` +
+    `<div class="dmm-eq"><div class="et">3. Pin 8 12V PTC Heater &amp; Primary 12V Bus Current</div>` +
+    `<div class="ef">I_htr = D_htr(${(htrDuty * 100).toFixed(0)}%) &times; (12.00V / 2.88&Omega;)<br>I_12V,bus = I_htr + [P_5V (${f2(e.p_5v_w)}W) / (12.00V &times; 0.88 buck)]</div>` +
+    `<div class="ev">I_heater = ${f2(e.i_heater_a)} A &nbsp;|&nbsp; I_12V,bus = ${f2(e.i_12v_bus_a)} A (${f2(e.p_bench_w)} W bench)</div></div>` +
+    `<div class="dmm-eq"><div class="et">4. Equivalent Dynamic Circuit Resistances (&Omega;)</div>` +
+    `<div class="ef">R_fan = 5.00V / I_fan &nbsp;&bull;&nbsp; R_5V = 5.00V / I_5V &nbsp;&bull;&nbsp; R_tot = 12.00V / I_12V,bus</div>` +
+    `<div class="ev">R_fan = ${rFanStr} &nbsp;|&nbsp; R_5V = ${f2(e.r_5v_rail_ohm)} &Omega; &nbsp;|&nbsp; R_tot(12V) = ${f2(e.r_total_circuit_ohm)} &Omega;</div></div>`;
+}
+function openDmmModal() {
+  const m = $('dmmModal');
+  if (!m) return;
+  renderDmmModal();
+  m.classList.add('open');
+}
+function closeDmmModal() {
+  const m = $('dmmModal');
+  if (m) m.classList.remove('open');
+}
+if ($('btnOpenDmmModal')) $('btnOpenDmmModal').addEventListener('click', openDmmModal);
+if ($('btnCloseDmmModal')) $('btnCloseDmmModal').addEventListener('click', closeDmmModal);
+if ($('dmmModal')) {
+  $('dmmModal').addEventListener('click', ev => { if (ev.target === $('dmmModal')) closeDmmModal(); });
+}
+window.addEventListener('keydown', ev => { if (ev.key === 'Escape') closeDmmModal(); });
+
 document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => {
   document.querySelectorAll('.tab').forEach(x => x.classList.remove('on'));
   b.classList.add('on'); view = b.dataset.v; buildChart(); updateCards();
+  if (view === 'multimeter' && !navigator.webdriver) openDmmModal();
 }));
 
 /* =====================================================================
@@ -1882,16 +2166,155 @@ window.runCommSpeedBenchmark = runCommSpeedBenchmark;
 window.getCommLog = () => S.commLog;
 window.getCommStats = () => S.commStats;
 
+function updateKillDrawerUI(stateText, cls) {
+  if ($('killStateBadge')) {
+    $('killStateBadge').textContent = stateText;
+    $('killStateBadge').className = 'badge' + (cls ? ' ' + cls : '');
+  }
+  if ($('btnMasterKill')) {
+    $('btnMasterKill').classList.toggle('latched', stateText === 'KILL LATCHED');
+  }
+}
+
+async function triggerMasterHardwareKill() {
+  S.modeOverride = 'OFF';
+  S.fanOverride = 0;
+  S.ctl.heat = 0;
+  S.ctl.comp = 0;
+  S.ctl.fanCmd = 0;
+  S.fanAct = 0;
+  S.rpm = 0;
+  S.ctl.mode = 'SYSTEM OFF';
+  if ($('sModeOvr')) $('sModeOvr').value = 'OFF';
+  if ($('sFanOvr')) $('sFanOvr').value = 0;
+  readSliders();
+  updateKillDrawerUI('KILL LATCHED', 'crit');
+  if (S.usbConnected) {
+    await sendUsbSerialCommand('KILL');
+    await sendUsbSerialCommand('HEAT OFF');
+    await sendUsbSerialCommand('FAN 0');
+  }
+  pushSimControlToRPi();
+  plant(0.05);
+  updateCards();
+  updatePanel();
+  log('crit', '[BENCH KILL] Emergency Hardware Cutoff engaged: Pin 8 PTC Relay -> LOW (0V), Pin 9 MOSFET Gate -> 0V (PWM 0).');
+  toast('crit', 'EMERGENCY HARDWARE CUTOFF', 'Master Kill Switch Latched (ALL OFF)', 'Pin 8 PTC Relay = LOW (0V) | Pin 9 Fan MOSFET = 0V (0% PWM)', 'Click "Restore Closed-Loop Auto PID" to resume');
+}
+
+async function benchSetFanSpeed(pct) {
+  if (S.modeOverride === 'OFF' && pct > 0) {
+    S.modeOverride = 'AUTO';
+    if ($('sModeOvr')) $('sModeOvr').value = 'AUTO';
+  }
+  S.fanOverride = clamp(pct, 0, 100);
+  if ($('sFanOvr')) $('sFanOvr').value = S.fanOverride;
+  readSliders();
+  updateKillDrawerUI(`FAN ${S.fanOverride}%`, S.fanOverride === 0 ? 'warn' : 'ok');
+  if (S.usbConnected) {
+    await sendUsbSerialCommand(`FAN ${S.fanOverride}`);
+  }
+  pushSimControlToRPi();
+  plant(0.05);
+  updateCards();
+  updatePanel();
+  log('sim', `[BENCH TEST] Direct Pin 9 MOSFET Fan override set to ${S.fanOverride}% (PWM ${Math.round(S.fanOverride * 255 / 100)}).`);
+}
+
+async function benchSetHeaterRelay(turnOn) {
+  S.modeOverride = turnOn ? 'HEAT' : 'AUTO';
+  if ($('sModeOvr')) $('sModeOvr').value = S.modeOverride;
+  S.ctl.heat = turnOn ? 100 : 0;
+  readSliders();
+  updateKillDrawerUI(turnOn ? 'PTC RELAY ON' : 'RELAY SAFE OFF', turnOn ? 'warn' : 'ok');
+  if (S.usbConnected) {
+    await sendUsbSerialCommand(turnOn ? 'HEAT ON' : 'HEAT OFF');
+  }
+  pushSimControlToRPi();
+  plant(0.05);
+  updateCards();
+  updatePanel();
+  log(turnOn ? 'warn' : 'ok', `[BENCH TEST] Direct Pin 8 12V PTC Heater Relay forced ${turnOn ? 'ON (HIGH)' : 'OFF (LOW)'}.`);
+}
+
+async function benchRestoreAutoPid() {
+  S.modeOverride = 'AUTO';
+  S.fanOverride = -1;
+  if ($('sModeOvr')) $('sModeOvr').value = 'AUTO';
+  if ($('sFanOvr')) $('sFanOvr').value = -1;
+  readSliders();
+  updateKillDrawerUI('STANDBY', '');
+  if (S.usbConnected) {
+    await sendUsbSerialCommand('AUTO');
+  }
+  pushSimControlToRPi();
+  controller(0.1, 0.1);
+  plant(0.1);
+  updateCards();
+  updatePanel();
+  log('ok', '[BENCH TEST] Restored closed-loop automatic PID regulation.');
+  toast('ok', 'AUTO PID RESTORED', 'Bench Overrides Cleared', 'Pin 9 Fan & Pin 8 PTC Relay returned to closed-loop BME280 PID control', '');
+}
+
+if ($('btnMasterKill')) $('btnMasterKill').addEventListener('click', triggerMasterHardwareKill);
+if ($('btnBenchFan0')) $('btnBenchFan0').addEventListener('click', () => benchSetFanSpeed(0));
+if ($('btnBenchFan50')) $('btnBenchFan50').addEventListener('click', () => benchSetFanSpeed(50));
+if ($('btnBenchFan100')) $('btnBenchFan100').addEventListener('click', () => benchSetFanSpeed(100));
+if ($('btnBenchHeatOff')) $('btnBenchHeatOff').addEventListener('click', () => benchSetHeaterRelay(false));
+if ($('btnBenchHeatOn')) $('btnBenchHeatOn').addEventListener('click', () => benchSetHeaterRelay(true));
+if ($('btnBenchAuto')) $('btnBenchAuto').addEventListener('click', benchRestoreAutoPid);
+
+function startWatchdogTripTest() {
+  S.wdt.tripped = false;
+  S.wdt.testBlocking = true;
+  S.wdt.elapsedS = 0;
+  delete S.diag['E-204'];
+  delete S.iotDispatched['E-204'];
+  log('warn', '[WATCHDOG TEST] Blocking 1 Hz serial heartbeat packets — counting up to 2.5s fail-safe cutoff...');
+  toast('warn', 'WATCHDOG TEST STARTED', 'Simulating Lost Arduino Heartbeat', 'Blocking 1 Hz packets... E-204 fail-safe trips at 2.5s', '');
+  updatePanel();
+}
+
+function resetSerialWatchdog() {
+  const wasActive = S.wdt.tripped || S.wdt.testBlocking;
+  S.wdt.tripped = false;
+  S.wdt.testBlocking = false;
+  S.wdt.elapsedS = 0;
+  delete S.diag['E-204'];
+  delete S.iotDispatched['E-204'];
+  if (S.modeOverride === 'OFF') {
+    S.modeOverride = 'AUTO';
+    S.fanOverride = -1;
+    if ($('sModeOvr')) $('sModeOvr').value = 'AUTO';
+    if ($('sFanOvr')) $('sFanOvr').value = -1;
+    readSliders();
+    updateKillDrawerUI('STANDBY', '');
+    if (S.usbConnected) sendUsbSerialCommand('AUTO');
+    pushSimControlToRPi();
+  }
+  if (wasActive) {
+    log('ok', '[WATCHDOG] Serial comms watchdog reset. Closed-loop AUTO PID control resumed.');
+    toast('ok', 'WATCHDOG RESET', 'Heartbeat Supervision Armed', 'E-204 cleared — Pin 8 & Pin 9 returned to AUTO PID', '');
+  }
+  updateCards();
+  updatePanel();
+}
+
+if ($('btnTestWdt')) $('btnTestWdt').addEventListener('click', startWatchdogTripTest);
+if ($('btnResetWdt')) $('btnResetWdt').addEventListener('click', resetSerialWatchdog);
+
 $('clearAll').addEventListener('click', () => {
   Object.keys(S.inj).forEach(k => { if (S.inj[k]) setFault(k, false); });
-  S.setpoint = 23; S.ToutSet = 28; S.demandLimit = 1000; S.fanOverride = -1; S.modeOverride = 'AUTO';
+  S.setpoint = 23; S.ToutSet = 28; S.demandLimit = 1500; S.fanOverride = -1; S.modeOverride = 'AUTO';
   S.T = 23.5; S.RH = 48; S.VOC = 140; S.CO2 = 700; S.PM = 3; S.PMout = 8;
   S.filterH = 0.96; S.vel = 2.4; S.dP = 10;
   S.ctl.I = 0; S.ctl.P = 0; S.ctl.comp = 0; S.ctl.heat = 0; S.ctl.fanCmd = 22; S.ctl.damper = 0;
   S.fanAct = 22; S.damperAct = 0; S.rpm = 616; S.ctl.mode = 'IDLE';
   S.mcu.a = 'RUN'; S.mcu.b = 'STANDBY'; S.mcu.active = 'A';
+  S.wdt.tripped = false; S.wdt.testBlocking = false; S.wdt.elapsedS = 0.2;
+  updateKillDrawerUI('STANDBY', '');
   S.diag = {};
-  $('sSp').value = 73; $('sOut').value = 82; $('sLim').value = 1000;
+  $('sSp').value = 73; $('sOut').value = 82; $('sLim').value = 1500;
   if ($('sFanOvr')) $('sFanOvr').value = -1;
   if ($('sModeOvr')) $('sModeOvr').value = 'AUTO';
   readSliders();
@@ -1959,9 +2382,13 @@ function updateCards() {
     h += card('PREDICTED PEAK', f0(F.peakW), 'W', `AT ${F.peakT}${F.peakW > S.demandLimit ? ' - OVER LIMIT' : ''}`, F.peakW > S.demandLimit ? 'warn' : '');
     h += card('AVG OUTDOOR (FCST)', f1(F.avgTo), 'C', S.inj.heatwave ? 'HEATWAVE ACTIVE' : 'PEAK AT 15:00');
   } else if (view === 'thermal') {
-    h += card('ROOM (CONTROL)', fF(c.Tctl), 'F', `SENSOR IN USE: ${c.sensorAOk ? 'TS-A' : 'TS-B (TS-A VOTED OUT)'}`, d['E-202'] ? 'warn' : '');
+    const isLiveUsb = S.usbConnected && S.bme.hasLive;
+    const sensLabel = isLiveUsb
+      ? `LIVE A4/A5 BME280 (${S.T.toFixed(2)}°C | 0x${S.bme.adcRaw20b.toString(16).toUpperCase()})`
+      : `SENSOR: ${c.sensorAOk ? 'TS-A (BME280 A4/A5)' : 'TS-B (TS-A VOTED OUT)'}`;
+    h += card('ROOM (A4/A5 BME280)', fF(c.Tctl), 'F', sensLabel, d['E-202'] ? 'warn' : isLiveUsb ? 'ok' : '');
     h += card('EFFECTIVE SETPOINT', fF(c.sp), 'F', `ERROR ${fD(c.Tctl - c.sp)} F | PID ${f0(c.u)}%`);
-    h += card('FEELS LIKE', fF(c.AT), 'F', `STEADMAN | RH ${f0(S.RH)}%`, c.heatEmerg ? 'crit' : '');
+    h += card('FEELS LIKE', fF(c.AT), 'F', `STEADMAN | RH ${f1(S.RH)}%`, c.heatEmerg ? 'crit' : '');
     h += card('OUTDOOR', fF(S.Tout), 'F', S.inj.window ? 'WINDOW OPEN' : 'ENVELOPE SEALED');
   } else if (view === 'airflow') {
     h += card('FS3000 VELOCITY', f2(S.vel), 'm/s', `${f0(c.ratio * 100)}% OF EXPECTED`, c.blowerFault ? 'crit' : c.clogLevel ? 'warn' : '');
@@ -1975,6 +2402,35 @@ function updateCards() {
     h += card('OA DAMPER', f0(S.damperAct), '%', c.smokeLock ? 'LOCKED CLOSED (SMOKE)' : c.purge ? 'PURGE OPEN' : 'MINIMUM', c.smokeLock ? 'crit' : '');
   }
   $('cards').innerHTML = h;
+  if ($('dmmHelpStrip')) {
+    $('dmmHelpStrip').classList.toggle('on', view === 'multimeter');
+  }
+  if (view === 'multimeter') {
+    $('cards').querySelectorAll('.card').forEach(el => {
+      el.style.cursor = 'pointer';
+      el.title = 'Click to inspect live multimeter equations & lab probe guide';
+      el.onclick = openDmmModal;
+    });
+  }
+  if ($('dmmModal') && $('dmmModal').classList.contains('open')) {
+    renderDmmModal();
+  }
+  if ($('bmeAdcBar')) {
+    const live = S.usbConnected && S.bme.hasLive;
+    $('bmeAdcBar').className = 'adc-bar' + (live ? ' live' : '');
+    if ($('bmeSrcTag')) {
+      $('bmeSrcTag').textContent = live ? '🟢 LIVE ARDUINO BME280 (PINS A4 SDA / A5 SCL):' : 'BME280 (PINS A4 SDA / A5 SCL) SIGNAL PIPELINE:';
+      $('bmeSrcTag').style.color = live ? 'var(--green)' : 'var(--cyan)';
+    }
+    if ($('bmeAdcFlow')) {
+      const hexAdc = '0x' + S.bme.adcRaw20b.toString(16).toUpperCase().padStart(5, '0');
+      $('bmeAdcFlow').innerHTML =
+        `Analog Sense <b class="stage">${S.bme.vSenseMv.toFixed(1)} mV</b><span class="arr">&rarr;</span>` +
+        `20-bit &Sigma;&Delta; ADC <b class="stage">${hexAdc} (${S.bme.adcRaw20b})</b><span class="arr">&rarr;</span>` +
+        `I2C <b class="stage">0x76 (A4/A5)</b><span class="arr">&rarr;</span>` +
+        `Digital <b class="grn">${fF(c.Tctl)}&deg;F (${c.Tctl.toFixed(2)}&deg;C) | ${f1(S.RH)}% RH</b>`;
+    }
+  }
 }
 function bar(label, pct, val, color) {
   return `<div class="bar"><span>${label}</span><div class="tr"><div class="fl" style="width:${clamp(pct, 0, 100)}%;background:${color}"></div></div><span class="vv">${val}</span></div>`;
@@ -1990,6 +2446,35 @@ function updatePanel() {
   $('mBs').className = 'st ' + (m.b === 'ACTIVE' ? 'grn' : 'amb');
   $('mB').className = 'mbox ' + (m.b === 'ACTIVE' ? 'ok' : 'stby');
   $('mBh').textContent = m.b === 'ACTIVE' ? `Took over in ${m.failMs} ms` : !alive ? 'Watchdog counting...' : 'Mirroring PID state';
+  if ($('wdtPanel')) {
+    const w = S.wdt;
+    const pct = clamp((w.elapsedS / w.timeoutS) * 100, 0, 100);
+    const isWarn = !w.tripped && (w.testBlocking || w.elapsedS > 1.3);
+    $('wdtPanel').className = 'wdt-box' + (w.tripped ? ' trip' : isWarn ? ' warn' : '');
+    if ($('wdtBadge')) {
+      $('wdtBadge').textContent = w.tripped
+        ? `TRIPPED (${w.elapsedS.toFixed(1)}s)`
+        : w.testBlocking
+          ? `BLOCKING HB (${w.elapsedS.toFixed(1)}s / 2.5s)`
+          : S.usbConnected
+            ? `USB HB #${w.lastHbSeq} (${w.elapsedS.toFixed(1)}s)`
+            : `SIM HB #${w.lastHbSeq} (${w.elapsedS.toFixed(1)}s)`;
+      $('wdtBadge').className = 'badge ' + (w.tripped ? 'crit' : isWarn ? 'warn' : 'ok');
+    }
+    if ($('wdtBar')) {
+      $('wdtBar').style.width = `${pct.toFixed(1)}%`;
+      $('wdtBar').style.background = w.tripped ? 'var(--red)' : isWarn ? 'var(--amber)' : 'var(--green)';
+    }
+    if ($('wdtDetail')) {
+      $('wdtDetail').innerHTML = w.tripped
+        ? `<span class="red"><b>ALARM E-204:</b> Heartbeat lost &gt;2.5s! Pin 8 PTC Relay &amp; Pin 9 Fan latched OFF (0V). Click RESET to clear.</span>`
+        : w.testBlocking
+          ? `<span class="amb">Simulating frozen/unplugged USB serial cable... tripping fail-safe at 2.5s</span>`
+          : S.usbConnected
+            ? `<span class="grn">Live TinyUSB (COM7) 1 Hz heartbeat active (seq #${w.lastHbSeq}) &bull; Hardware fail-safe armed</span>`
+            : `<span>Standalone sim heartbeat (1 Hz) &bull; Connect USB Arduino (COM7) for live serial watchdog</span>`;
+    }
+  }
   // header
   const setDot = (id, col) => { $(id).style.background = col; $(id).style.color = col; };
   setDot('hA', m.a === 'RUN' ? '#10b981' : m.a === 'SYNC' ? '#f59e0b' : '#ef4444'); $('hAt').textContent = m.a;
@@ -2006,7 +2491,7 @@ function updatePanel() {
   $('clock').textContent = clockStr(S.t);
   // mode
   const mode = alive ? c.mode : 'FAILOVER HOLD';
-  const modeCls = /INTERLOCK|EMERGENCY|SMOKE|FAILOVER/.test(mode) ? ' crit' : /FORCE|ECO|OFF|PAUSE|PURGE/.test(mode) ? ' warn' : '';
+  const modeCls = /INTERLOCK|EMERGENCY|SMOKE|FAILOVER|WATCHDOG/.test(mode) ? ' crit' : /FORCE|ECO|OFF|PAUSE|PURGE/.test(mode) ? ' warn' : '';
   $('modeBadge').textContent = mode; $('modeBadge').className = 'badge' + modeCls;
   // bars
   $('bars').innerHTML =
@@ -2053,6 +2538,7 @@ function tick() {
   const dtR = 0.2, dtS = S.speed * dtR;
   S.t += dtS;
   mcuStep(dtR);
+  serialWatchdogStep(dtR);
   sensors();
   const alive = controllerAlive();
   if (alive) controller(dtS, dtR); else { S.ctl.heat = 0; S.ctl.mode = 'FAILOVER HOLD'; }
@@ -2429,6 +2915,9 @@ syncRPiTelemetry();
 buildChart(); updateCards(); updatePanel();
 setInterval(tick, 200);
 requestAnimationFrame(render);
+if ('serviceWorker' in navigator && !navigator.webdriver) {
+  navigator.serviceWorker.register('sw.js').then(r => r.update()).catch(() => {});
+}
 </script>
 </body>
 </html>
