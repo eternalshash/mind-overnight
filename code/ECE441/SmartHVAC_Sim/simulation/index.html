@@ -141,6 +141,23 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px}
 #log div{color:#7dd3fc;word-break:break-word}
 #log .warn{color:#fcd34d} #log .crit{color:#f87171} #log .ok{color:#6ee7b7} #log .sim{color:#c4b5fd}
 .red{color:var(--red)} .amb{color:var(--amber)} .grn{color:var(--green)} .cy{color:var(--accent)}
+.dmm-strip{display:none;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;padding:4px 8px;background:rgba(56,189,248,.09);border:1px solid var(--cyan);font-size:9.5px;color:#dbe7f5}
+.dmm-strip.on{display:flex}
+.dmm-modal-bg{display:none;position:fixed;inset:0;z-index:999;background:rgba(3,9,20,.82);backdrop-filter:blur(3px);align-items:center;justify-content:center;padding:16px}
+.dmm-modal-bg.open{display:flex}
+.dmm-modal{width:min(880px,96vw);max-height:90vh;overflow-y:auto;background:#07152b;border:1.5px solid var(--cyan);box-shadow:0 16px 48px rgba(0,0,0,.75);padding:12px 14px;color:var(--text)}
+.dmm-head{display:flex;justify-content:space-between;align-items:center;gap:10px;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:10px}
+.dmm-head h2{font-size:12px;letter-spacing:1.2px;color:#fff;margin:0}
+.dmm-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+@media(max-width:760px){.dmm-grid{grid-template-columns:1fr}}
+.dmm-eq{background:#050d1a;border:1px solid var(--border);border-left:3px solid var(--cyan);padding:7px 9px;font-size:9.5px;line-height:1.5}
+.dmm-eq .et{font-size:9px;color:var(--muted);letter-spacing:.7px;text-transform:uppercase;margin-bottom:2px}
+.dmm-eq .ef{color:#93c5fd;font-size:9.5px}
+.dmm-eq .ev{color:#6ee7b7;font-weight:bold;font-size:10.5px;margin-top:2px}
+.dmm-tbl{width:100%;border-collapse:collapse;font-size:9.5px;background:#050d1a;border:1px solid var(--border)}
+.dmm-tbl th,.dmm-tbl td{border:1px solid var(--border);padding:6px 7px;text-align:left;vertical-align:top;line-height:1.4}
+.dmm-tbl th{background:#0c2141;color:var(--accent);font-size:9px;letter-spacing:.6px;text-transform:uppercase}
+.dmm-tbl code{color:#fcd34d;background:rgba(245,158,11,.1);padding:1px 4px}
 </style>
 </head>
 <body>
@@ -180,6 +197,10 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px}
         </div>
       </div>
       <div class="cards" id="cards"></div>
+      <div class="dmm-strip" id="dmmHelpStrip">
+        <span><b>DIGITAL TWIN vs. LAB BENCH DMM:</b> Live Ohm's Law &amp; MOSFET switching derivations (Pin 9 IRLZ44N + Pin 8 PTC Relay)</span>
+        <button class="btn" id="btnOpenDmmModal" style="width:auto;margin:0;padding:3px 9px;border-color:var(--cyan);color:var(--accent);font-weight:bold;font-size:9.5px">&#128208; EQUATIONS &amp; LAB PROBE GUIDE</button>
+      </div>
       <div class="adc-bar" id="bmeAdcBar">
         <span><b id="bmeSrcTag" style="color:var(--cyan)">BME280 (A4 SDA / A5 SCL): SIMULATED</b></span>
         <span id="bmeAdcFlow">Analog Bridge <b class="stage">1666 mV</b><span class="arr">&rarr;</span>20-bit &Sigma;&Delta; ADC <b class="stage">0x81333</b><span class="arr">&rarr;</span>I2C <b class="stage">0x76 (A4/A5)</b><span class="arr">&rarr;</span>Digital <b class="grn">75.2&deg;F (24.00&deg;C)</b></span>
@@ -313,6 +334,59 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px}
     </div>
   </section>
 </main>
+
+<div class="dmm-modal-bg" id="dmmModal" role="dialog" aria-modal="true" aria-labelledby="dmmModalTitle">
+  <div class="dmm-modal">
+    <div class="dmm-head">
+      <div>
+        <span class="badge" style="margin-right:6px">ECE 441 BENCH INSTRUMENTATION</span>
+        <h2 id="dmmModalTitle" style="display:inline">DIGITAL MULTIMETER (V / I / &Omega;) — LIVE EQUATIONS &amp; LAB BENCH PROBE GUIDE</h2>
+      </div>
+      <button class="btn" id="btnCloseDmmModal" style="width:auto;margin:0;padding:4px 10px;border-color:var(--red);color:#fca5a5;font-weight:bold">&#10005; CLOSE (VIEW GRAPH)</button>
+    </div>
+    <div style="font-size:9.5px;color:var(--muted);margin-bottom:8px">
+      Live values below update every 200 ms from the active circuit state (<b class="cy">Arduino Uno R4 + Pin 9 IRLZ44N N-MOSFET + 5V GDSTIME Blower + Pin 8 12V 50W PTC Relay + LM2596 Buck</b>):
+    </div>
+    <div class="dmm-grid" id="dmmLiveEqGrid"></div>
+    <div class="grp-h" style="margin:8px 0 5px;color:var(--accent)">SIMULATED MULTIMETER vs. PHYSICAL HANDHELD LAB MULTIMETER (WHERE TO PROBE ON BREADBOARD)</div>
+    <table class="dmm-tbl">
+      <thead>
+        <tr>
+          <th style="width:17%">Quantity</th>
+          <th style="width:28%">Physical Breadboard Probe Placement</th>
+          <th style="width:27%">Digital Twin Calculation</th>
+          <th style="width:28%">Real Lab Handheld DMM Behavior</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>Pin 9 Gate Drive (<code>V_GS</code>)</b></td>
+          <td><b>Black (<code>COM</code>):</b> Common Arduino <code>GND</code><br><b>Red (<code>V&Omega;mA</code>):</b> Arduino <code>Pin 9</code> / IRLZ44N <b>Gate</b> (left leg)</td>
+          <td>Computes exact PWM duty-averaged DC voltage: <code>5.00V &times; (PWM / 255)</code>.</td>
+          <td>DC-V mode low-pass averages the 490 Hz PWM square wave to match <code>5.0V &times; D</code>; an oscilloscope shows pulses toggling <code>0V &harr; 5.0V</code>.</td>
+        </tr>
+        <tr>
+          <td><b>Effective Fan Voltage (<code>V_fan</code>)</b></td>
+          <td><b>Red (<code>V&Omega;mA</code>):</b> <code>+5V</code> Fan Rail<br><b>Black (<code>COM</code>):</b> IRLZ44N <b>Drain</b> (center leg / Fan <code>-</code> wire)</td>
+          <td>Subtracts MOSFET conduction drop: <code>D &times; (5.00V &minus; I_peak &times; 0.028&Omega;)</code>.</td>
+          <td><b>Lab Gotcha:</b> Because IRLZ44N is a <i>low-side switch</i> on GND, probing Drain-to-GND at 0% PWM reads <code>5.0V</code>! Always probe <b>across the fan leads</b> (<code>+5V</code> to <code>Drain</code>).</td>
+        </tr>
+        <tr>
+          <td><b>Branch Currents (<code>I_fan</code>, <code>I_12V</code>)</b></td>
+          <td><b>Series Break Only:</b> Open <code>+5V</code> fan lead (or <code>+12V</code> supply lead) and bridge gap in series using <code>mA</code> / <code>10A</code> fused jack.</td>
+          <td>Models steady-state coil load (<code>14.29&Omega;</code> fan = <code>349mA</code> max; <code>2.88&Omega;</code> PTC = <code>4.17A</code>) + LM2596 buck efficiency (<code>&eta;=88%</code>).</td>
+          <td><b>Never probe Amps in parallel!</b> Cold 12V PTC ceramic exhibits a brief <code>~5A</code> inrush spike before self-limiting to <code>~4.1A</code> at 70&deg;C equilibrium.</td>
+        </tr>
+        <tr>
+          <td><b>Circuit Resistance (<code>R_5V</code>, <code>R_tot</code>)</b></td>
+          <td><b>Unpowered Static Test:</b> Disconnect 12V barrel &amp; USB power first, then probe across Fan leads or PTC leads in <code>&Omega;</code> mode.</td>
+          <td>Displays live <i>dynamic operating impedance</i> <code>R_eq = V_rail / I_branch</code> while energized.</td>
+          <td><b>Safety Rule:</b> Never put a physical DMM in <code>&Omega;</code> mode on a live powered 12V/5V rail (reads <code>OL</code> or blows meter fuse). Measure <code>V</code> and <code>I</code> live, or power OFF first!</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
 
 <script>
 /* =====================================================================
@@ -1735,9 +1809,48 @@ function buildChart() {
     plugins: { legend: { labels: { color: '#dbe7f5', font: { family: MONO, size: 9 }, boxWidth: 10, boxHeight: 8 } },
                tooltip: { backgroundColor: 'rgba(7,21,43,.95)', borderColor: '#1f3d6b', borderWidth: 1, titleFont: { family: MONO }, bodyFont: { family: MONO, size: 10 } } } } });
 }
+function renderDmmModal() {
+  const grid = $('dmmLiveEqGrid');
+  if (!grid) return;
+  const e = S.elec, c = S.ctl;
+  const duty = clamp(e.fan_pwm / 255, 0, 1);
+  const htrDuty = clamp(c.heat / 100, 0, 1);
+  const rFanStr = e.r_fan_ohm < 0 ? 'OPEN (\u221e \u03a9)' : `${f2(e.r_fan_ohm)} \u03a9`;
+  grid.innerHTML =
+    `<div class="dmm-eq"><div class="et">1. Pin 9 PWM Duty &amp; MOSFET Gate Voltage (V_GS)</div>` +
+    `<div class="ef">D = PWM / 255 = ${e.fan_pwm} / 255 = <b>${(duty * 100).toFixed(1)}%</b><br>V_GS = 5.00V &times; D = 5.00V &times; ${duty.toFixed(3)}</div>` +
+    `<div class="ev">V_GS = ${f2(e.v_mosfet_gs)} V &nbsp;|&nbsp; V_fan,eff = ${f2(e.v_fan_eff)} V (R_DS(on) = 0.028 &Omega;)</div></div>` +
+    `<div class="dmm-eq"><div class="et">2. 5V Rail &amp; GDSTIME Blower Current (I_fan, I_5V)</div>` +
+    `<div class="ef">I_fan = D &times; [5.00V / (14.286&Omega; + 0.028&Omega;)] = ${duty.toFixed(3)} &times; 349.3 mA<br>I_5V = I_MCU (45.0 mA) + I_fan (${(e.i_fan_a * 1000).toFixed(1)} mA)</div>` +
+    `<div class="ev">I_fan = ${(e.i_fan_a * 1000).toFixed(1)} mA &nbsp;|&nbsp; I_5V,total = ${(e.i_5v_total * 1000).toFixed(1)} mA (${f2(e.p_5v_w)} W)</div></div>` +
+    `<div class="dmm-eq"><div class="et">3. Pin 8 12V PTC Heater &amp; Primary 12V Bus Current</div>` +
+    `<div class="ef">I_htr = D_htr(${(htrDuty * 100).toFixed(0)}%) &times; (12.00V / 2.88&Omega;)<br>I_12V,bus = I_htr + [P_5V (${f2(e.p_5v_w)}W) / (12.00V &times; 0.88 buck)]</div>` +
+    `<div class="ev">I_heater = ${f2(e.i_heater_a)} A &nbsp;|&nbsp; I_12V,bus = ${f2(e.i_12v_bus_a)} A (${f2(e.p_bench_w)} W bench)</div></div>` +
+    `<div class="dmm-eq"><div class="et">4. Equivalent Dynamic Circuit Resistances (&Omega;)</div>` +
+    `<div class="ef">R_fan = 5.00V / I_fan &nbsp;&bull;&nbsp; R_5V = 5.00V / I_5V &nbsp;&bull;&nbsp; R_tot = 12.00V / I_12V,bus</div>` +
+    `<div class="ev">R_fan = ${rFanStr} &nbsp;|&nbsp; R_5V = ${f2(e.r_5v_rail_ohm)} &Omega; &nbsp;|&nbsp; R_tot(12V) = ${f2(e.r_total_circuit_ohm)} &Omega;</div></div>`;
+}
+function openDmmModal() {
+  const m = $('dmmModal');
+  if (!m) return;
+  renderDmmModal();
+  m.classList.add('open');
+}
+function closeDmmModal() {
+  const m = $('dmmModal');
+  if (m) m.classList.remove('open');
+}
+if ($('btnOpenDmmModal')) $('btnOpenDmmModal').addEventListener('click', openDmmModal);
+if ($('btnCloseDmmModal')) $('btnCloseDmmModal').addEventListener('click', closeDmmModal);
+if ($('dmmModal')) {
+  $('dmmModal').addEventListener('click', ev => { if (ev.target === $('dmmModal')) closeDmmModal(); });
+}
+window.addEventListener('keydown', ev => { if (ev.key === 'Escape') closeDmmModal(); });
+
 document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => {
   document.querySelectorAll('.tab').forEach(x => x.classList.remove('on'));
   b.classList.add('on'); view = b.dataset.v; buildChart(); updateCards();
+  if (view === 'multimeter' && !navigator.webdriver) openDmmModal();
 }));
 
 /* =====================================================================
@@ -2282,6 +2395,19 @@ function updateCards() {
     h += card('OA DAMPER', f0(S.damperAct), '%', c.smokeLock ? 'LOCKED CLOSED (SMOKE)' : c.purge ? 'PURGE OPEN' : 'MINIMUM', c.smokeLock ? 'crit' : '');
   }
   $('cards').innerHTML = h;
+  if ($('dmmHelpStrip')) {
+    $('dmmHelpStrip').classList.toggle('on', view === 'multimeter');
+  }
+  if (view === 'multimeter') {
+    $('cards').querySelectorAll('.card').forEach(el => {
+      el.style.cursor = 'pointer';
+      el.title = 'Click to inspect live multimeter equations & lab probe guide';
+      el.onclick = openDmmModal;
+    });
+  }
+  if ($('dmmModal') && $('dmmModal').classList.contains('open')) {
+    renderDmmModal();
+  }
   if ($('bmeAdcBar')) {
     const live = S.usbConnected && S.bme.hasLive;
     $('bmeAdcBar').className = 'adc-bar' + (live ? ' live' : '');
