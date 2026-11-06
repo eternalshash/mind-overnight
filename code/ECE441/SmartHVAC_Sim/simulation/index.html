@@ -64,6 +64,17 @@ main{flex:1;display:flex;min-height:0}
 .adc-bar{display:flex;justify-content:space-between;align-items:center;gap:8px;background:#071529;border:1px solid var(--border);border-left:3px solid var(--cyan);padding:4px 8px;margin-bottom:6px;font-size:9.5px;color:var(--muted);flex-wrap:wrap}
 .adc-bar.live{border-left-color:var(--green);background:rgba(16,185,129,.07)}
 .adc-bar .stage{color:var(--text)} .adc-bar .arr{color:var(--cyan);margin:0 3px}
+.bench-drawer{margin-top:8px;border:1px solid var(--border);background:#07152a}
+.bench-drawer summary{cursor:pointer;padding:6px 8px;font-size:9.5px;letter-spacing:.8px;color:var(--amber);display:flex;justify-content:space-between;align-items:center;user-select:none;list-style:none}
+.bench-drawer summary::-webkit-details-marker{display:none}
+.bench-drawer summary:hover{background:rgba(245,158,11,.08);color:#fff}
+.bench-drawer[open]{border-color:var(--amber)}
+.bench-body{padding:8px;border-top:1px solid var(--border);background:#061224}
+.kill-btn{width:100%;background:rgba(239,68,68,.16);border:1px solid var(--red);color:#fca5a5;font-family:var(--mono);font-size:10.5px;font-weight:bold;padding:7px 8px;cursor:pointer;letter-spacing:1px}
+.kill-btn:hover{background:var(--red);color:#fff}
+.kill-btn.latched{background:var(--red);color:#fff;box-shadow:0 0 12px rgba(239,68,68,.45)}
+.bench-row{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:6px}
+.bench-row2{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:5px}
 .chartbox{position:relative;height:198px;background:#081629;border:1px solid var(--border);padding:6px}
 #bottom{flex:1;display:grid;grid-template-columns:1fr 1fr;min-height:0}
 .col{padding:10px 12px;overflow-y:auto;min-height:0}
@@ -187,6 +198,27 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px}
         <div class="sl"><div class="h"><span>OUTDOOR TEMPERATURE</span><b id="lOut">82.4 F</b></div><input type="range" id="sOut" min="23" max="108" step="1" value="82"></div>
         <div class="sl"><div class="h"><span>DEMAND LIMIT (LOAD SHEDDING)</span><b id="lLim">1500 W</b></div><input type="range" id="sLim" min="500" max="3500" step="50" value="1500"></div>
         <div class="sl"><div class="h"><span>SIMULATION SPEED</span><b id="lSpd">x40</b></div><input type="range" id="sSpd" min="5" max="120" step="5" value="40"></div>
+        <details class="bench-drawer" id="benchDrawer">
+          <summary>
+            <span>&#9656; EMERGENCY HARDWARE CUTOFF / BENCH TEST DRAWER</span>
+            <span id="killStateBadge" class="badge">STANDBY</span>
+          </summary>
+          <div class="bench-body">
+            <button class="kill-btn" id="btnMasterKill">&#128721; MASTER HARDWARE KILL (ALL OFF: PIN 8 LOW &amp; PIN 9 0V)</button>
+            <div style="font-size:8.5px;color:var(--muted);margin-top:6px;letter-spacing:.5px">DIRECT PIN 9 MOSFET FAN BENCH TEST:</div>
+            <div class="bench-row">
+              <button class="btn" id="btnBenchFan0" style="margin:0;padding:5px 4px;font-size:9px;border-color:var(--red);color:#fca5a5">FAN OFF (0%)</button>
+              <button class="btn" id="btnBenchFan50" style="margin:0;padding:5px 4px;font-size:9px">FAN 50% (128)</button>
+              <button class="btn" id="btnBenchFan100" style="margin:0;padding:5px 4px;font-size:9px;border-color:var(--cyan);color:var(--accent)">FAN 100% (255)</button>
+            </div>
+            <div style="font-size:8.5px;color:var(--muted);margin-top:6px;letter-spacing:.5px">DIRECT PIN 8 12V PTC HEATER RELAY TEST:</div>
+            <div class="bench-row2">
+              <button class="btn" id="btnBenchHeatOff" style="margin:0;padding:5px 4px;font-size:9px;border-color:var(--green);color:#6ee7b7">RELAY OFF (0V SAFE)</button>
+              <button class="btn" id="btnBenchHeatOn" style="margin:0;padding:5px 4px;font-size:9px;border-color:var(--amber);color:#fcd34d">RELAY ON (12V PTC)</button>
+            </div>
+            <button class="btn" id="btnBenchAuto" style="margin-top:6px;border-color:var(--green);color:var(--green);font-size:9.5px">&#8634; RESTORE CLOSED-LOOP AUTO PID</button>
+          </div>
+        </details>
         <div class="grp-h" style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">
           <span>IOT SMS / EMAIL ALERT GATEWAY</span>
           <div style="display:flex;gap:4px;align-items:center">
@@ -1915,6 +1947,104 @@ window.exportCommCSV = exportCommCSV;
 window.runCommSpeedBenchmark = runCommSpeedBenchmark;
 window.getCommLog = () => S.commLog;
 window.getCommStats = () => S.commStats;
+
+function updateKillDrawerUI(stateText, cls) {
+  if ($('killStateBadge')) {
+    $('killStateBadge').textContent = stateText;
+    $('killStateBadge').className = 'badge' + (cls ? ' ' + cls : '');
+  }
+  if ($('btnMasterKill')) {
+    $('btnMasterKill').classList.toggle('latched', stateText === 'KILL LATCHED');
+  }
+}
+
+async function triggerMasterHardwareKill() {
+  S.modeOverride = 'OFF';
+  S.fanOverride = 0;
+  S.ctl.heat = 0;
+  S.ctl.comp = 0;
+  S.ctl.fanCmd = 0;
+  S.fanAct = 0;
+  S.rpm = 0;
+  S.ctl.mode = 'SYSTEM OFF';
+  if ($('sModeOvr')) $('sModeOvr').value = 'OFF';
+  if ($('sFanOvr')) $('sFanOvr').value = 0;
+  readSliders();
+  updateKillDrawerUI('KILL LATCHED', 'crit');
+  if (S.usbConnected) {
+    await sendUsbSerialCommand('KILL');
+    await sendUsbSerialCommand('HEAT OFF');
+    await sendUsbSerialCommand('FAN 0');
+  }
+  pushSimControlToRPi();
+  plant(0.05);
+  updateCards();
+  updatePanel();
+  log('crit', '[BENCH KILL] Emergency Hardware Cutoff engaged: Pin 8 PTC Relay -> LOW (0V), Pin 9 MOSFET Gate -> 0V (PWM 0).');
+  toast('crit', 'EMERGENCY HARDWARE CUTOFF', 'Master Kill Switch Latched (ALL OFF)', 'Pin 8 PTC Relay = LOW (0V) | Pin 9 Fan MOSFET = 0V (0% PWM)', 'Click "Restore Closed-Loop Auto PID" to resume');
+}
+
+async function benchSetFanSpeed(pct) {
+  if (S.modeOverride === 'OFF' && pct > 0) {
+    S.modeOverride = 'AUTO';
+    if ($('sModeOvr')) $('sModeOvr').value = 'AUTO';
+  }
+  S.fanOverride = clamp(pct, 0, 100);
+  if ($('sFanOvr')) $('sFanOvr').value = S.fanOverride;
+  readSliders();
+  updateKillDrawerUI(`FAN ${S.fanOverride}%`, S.fanOverride === 0 ? 'warn' : 'ok');
+  if (S.usbConnected) {
+    await sendUsbSerialCommand(`FAN ${S.fanOverride}`);
+  }
+  pushSimControlToRPi();
+  plant(0.05);
+  updateCards();
+  updatePanel();
+  log('sim', `[BENCH TEST] Direct Pin 9 MOSFET Fan override set to ${S.fanOverride}% (PWM ${Math.round(S.fanOverride * 255 / 100)}).`);
+}
+
+async function benchSetHeaterRelay(turnOn) {
+  S.modeOverride = turnOn ? 'HEAT' : 'AUTO';
+  if ($('sModeOvr')) $('sModeOvr').value = S.modeOverride;
+  S.ctl.heat = turnOn ? 100 : 0;
+  readSliders();
+  updateKillDrawerUI(turnOn ? 'PTC RELAY ON' : 'RELAY SAFE OFF', turnOn ? 'warn' : 'ok');
+  if (S.usbConnected) {
+    await sendUsbSerialCommand(turnOn ? 'HEAT ON' : 'HEAT OFF');
+  }
+  pushSimControlToRPi();
+  plant(0.05);
+  updateCards();
+  updatePanel();
+  log(turnOn ? 'warn' : 'ok', `[BENCH TEST] Direct Pin 8 12V PTC Heater Relay forced ${turnOn ? 'ON (HIGH)' : 'OFF (LOW)'}.`);
+}
+
+async function benchRestoreAutoPid() {
+  S.modeOverride = 'AUTO';
+  S.fanOverride = -1;
+  if ($('sModeOvr')) $('sModeOvr').value = 'AUTO';
+  if ($('sFanOvr')) $('sFanOvr').value = -1;
+  readSliders();
+  updateKillDrawerUI('STANDBY', '');
+  if (S.usbConnected) {
+    await sendUsbSerialCommand('AUTO');
+  }
+  pushSimControlToRPi();
+  controller(0.1, 0.1);
+  plant(0.1);
+  updateCards();
+  updatePanel();
+  log('ok', '[BENCH TEST] Restored closed-loop automatic PID regulation.');
+  toast('ok', 'AUTO PID RESTORED', 'Bench Overrides Cleared', 'Pin 9 Fan & Pin 8 PTC Relay returned to closed-loop BME280 PID control', '');
+}
+
+if ($('btnMasterKill')) $('btnMasterKill').addEventListener('click', triggerMasterHardwareKill);
+if ($('btnBenchFan0')) $('btnBenchFan0').addEventListener('click', () => benchSetFanSpeed(0));
+if ($('btnBenchFan50')) $('btnBenchFan50').addEventListener('click', () => benchSetFanSpeed(50));
+if ($('btnBenchFan100')) $('btnBenchFan100').addEventListener('click', () => benchSetFanSpeed(100));
+if ($('btnBenchHeatOff')) $('btnBenchHeatOff').addEventListener('click', () => benchSetHeaterRelay(false));
+if ($('btnBenchHeatOn')) $('btnBenchHeatOn').addEventListener('click', () => benchSetHeaterRelay(true));
+if ($('btnBenchAuto')) $('btnBenchAuto').addEventListener('click', benchRestoreAutoPid);
 
 $('clearAll').addEventListener('click', () => {
   Object.keys(S.inj).forEach(k => { if (S.inj[k]) setFault(k, false); });
