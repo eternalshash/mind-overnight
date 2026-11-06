@@ -105,6 +105,15 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px}
 .mbox .st{font-size:12px;font-weight:bold;margin-top:2px}
 .mbox .hb{font-size:9px;color:var(--muted);margin-top:2px}
 .mbox.ok{border-color:var(--green)} .mbox.bad{border-color:var(--red)} .mbox.stby{border-color:var(--amber)}
+.wdt-box{border:1px solid var(--border);background:#071529;padding:6px 8px;margin-bottom:6px}
+.wdt-box.trip{border-color:var(--red);background:rgba(239,68,68,.12);box-shadow:0 0 12px rgba(239,68,68,.28)}
+.wdt-box.warn{border-color:var(--amber);background:rgba(245,158,11,.08)}
+.wdt-prog{height:6px;background:#050d1a;border:1px solid var(--border);margin:5px 0;position:relative;overflow:hidden}
+.wdt-prog > i{display:block;height:100%;width:0%;background:var(--green);transition:width .18s linear,background .18s}
+.wdt-info{margin-top:5px;border-top:1px dashed var(--border);padding-top:4px;font-size:9px;color:var(--muted);line-height:1.4}
+.wdt-info summary{cursor:pointer;color:var(--cyan);font-size:9px;letter-spacing:.5px;user-select:none;list-style:none}
+.wdt-info summary::-webkit-details-marker{display:none}
+.wdt-info b{color:#fff}
 .bar{display:grid;grid-template-columns:96px 1fr 70px;align-items:center;gap:6px;font-size:10px;margin:3px 0}
 .bar .tr{height:8px;background:#081629;border:1px solid var(--border);position:relative}
 .bar .fl{position:absolute;left:0;top:0;bottom:0;background:var(--cyan);transition:width .2s}
@@ -273,6 +282,26 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px}
           <div class="mbox ok" id="mA"><div class="n">MCU-A / ARDUINO UNO R4 (PIN 9/8/A4/A5)</div><div class="st" id="mAs">RUN - IN CONTROL</div><div class="hb" id="mAh">Heartbeat OK</div></div>
           <div class="mbox stby" id="mB"><div class="n">MCU-B / REDUNDANT WATCHDOG</div><div class="st" id="mBs">HOT STANDBY</div><div class="hb" id="mBh">Mirroring PID state</div></div>
         </div>
+        <div class="wdt-box" id="wdtPanel">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+            <span style="font-size:9.5px;color:#fff;letter-spacing:.5px"><b>SERIAL COMMS WATCHDOG</b> (1Hz USB / 2.5s TRIP)</span>
+            <span id="wdtBadge" class="badge ok">HB OK (0.2s)</span>
+          </div>
+          <div class="wdt-prog"><i id="wdtBar"></i></div>
+          <div id="wdtDetail" style="font-size:9px;color:var(--muted)">Monitoring 1 Hz TinyUSB (COM7) heartbeat packets &bull; Fail-safe cutoff armed</div>
+          <div style="display:flex;gap:5px;margin-top:5px">
+            <button class="btn" id="btnTestWdt" style="flex:1;margin:0;padding:4px 6px;font-size:9px;border-color:var(--amber);color:#fcd34d">&#129514; TEST WATCHDOG TRIP (2.5s)</button>
+            <button class="btn" id="btnResetWdt" style="flex:0 0 auto;width:auto;margin:0;padding:4px 8px;font-size:9px;border-color:var(--green);color:var(--green)">&#8634; RESET</button>
+          </div>
+          <details class="wdt-info">
+            <summary>&#9432; HOW WATCHDOG WORKS: PURPOSE &amp; SIM vs. REAL LAB BENCH &#9662;</summary>
+            <div style="margin-top:4px">
+              &bull; <b>Core Safety Goal:</b> Prevents hazardous 12V PTC heater thermal runaway ("latched-ON" state) if firmware hangs, USB serial disconnects, or logic power browns out.<br>
+              &bull; <b>In Digital Twin Sim:</b> Models a redundant dual-MCU supervisor where hot-standby <b>MCU-B</b> detects missed 1 Hz heartbeats (&gt;1.6s) from <b>MCU-A</b> and executes bumpless PID takeover.<br>
+              &bull; <b>In Physical Lab Bench (Arduino Uno R4 / COM7):</b> Combines (1) <b>Serial Heartbeat Watchdog</b> monitoring 1 Hz <code>hb_seq</code> USB packets (trips <code>E-204</code> alarm &amp; commands <code>KILL</code> at &gt;2.5s silence) + (2) <b>10k&Omega; Hardware Pull-Down Resistors</b> on Pin 9 MOSFET Gate &amp; Pin 8 Relay so power loss defaults physically to <code>0V (OFF)</code>.
+            </div>
+          </details>
+        </div>
         <div class="grp-h">ACTUATOR OUTPUTS</div>
         <div id="bars"></div>
         <div class="kv" id="kv"></div>
@@ -366,6 +395,7 @@ const S = {
   rpiSync: true, rpiOnline: false, rpiPkts: 0, rpiLastCmdSeq: -1, rpiBuffer: [],
   usbConnected: false,
   bme: { hasLive: false, tempC: 24.0, rh: 48.0, pressHpa: 1013.25, bmeOk: true, adcRaw20b: 536870, vSenseMv: 1689.6 },
+  wdt: { elapsedS: 0.2, timeoutS: 2.5, lastHbSeq: 1, tripped: false, testBlocking: false, _lastSimSec: 0 },
   commLog: [], commStats: { count: 0, minMs: 9999, maxMs: 0, avgMs: 0, lastMs: 0, totalMs: 0 }
 };
 
@@ -414,7 +444,7 @@ if (new URLSearchParams(location.search).get('autosend') === '1') {
 }
 const CODE_TO_FAULT = {
   'E-101': 'voc', 'E-102': 'smoke', 'E-201': 'mcu', 'E-202': 'sensor',
-  'E-203': 'wifi', 'E-301': 'clog', 'E-302': 'blower', 'E-401': 'surge',
+  'E-203': 'wifi', 'E-204': 'wdt', 'E-301': 'clog', 'E-302': 'blower', 'E-401': 'surge',
   'E-402': 'window', 'E-403': 'heatwave', 'E-404': 'surge'
 };
 
@@ -450,6 +480,11 @@ function buildIoTAlertPayload(idOrCode) {
     row1 = 'Cloud link lost (Wi-Fi outage)';
     row2 = `Room: ${roomF.toFixed(1)}°F | Feels Like: ${feelsF.toFixed(1)}°F | Outside: ${outF.toFixed(1)}°F`;
     row3 = 'System Action: Autonomous local edge PID active, buffering telemetry';
+  } else if (fId === 'wdt' || idOrCode === 'E-204') {
+    code = 'E-204';
+    row1 = 'Serial comms watchdog timeout';
+    row2 = `Room: ${roomF.toFixed(1)}°F | Last HB Seq: #${S.wdt.lastHbSeq} | Silence: ${S.wdt.elapsedS.toFixed(1)}s`;
+    row3 = 'System Action: Fail-safe engaged, Pin 8 PTC relay and Pin 9 fan gated OFF';
   } else if (fId === 'clog' || idOrCode === 'E-301') {
     code = 'E-301';
     row1 = 'Air filter severely restricted';
@@ -1059,6 +1094,14 @@ function handleArduinoUsbLine(line) {
     const d = JSON.parse(trimmed);
     S.rpiOnline = true;
     S.rpiPkts++;
+    if (!S.wdt.testBlocking) {
+      S.wdt.elapsedS = 0;
+      S.wdt.lastHbSeq = typeof d.hb_seq === 'number' ? d.hb_seq : S.rpiPkts;
+      if (S.wdt.tripped) {
+        S.wdt.tripped = false;
+        log('ok', `[WATCHDOG] Live USB heartbeat restored (seq #${S.wdt.lastHbSeq}). E-204 cleared.`);
+      }
+    }
     if ($('rpiSyncCount')) {
       $('rpiSyncCount').textContent = `${S.rpiPkts} PKTS`;
       $('rpiSyncCount').className = 'badge ok';
@@ -1178,7 +1221,16 @@ async function connectUsbArduino() {
 
     while (S.usbConnected && usbReader) {
       const { value, done } = await usbReader.read();
-      if (done) break;
+      if (done) {
+        if (S.usbConnected) {
+          S.usbConnected = false;
+          S.bme.hasLive = false;
+          S.wdt.testBlocking = true;
+          updateUsbButtonsUI();
+          log('crit', '[USB] Serial stream closed unexpectedly! Serial watchdog counting toward 2.5s fail-safe...');
+        }
+        break;
+      }
       if (value) {
         usbRxBuffer += value;
         const lines = usbRxBuffer.split(/\r?\n/);
@@ -1189,9 +1241,16 @@ async function connectUsbArduino() {
       }
     }
   } catch (err) {
+    const wasLive = S.usbConnected;
     S.usbConnected = false;
+    S.bme.hasLive = false;
     updateUsbButtonsUI();
     const msg = err && err.message ? err.message : String(err);
+    if (wasLive && /lost|disconnect|NetworkError|BreakError/i.test(msg)) {
+      S.wdt.testBlocking = true;
+      log('crit', `[USB] Physical USB cable lost (${msg})! Serial watchdog timing out...`);
+      return;
+    }
     if (!/No port selected|aborted/i.test(msg)) {
       log('crit', `[USB] Could not open port: ${msg} (Make sure Arduino IDE Serial Monitor is CLOSED!)`);
       alert(`Could not open Arduino USB port:\n${msg}\n\nIMPORTANT: Close the Serial Monitor in Arduino IDE first so the port isn't locked!`);
@@ -1235,6 +1294,41 @@ function mcuStep(dtR) {
   }
 }
 const controllerAlive = () => (S.mcu.active === 'A' && S.mcu.a === 'RUN') || S.mcu.active === 'B';
+
+function serialWatchdogStep(dtR) {
+  if (S.quiet) return;
+  const w = S.wdt;
+  if (w.testBlocking) {
+    w.elapsedS = Math.min(w.timeoutS + 1.5, w.elapsedS + dtR);
+  } else if (S.usbConnected) {
+    w.elapsedS = Math.min(w.timeoutS + 5.0, w.elapsedS + dtR);
+  } else if (!w.tripped) {
+    w.elapsedS = (w.elapsedS + dtR) % 1.0;
+    const secNow = Math.floor(S.t / Math.max(1, S.speed));
+    if (secNow !== w._lastSimSec) {
+      w._lastSimSec = secNow;
+      w.lastHbSeq++;
+    }
+  }
+  if (w.elapsedS >= w.timeoutS && !w.tripped) {
+    w.tripped = true;
+    S.modeOverride = 'OFF';
+    S.fanOverride = 0;
+    S.ctl.heat = 0;
+    S.ctl.comp = 0;
+    S.ctl.fanCmd = 0;
+    S.fanAct = 0;
+    S.rpm = 0;
+    S.ctl.mode = 'WATCHDOG CUTOFF';
+    if ($('sModeOvr')) $('sModeOvr').value = 'OFF';
+    if ($('sFanOvr')) $('sFanOvr').value = 0;
+    updateKillDrawerUI('WDT CUTOFF', 'crit');
+    if (S.usbConnected) {
+      sendUsbSerialCommand('KILL');
+    }
+    pushSimControlToRPi();
+  }
+}
 
 /* =====================================================================
    6. SENSORS
@@ -1367,7 +1461,8 @@ function controller(dtS, dtR) {
   c.comp = comp; c.heat = heat;
   c.fanCmd = S.fanOverride >= 0 ? clamp(S.fanOverride, 0, 100) : clamp(fan, 0, 100);
   c.damper = damper;
-  c.mode = c.blowerFault ? 'INTERLOCK' :
+  c.mode = S.wdt.tripped ? 'WATCHDOG CUTOFF' :
+           c.blowerFault ? 'INTERLOCK' :
            S.modeOverride === 'HEAT' ? 'FORCE HEATING' :
            S.modeOverride === 'COOL' ? 'FORCE COOLING' :
            S.modeOverride === 'OFF' ? 'SYSTEM OFF' :
@@ -1481,6 +1576,9 @@ function diagnose(alive) {
     msg: `TS-A reads ${fF(S.sensA)} F, TS-B reads ${fF(S.sensB)} F. Cross-check failed.`, act: 'TS-A voted out. Control loop running on redundant TS-B.' };
   if (inj.wifi) d['E-203'] = { sev: 'info', title: 'CLOUD LINK LOST', target: 'thermostat', short: `${c.buffered} BUFFERED`,
     msg: 'MQTT broker unreachable. Remote dashboard offline.', act: `Edge autonomy: local PID unaffected. ${c.buffered} telemetry samples buffered.` };
+  if (S.wdt && S.wdt.tripped) d['E-204'] = { sev: 'crit', title: 'SERIAL WATCHDOG TIMEOUT', target: 'thermostat', short: 'FAIL-SAFE OFF',
+    msg: `No Arduino USB heartbeat for ${S.wdt.elapsedS.toFixed(1)} s (> ${S.wdt.timeoutS.toFixed(1)} s limit, last seq #${S.wdt.lastHbSeq}).`,
+    act: 'Fail-safe cutoff engaged: Pin 8 PTC Relay -> LOW (0V) & Pin 9 Fan MOSFET -> 0V (0%).' };
   if (c.purge) d['E-101'] = { sev: 'warn', title: 'POOR INDOOR AIR QUALITY', target: 'iaq', short: `VOC ${f0(S.VOC)} CO2 ${f0(S.CO2)}`,
     msg: `VOC ${f0(S.VOC)} ppb, CO2 ${f0(S.CO2)} ppm.`,
     act: c.smokeLock ? 'Purge INHIBITED by smoke lockout. Recirculating only.' : 'Ventilation purge: OA damper 100%, blower 85%.' };
@@ -2046,6 +2144,45 @@ if ($('btnBenchHeatOff')) $('btnBenchHeatOff').addEventListener('click', () => b
 if ($('btnBenchHeatOn')) $('btnBenchHeatOn').addEventListener('click', () => benchSetHeaterRelay(true));
 if ($('btnBenchAuto')) $('btnBenchAuto').addEventListener('click', benchRestoreAutoPid);
 
+function startWatchdogTripTest() {
+  S.wdt.tripped = false;
+  S.wdt.testBlocking = true;
+  S.wdt.elapsedS = 0;
+  delete S.diag['E-204'];
+  delete S.iotDispatched['E-204'];
+  log('warn', '[WATCHDOG TEST] Blocking 1 Hz serial heartbeat packets — counting up to 2.5s fail-safe cutoff...');
+  toast('warn', 'WATCHDOG TEST STARTED', 'Simulating Lost Arduino Heartbeat', 'Blocking 1 Hz packets... E-204 fail-safe trips at 2.5s', '');
+  updatePanel();
+}
+
+function resetSerialWatchdog() {
+  const wasActive = S.wdt.tripped || S.wdt.testBlocking;
+  S.wdt.tripped = false;
+  S.wdt.testBlocking = false;
+  S.wdt.elapsedS = 0;
+  delete S.diag['E-204'];
+  delete S.iotDispatched['E-204'];
+  if (S.modeOverride === 'OFF') {
+    S.modeOverride = 'AUTO';
+    S.fanOverride = -1;
+    if ($('sModeOvr')) $('sModeOvr').value = 'AUTO';
+    if ($('sFanOvr')) $('sFanOvr').value = -1;
+    readSliders();
+    updateKillDrawerUI('STANDBY', '');
+    if (S.usbConnected) sendUsbSerialCommand('AUTO');
+    pushSimControlToRPi();
+  }
+  if (wasActive) {
+    log('ok', '[WATCHDOG] Serial comms watchdog reset. Closed-loop AUTO PID control resumed.');
+    toast('ok', 'WATCHDOG RESET', 'Heartbeat Supervision Armed', 'E-204 cleared — Pin 8 & Pin 9 returned to AUTO PID', '');
+  }
+  updateCards();
+  updatePanel();
+}
+
+if ($('btnTestWdt')) $('btnTestWdt').addEventListener('click', startWatchdogTripTest);
+if ($('btnResetWdt')) $('btnResetWdt').addEventListener('click', resetSerialWatchdog);
+
 $('clearAll').addEventListener('click', () => {
   Object.keys(S.inj).forEach(k => { if (S.inj[k]) setFault(k, false); });
   S.setpoint = 23; S.ToutSet = 28; S.demandLimit = 1500; S.fanOverride = -1; S.modeOverride = 'AUTO';
@@ -2054,6 +2191,8 @@ $('clearAll').addEventListener('click', () => {
   S.ctl.I = 0; S.ctl.P = 0; S.ctl.comp = 0; S.ctl.heat = 0; S.ctl.fanCmd = 22; S.ctl.damper = 0;
   S.fanAct = 22; S.damperAct = 0; S.rpm = 616; S.ctl.mode = 'IDLE';
   S.mcu.a = 'RUN'; S.mcu.b = 'STANDBY'; S.mcu.active = 'A';
+  S.wdt.tripped = false; S.wdt.testBlocking = false; S.wdt.elapsedS = 0.2;
+  updateKillDrawerUI('STANDBY', '');
   S.diag = {};
   $('sSp').value = 73; $('sOut').value = 82; $('sLim').value = 1500;
   if ($('sFanOvr')) $('sFanOvr').value = -1;
@@ -2174,6 +2313,35 @@ function updatePanel() {
   $('mBs').className = 'st ' + (m.b === 'ACTIVE' ? 'grn' : 'amb');
   $('mB').className = 'mbox ' + (m.b === 'ACTIVE' ? 'ok' : 'stby');
   $('mBh').textContent = m.b === 'ACTIVE' ? `Took over in ${m.failMs} ms` : !alive ? 'Watchdog counting...' : 'Mirroring PID state';
+  if ($('wdtPanel')) {
+    const w = S.wdt;
+    const pct = clamp((w.elapsedS / w.timeoutS) * 100, 0, 100);
+    const isWarn = !w.tripped && (w.testBlocking || w.elapsedS > 1.3);
+    $('wdtPanel').className = 'wdt-box' + (w.tripped ? ' trip' : isWarn ? ' warn' : '');
+    if ($('wdtBadge')) {
+      $('wdtBadge').textContent = w.tripped
+        ? `TRIPPED (${w.elapsedS.toFixed(1)}s)`
+        : w.testBlocking
+          ? `BLOCKING HB (${w.elapsedS.toFixed(1)}s / 2.5s)`
+          : S.usbConnected
+            ? `USB HB #${w.lastHbSeq} (${w.elapsedS.toFixed(1)}s)`
+            : `SIM HB #${w.lastHbSeq} (${w.elapsedS.toFixed(1)}s)`;
+      $('wdtBadge').className = 'badge ' + (w.tripped ? 'crit' : isWarn ? 'warn' : 'ok');
+    }
+    if ($('wdtBar')) {
+      $('wdtBar').style.width = `${pct.toFixed(1)}%`;
+      $('wdtBar').style.background = w.tripped ? 'var(--red)' : isWarn ? 'var(--amber)' : 'var(--green)';
+    }
+    if ($('wdtDetail')) {
+      $('wdtDetail').innerHTML = w.tripped
+        ? `<span class="red"><b>ALARM E-204:</b> Heartbeat lost &gt;2.5s! Pin 8 PTC Relay &amp; Pin 9 Fan latched OFF (0V). Click RESET to clear.</span>`
+        : w.testBlocking
+          ? `<span class="amb">Simulating frozen/unplugged USB serial cable... tripping fail-safe at 2.5s</span>`
+          : S.usbConnected
+            ? `<span class="grn">Live TinyUSB (COM7) 1 Hz heartbeat active (seq #${w.lastHbSeq}) &bull; Hardware fail-safe armed</span>`
+            : `<span>Standalone sim heartbeat (1 Hz) &bull; Connect USB Arduino (COM7) for live serial watchdog</span>`;
+    }
+  }
   // header
   const setDot = (id, col) => { $(id).style.background = col; $(id).style.color = col; };
   setDot('hA', m.a === 'RUN' ? '#10b981' : m.a === 'SYNC' ? '#f59e0b' : '#ef4444'); $('hAt').textContent = m.a;
@@ -2190,7 +2358,7 @@ function updatePanel() {
   $('clock').textContent = clockStr(S.t);
   // mode
   const mode = alive ? c.mode : 'FAILOVER HOLD';
-  const modeCls = /INTERLOCK|EMERGENCY|SMOKE|FAILOVER/.test(mode) ? ' crit' : /FORCE|ECO|OFF|PAUSE|PURGE/.test(mode) ? ' warn' : '';
+  const modeCls = /INTERLOCK|EMERGENCY|SMOKE|FAILOVER|WATCHDOG/.test(mode) ? ' crit' : /FORCE|ECO|OFF|PAUSE|PURGE/.test(mode) ? ' warn' : '';
   $('modeBadge').textContent = mode; $('modeBadge').className = 'badge' + modeCls;
   // bars
   $('bars').innerHTML =
@@ -2237,6 +2405,7 @@ function tick() {
   const dtR = 0.2, dtS = S.speed * dtR;
   S.t += dtS;
   mcuStep(dtR);
+  serialWatchdogStep(dtR);
   sensors();
   const alive = controllerAlive();
   if (alive) controller(dtS, dtR); else { S.ctl.heat = 0; S.ctl.mode = 'FAILOVER HOLD'; }
