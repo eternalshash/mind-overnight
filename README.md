@@ -24,6 +24,8 @@ This repo is a collection of a caffeinated mind. It includes various investment 
 * **`code/`** — Academic coursework, hardware/software implementations, simulations, and project prototypes.
   * **`ECE441/`** — Smart and Connected Systems coursework, embedded IoT lab exercises, and digital twin simulations.
     * **`SmartHVAC_Sim/`** — Residential Digital Twin simulation and dual-ESP32 HVAC control prototype featuring continuous split-range PID/PWM modulation, indoor air quality (IAQ) modeling, interactive blueprint GUI, Wokwi hardware simulation, and automated fault injection testing.
+      * **`papers/`** — [ECE 441 Smart HVAC Formal Technical Project Report (PDF)](code/ECE441/SmartHVAC_Sim/papers/ECE441_Smart_HVAC_Final_Report.pdf).
+      * **`docs/`** — Lab blueprints, multimeter sweep analyses, and report exports.
     * **`lab01SC/`** — Microcontroller and sensor interfacing lab with Wokwi and PlatformIO simulation configurations.
       * **`src/`** — Embedded C firmware source code for the lab implementation.
     * **`lab02_media/`** — Oscilloscope captures, logic analyzer traces, circuit wiring setups, and hardware validation recordings for Lab 2.
@@ -70,7 +72,9 @@ This repo is a collection of a caffeinated mind. It includes various investment 
   * **Problem Sets & Tooling** — C++ algorithmic implementations (`hw1_q6.cpp`, `q1_a.cpp` through `q5.cpp`) and automated LaTeX/documentation generation pipelines.
 
 * **`pdfs/`** — Compiled project reports, engineering documentation, and academic deliverables.
-  * **`Engineering/`** — Digital systems and hardware architecture project reports (e.g., ECE 485 CPU design report).
+  * **`Engineering/`** — Digital systems and hardware architecture project reports.
+    * **`ECE441_Smart_HVAC_Final_Report.pdf`** — 34-page comprehensive formal technical report on autonomous Smart HVAC control, cyber-physical digital twins, and embedded IoT architectures.
+    * **`ECE485Proj2.pdf`** — ECE 485 32-bit MIPS CPU design report.
   * **`Findings/`** — Research memos, case study writeups, and analytical findings.
   * **`Choudhry_Shashwat proj 1 (1).pdf`** — Academic engineering report deliverable.
 

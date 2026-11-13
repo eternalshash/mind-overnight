@@ -10,6 +10,14 @@ The simulation models real-world thermodynamics, indoor air quality (IAQ), duct 
 
 *(Note: To make this link work, you must enable GitHub Pages on your repository. Go to Settings > Pages, set the source to "Deploy from a branch", select `main`, and click Save. The link will be live after 1 minute!)*
 
+## Papers & Formal Technical Reports
+
+* **[ECE 441 Smart HVAC Control - Formal Final Technical Project Report (PDF)](papers/ECE441_Smart_HVAC_Final_Report.pdf)**  
+  *Authors:* Shashwat Choudhry, Andy Tran, Kaleb Cowgur, Haron Abuelhija (Group 2)  
+  *Course:* ECE 441: Smart and Connected Systems / Internet of Things (Fall 2026), Illinois Institute of Technology  
+  *Instructors:* Dr. Jafar Saniie & Prof. Tianyang Fang  
+  *Summary:* Comprehensive 34-page formal technical engineering report covering autonomous closed-loop climate regulation, 10 Hz split-range discrete PID modulation with anti-windup clamping, Steadman "Feels Like" apparent temperature modeling (ASHRAE Standard 55), IRLZ44N low-side logic-level MOSFET switching dynamics, dynamic electrical multimeter circuit impedance synthesis, full-scale 2D CAD architectural digital twin, multi-channel cellular/email anomaly alerting, university 802.1X campus Wi-Fi kernel workarounds (`init=/bin/sh`), and complete hardware-first vs. software-first implementation matrices.
+
 ## How to Interact With It
 
 The interface is divided into three main sections, designed to look like a 2D architectural CAD blueprint.
