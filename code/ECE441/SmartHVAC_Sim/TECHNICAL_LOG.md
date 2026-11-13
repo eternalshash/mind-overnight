@@ -4,6 +4,12 @@ This technical log is automatically maintained to record engineering implementat
 
 ---
 
+### [2026-11-12] Shashwat Choudhry
+* **Commit:** `938e15e`
+* **Technical Summary:** Docs(ece441): add formal 34-page ECE441 Smart HVAC final technical report PDF under papers. Modified files in the Smart HVAC subsystem.
+
+---
+
 ### [2026-11-05] Shashwat Choudhry
 * **Commit:** `fe88e15`
 * **Technical Summary:** Feat(mobile): add dedicated touch Mobile Site, Desktop/Mobile switcher, and network-first PWA cache. Modified files in the Smart HVAC subsystem.
