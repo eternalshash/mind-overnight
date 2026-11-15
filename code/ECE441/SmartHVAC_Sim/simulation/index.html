@@ -520,12 +520,14 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px;cursor:pointer
               <div class="env-row"><span class="k">Outdoor Weather</span><span class="v" id="qOutdoor">82.4<small>&deg;F</small></span></div>
             </div>
           </div>
-        </details>
-        <div class="grp-h" style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">
-          <span>IOT SMS / EMAIL ALERT GATEWAY</span>
-          <div style="display:flex;gap:4px;align-items:center">
-            <span id="iotAutoBadge" class="badge" style="cursor:pointer;user-select:none" title="Click to toggle automatic Email + SMS dispatch when a fault is triggered">AUTO-SEND: OFF</span>
-            <span id="iotSentCount" class="badge">0 SENT</span>
+
+          <!-- Mini Live Thermal Sparkline (matches sketch top-right graph) -->
+          <div class="spark-wrap">
+            <div class="spark-head">
+              <span>ROOM VS. SETPOINT TREND</span>
+              <span id="qPidMini">PID 0% &bull; 2.40 m/s</span>
+            </div>
+            <canvas id="nestMiniSpark" width="280" height="50"></canvas>
           </div>
         </div>
         <div class="iot-box">
