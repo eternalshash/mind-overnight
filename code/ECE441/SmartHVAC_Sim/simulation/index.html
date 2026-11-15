@@ -1067,7 +1067,13 @@ function buildIoTAlertPayload(idOrCode) {
 function renderIoTPreview(p) {
   const box = $('iotPreview');
   if (!box || !p) return;
-  box.innerHTML = `<div class="r1">${p.row1}</div><div class="r2">${p.row2}</div><div class="r3">${p.row3}</div>`;
+  const html = `<div class="r1">${p.row1}</div><div class="r2">${p.row2}</div><div class="r3">${p.row3}</div>`;
+  box.innerHTML = html;
+  const sumBox = $('sumAlertBox');
+  if (sumBox) {
+    sumBox.classList.remove('nominal');
+    sumBox.innerHTML = html;
+  }
 }
 
 function checkIoTGatewayHealth() {
