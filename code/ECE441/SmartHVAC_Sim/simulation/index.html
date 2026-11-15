@@ -1906,9 +1906,13 @@ function controller(dtS, dtR) {
   if (smoke && !c.smokeLock) { c.smokeLock = true; log('crit', 'Smoke event detected. Outdoor-air damper locked CLOSED, recirculating through filter.'); }
   if (c.smokeLock && !smoke && S.PM < 18 && (inj.wifi || S.PMout < 35)) { c.smokeLock = false; log('ok', 'Smoke cleared. Outdoor-air damper unlocked.'); }
 
-  // 7.3 IAQ purge with hysteresis
-  if (!c.purge && (S.VOC > 350 || S.CO2 > 1100)) { c.purge = true; log('warn', `IAQ threshold exceeded (VOC ${f0(S.VOC)} ppb, CO2 ${f0(S.CO2)} ppm). Starting ventilation purge.`); }
-  if (c.purge && S.VOC < 220 && S.CO2 < 800) { c.purge = false; log('ok', 'IAQ back in range. Purge stopped, damper returning to minimum.'); }
+  // 7.3 IAQ purge with hysteresis (or manual Fresh Air Purge override)
+  if (S.manualPurge) {
+    c.purge = true;
+  } else {
+    if (!c.purge && (S.VOC > 350 || S.CO2 > 1100)) { c.purge = true; log('warn', `IAQ threshold exceeded (VOC ${f0(S.VOC)} ppb, CO2 ${f0(S.CO2)} ppm). Starting ventilation purge.`); }
+    if (c.purge && S.VOC < 220 && S.CO2 < 800) { c.purge = false; log('ok', 'IAQ back in range. Purge stopped, damper returning to minimum.'); }
+  }
   let damper = c.purge ? 100 : 0;
   if (c.smokeLock) damper = 0;
 
