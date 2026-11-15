@@ -538,7 +538,9 @@ nav.bnav button.on{color:var(--accent);background:rgba(92,225,230,.08);font-weig
     </div>
   </section>
 
-  <!-- TAB 3: MULTIMETER & PROBE GUIDE -->
+  <!-- =====================================================================
+       TAB 3: MULTIMETER & PROBE GUIDE
+       ===================================================================== -->
   <section class="tab-sec" id="tab-dmm">
     <div class="mcard">
       <div class="mcard-h">
@@ -577,7 +579,7 @@ nav.bnav button.on{color:var(--accent);background:rgba(92,225,230,.08);font-weig
       </div>
       <div class="eq-card">
         <div class="et">Pin 9 V_GS vs. V_fan (Low-Side N-MOSFET Gotcha)</div>
-        <div style="color:#dbe7f5;margin-top:3px">
+        <div style="color:var(--text-sec);margin-top:3px">
           &bull; <b>V_GS:</b> Black <code>COM</code> &rarr; Arduino <code>GND</code>, Red &rarr; <code>Pin 9</code>.<br>
           &bull; <b>V_fan:</b> Probe <b>across fan leads</b> (Red &rarr; <code>+5V</code>, Black &rarr; MOSFET <code>Drain</code>). Probing Drain-to-GND at 0% PWM reads 5V through the unswitched coil!<br>
           &bull; <b>Resistance (&Omega;):</b> Never probe <code>&Omega;</code> on a live powered breadboard — power OFF 12V &amp; USB first!
@@ -586,7 +588,9 @@ nav.bnav button.on{color:var(--accent);background:rgba(92,225,230,.08);font-weig
     </div>
   </section>
 
-  <!-- TAB 4: FAULTS & IOT ALERTS -->
+  <!-- =====================================================================
+       TAB 4: FAULTS & IOT ALERTS
+       ===================================================================== -->
   <section class="tab-sec" id="tab-iot">
     <div class="mcard">
       <div class="mcard-h">
@@ -616,7 +620,7 @@ nav.bnav button.on{color:var(--accent);background:rgba(92,225,230,.08);font-weig
     <div class="mcard">
       <div class="mcard-h">
         <span class="mcard-t">Quick Fault Injection</span>
-        <button class="chip-btn" id="mBtnClearFaults" style="font-size:9.5px;padding:4px 8px">CLEAR ALL</button>
+        <button class="chip-btn" id="mBtnClearFaults" style="font-size:10px;padding:4px 9px">CLEAR ALL</button>
       </div>
       <div id="mFaultList"></div>
     </div>
