@@ -1243,6 +1243,9 @@ function buildFaultCards() {
       M.inj[f.id] = !M.inj[f.id];
       buildFaultCards();
       updateIoTPreview(M.inj[f.id] ? f : null);
+      if (M.inj[f.id] && M.iotAuto) {
+        $('mBtnSendIot').click();
+      }
       if (M.usbConnected) {
         if (f.id === 'blower') sendUsbCmd(M.inj.blower ? 'FAN 0' : 'AUTO');
         else if (M.inj[f.id]) sendUsbCmd('FAN 100');
@@ -1295,6 +1298,7 @@ $('mBtnSendIot').addEventListener('click', async () => {
     if (!res.ok) throw new Error(j.error || ('HTTP ' + res.status));
     M.iotSent++;
     $('mIotSentPill').textContent = `${M.iotSent} SENT`;
+    updateMobileNestUI();
     showToast(`SMS (${body.phone}) + Email (${body.email}) sent!`, 'ok');
   } catch (err) {
     showToast(`Alert failed: ${err.message}`, 'crit');
@@ -1309,7 +1313,7 @@ $('btnMobUsb').addEventListener('click', async () => {
   }
   if (M.usbConnected && usbPort) {
     try { M.usbConnected = false; M.bmeLive = false; if (usbReader) await usbReader.cancel(); await usbPort.close(); } catch (e) {}
-    $('btnMobUsb').textContent = '⚡ USB';
+    $('btnMobUsb').textContent = 'USB Arduino';
     $('connSub').textContent = 'ECE 441 • LOCAL DIGITAL TWIN';
     return;
   }
@@ -1317,7 +1321,7 @@ $('btnMobUsb').addEventListener('click', async () => {
     usbPort = await navigator.serial.requestPort();
     await usbPort.open({ baudRate: 115200 });
     M.usbConnected = true;
-    $('btnMobUsb').textContent = '🟢 USB ON';
+    $('btnMobUsb').textContent = 'USB ON';
     $('connSub').textContent = 'LIVE ARDUINO USB (115200 BAUD)';
     showToast('Connected to Arduino Uno R4 (A4/A5 BME280 live)!', 'ok');
     const dec = new TextDecoderStream();
