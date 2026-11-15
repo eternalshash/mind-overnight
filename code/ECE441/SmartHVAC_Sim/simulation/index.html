@@ -3983,7 +3983,8 @@ S.kWh = 0; S.quiet = false;
   if (q.get('speed')) { $('sSpd').value = q.get('speed'); readSliders(); }
   (q.get('inject') || '').split(',').filter(Boolean).forEach(id => setFault(id, true));
   const warm = +q.get('warm') || 0; for (let i = 0; i < warm; i++) tick();
-  if (q.get('tab')) { const b = document.querySelector(`.tab[data-v="${q.get('tab')}"]`); if (b) { document.querySelectorAll('.tab').forEach(x => x.classList.remove('on')); b.classList.add('on'); view = b.dataset.v; } }
+  if (q.get('tab')) { const b = document.querySelector(`.tab[data-v="${q.get('tab')}"]`); if (b) { document.querySelectorAll('.tab').forEach(x => x.classList.remove('on')); b.classList.add('on'); view = b.dataset.v; } setSideView('backend'); }
+  if (q.get('view') === 'backend') setSideView('backend');
 })();
 log('ok', 'MCU-B hot standby: heartbeat mirror active, watchdog armed (1.6 s).');
 log('ok', 'FS3000 airflow baseline captured. TS-A / TS-B cross-check enabled.');
