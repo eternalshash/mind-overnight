@@ -3436,6 +3436,274 @@ function render(now) {
 }
 
 /* =====================================================================
+   14B. NEST GEN 4 TURNTABLE DIAL, iOS PILL SWITCHES & VIEW DOCK
+   ===================================================================== */
+const NEST_MIN_F = 64, NEST_MAX_F = 82;
+const NEST_START_DEG = 135, NEST_SWEEP_DEG = 270;
+const NEST_CX = 150, NEST_CY = 150, NEST_R = 112;
+
+function polarToCartesian(cx, cy, r, angleDeg) {
+  const rad = angleDeg * Math.PI / 180;
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+}
+
+function describeArc(cx, cy, r, startDeg, endDeg) {
+  if (Math.abs(endDeg - startDeg) < 0.2) return '';
+  const s = Math.min(startDeg, endDeg);
+  const e = Math.max(startDeg, endDeg);
+  const pStart = polarToCartesian(cx, cy, r, s);
+  const pEnd = polarToCartesian(cx, cy, r, e);
+  const largeArc = (e - s) <= 180 ? '0' : '1';
+  return `M ${pStart.x.toFixed(2)} ${pStart.y.toFixed(2)} A ${r} ${r} 0 ${largeArc} 1 ${pEnd.x.toFixed(2)} ${pEnd.y.toFixed(2)}`;
+}
+
+function tempFToAngle(tempF) {
+  const clamped = clamp(tempF, NEST_MIN_F, NEST_MAX_F);
+  return NEST_START_DEG + ((clamped - NEST_MIN_F) / (NEST_MAX_F - NEST_MIN_F)) * NEST_SWEEP_DEG;
+}
+
+function setSideView(targetMode) {
+  const sideEl = $('side');
+  if (!sideEl) return;
+  const showBackend = targetMode === 'backend' ? true : targetMode === 'thermostat' ? false : !sideEl.classList.contains('show-backend');
+  sideEl.classList.toggle('show-backend', showBackend);
+  const txtEl = $('btnToggleViewTxt'), subEl = $('btnToggleViewSub');
+  if (txtEl) txtEl.textContent = showBackend ? 'Return to Thermostat Dial' : 'Backend & Engineer View';
+  if (subEl) subEl.textContent = showBackend ? 'Nest Turntable' : 'Graphs \u2022 Bench \u2022 10 Faults';
+  if (showBackend && chart) {
+    setTimeout(() => { if (chart) { chart.resize(); chart.update('none'); } }, 20);
+  }
+}
+window.setSideView = setSideView;
+
+function setTurntableSetpointF(newSpF) {
+  const spInt = clamp(Math.round(newSpF), NEST_MIN_F, NEST_MAX_F);
+  const spSlider = $('sSp');
+  if (spSlider && +spSlider.value === spInt && S.modeOverride !== 'OFF') {
+    updateThermostatView();
+    return;
+  }
+  if (spSlider) spSlider.value = spInt;
+  if (S.modeOverride === 'OFF') {
+    S.modeOverride = 'AUTO';
+    if ($('sModeOvr')) $('sModeOvr').value = 'AUTO';
+  }
+  readSliders();
+  pushSimControlToRPi();
+  updateThermostatView();
+}
+
+function drawNestMiniSpark() {
+  const cvSpark = $('nestMiniSpark');
+  if (!cvSpark || !H.T.length) return;
+  const ctxS = cvSpark.getContext('2d');
+  const w = cvSpark.width, h = cvSpark.height;
+  ctxS.clearRect(0, 0, w, h);
+
+  const n = Math.min(40, H.T.length);
+  const tArr = H.T.slice(-n).map(c => c * 9 / 5 + 32);
+  const spArr = H.SP.slice(-n).map(c => c * 9 / 5 + 32);
+  let minF = Math.min(...tArr, ...spArr) - 1.5;
+  let maxF = Math.max(...tArr, ...spArr) + 1.5;
+  if (maxF - minF < 4) { const mid = (maxF + minF) / 2; minF = mid - 2; maxF = mid + 2; }
+
+  const xOf = i => 4 + (i / Math.max(1, n - 1)) * (w - 8);
+  const yOf = valF => h - 5 - ((valF - minF) / (maxF - minF)) * (h - 10);
+
+  // Setpoint dashed reference trace
+  ctxS.save();
+  ctxS.strokeStyle = 'rgba(52, 199, 89, 0.65)';
+  ctxS.lineWidth = 1.3;
+  ctxS.setLineDash([4, 3]);
+  ctxS.beginPath();
+  spArr.forEach((v, i) => { if (i === 0) ctxS.moveTo(xOf(i), yOf(v)); else ctxS.lineTo(xOf(i), yOf(v)); });
+  ctxS.stroke();
+  ctxS.setLineDash([]);
+
+  // Room temperature fill + solid trace
+  const isHeat = S.ctl.heat > 0.5 || S.modeOverride === 'HEAT' || S.ctl.sp > S.ctl.Tctl + 0.25;
+  const isCool = !isHeat && (S.ctl.comp > 0.5 || S.modeOverride === 'COOL' || S.ctl.sp < S.ctl.Tctl - 0.25);
+  const strokeCol = isHeat ? '#ff9f43' : isCool ? '#38bdf8' : '#eef0f5';
+  const fillGrad = ctxS.createLinearGradient(0, 0, 0, h);
+  fillGrad.addColorStop(0, isHeat ? 'rgba(255,159,67,0.28)' : isCool ? 'rgba(56,189,248,0.28)' : 'rgba(238,240,245,0.16)');
+  fillGrad.addColorStop(1, 'rgba(0,0,0,0)');
+
+  ctxS.beginPath();
+  tArr.forEach((v, i) => { if (i === 0) ctxS.moveTo(xOf(i), yOf(v)); else ctxS.lineTo(xOf(i), yOf(v)); });
+  ctxS.lineTo(xOf(n - 1), h);
+  ctxS.lineTo(xOf(0), h);
+  ctxS.closePath();
+  ctxS.fillStyle = fillGrad;
+  ctxS.fill();
+
+  ctxS.strokeStyle = strokeCol;
+  ctxS.lineWidth = 1.8;
+  ctxS.beginPath();
+  tArr.forEach((v, i) => { if (i === 0) ctxS.moveTo(xOf(i), yOf(v)); else ctxS.lineTo(xOf(i), yOf(v)); });
+  ctxS.stroke();
+
+  // Live endpoint dot
+  const lx = xOf(n - 1), ly = yOf(tArr[n - 1]);
+  ctxS.fillStyle = strokeCol;
+  ctxS.beginPath();
+  ctxS.arc(lx, ly, 2.8, 0, Math.PI * 2);
+  ctxS.fill();
+  ctxS.restore();
+}
+
+function updateThermostatView() {
+  const dial = $('nestDial');
+  if (!dial) return;
+  const c = S.ctl, e = S.elec;
+  const roomF = +(c.Tctl * 9 / 5 + 32);
+  const spF = +(S.setpoint * 9 / 5 + 32);
+  const effSpF = +(c.sp * 9 / 5 + 32);
+  const feelsF = +(c.AT * 9 / 5 + 32);
+  const outF = +((S.inj.heatwave ? 39 : S.Tout) * 9 / 5 + 32);
+
+  // Determine active thermal theme for Nest Dial
+  const isOff = S.modeOverride === 'OFF' || S.wdt.tripped;
+  const isHeating = !isOff && (c.heat > 0.5 || S.modeOverride === 'HEAT' || (S.modeOverride !== 'COOL' && effSpF > roomF + 0.35));
+  const isCooling = !isOff && !isHeating && (c.comp > 0.5 || S.modeOverride === 'COOL' || (S.modeOverride !== 'HEAT' && effSpF < roomF - 0.35));
+
+  const activeTheme = isOff ? 'theme-off' : isHeating ? 'theme-heat' : isCooling ? 'theme-cool' : 'theme-idle';
+  dial.classList.remove('theme-heat', 'theme-cool', 'theme-idle', 'theme-off');
+  dial.classList.add(activeTheme);
+  const coreGlow = $('nestCoreGlow');
+  if (coreGlow) {
+    coreGlow.classList.remove('theme-heat', 'theme-cool', 'theme-idle', 'theme-off');
+    coreGlow.classList.add(activeTheme);
+  }
+  dial.setAttribute('aria-valuenow', String(Math.round(spF)));
+
+  // Center caption & giant target numeral
+  const capEl = $('nestStateCaption');
+  if (capEl) {
+    capEl.textContent = S.wdt.tripped ? 'WATCHDOG CUTOFF' :
+                        S.modeOverride === 'OFF' ? 'SYSTEM STANDBY' :
+                        c.heatEmerg ? 'EMERGENCY COOLING' :
+                        isHeating ? 'HEATING TO' :
+                        isCooling ? 'COOLING TO' :
+                        S.modeOverride === 'ECO' ? 'ECO HOLD AT' : 'HOLDING AT';
+  }
+  const numEl = $('nestTargetNum');
+  if (numEl) numEl.textContent = S.modeOverride === 'OFF' ? 'OFF' : String(Math.round(spF));
+
+  // Arc positions for Current Room Temp Dot (70) & Target Setpoint Dot + Mini Glyph (♨/❄)
+  const roomDeg = tempFToAngle(roomF);
+  const spDeg = tempFToAngle(spF);
+
+  const pRoomDot = polarToCartesian(NEST_CX, NEST_CY, NEST_R, roomDeg);
+  const pSpDot = polarToCartesian(NEST_CX, NEST_CY, NEST_R, spDeg);
+  if ($('nestRoomDot')) {
+    $('nestRoomDot').setAttribute('cx', pRoomDot.x.toFixed(2));
+    $('nestRoomDot').setAttribute('cy', pRoomDot.y.toFixed(2));
+  }
+  if ($('nestSpDot')) {
+    $('nestSpDot').setAttribute('cx', pSpDot.x.toFixed(2));
+    $('nestSpDot').setAttribute('cy', pSpDot.y.toFixed(2));
+    $('nestSpDot').setAttribute('fill', isOff ? '#ef4444' : isHeating ? '#ff9f43' : isCooling ? '#38bdf8' : '#34c759');
+  }
+
+  // Angular separation for inward labels so Room Temp numeral and mini ♨/❄ glyph never collide
+  let roomLblDeg = roomDeg, spLblDeg = spDeg;
+  if (Math.abs(spDeg - roomDeg) < 15) {
+    const dir = spDeg >= roomDeg ? 1 : -1;
+    roomLblDeg -= dir * 7.5;
+    spLblDeg += dir * 7.5;
+  }
+  const pRoomLbl = polarToCartesian(NEST_CX, NEST_CY, NEST_R - 21, roomLblDeg);
+  const pSpGlyph = polarToCartesian(NEST_CX, NEST_CY, NEST_R - 21, spLblDeg);
+  if ($('nestRoomArcLbl')) {
+    $('nestRoomArcLbl').setAttribute('x', pRoomLbl.x.toFixed(2));
+    $('nestRoomArcLbl').setAttribute('y', pRoomLbl.y.toFixed(2));
+    $('nestRoomArcLbl').textContent = String(Math.round(roomF));
+  }
+  const glyphGrp = $('nestSpArcGlyph');
+  if (glyphGrp) {
+    glyphGrp.setAttribute('transform', `translate(${pSpGlyph.x.toFixed(2)}, ${pSpGlyph.y.toFixed(2)})`);
+    if (isHeating) {
+      glyphGrp.innerHTML =
+        `<path d="M -3.8 4.5 C -5 2, -2.5 0, -3.8 -2.5 C -4.6 -4, -3 -5, -3.8 -6" fill="none" stroke="#ff9f43" stroke-width="1.35" stroke-linecap="round"/>` +
+        `<path d="M 0 4.5 C -1.2 2, 1.3 0, 0 -2.5 C -0.8 -4, 0.8 -5, 0 -6" fill="none" stroke="#ffbe76" stroke-width="1.45" stroke-linecap="round"/>` +
+        `<path d="M 3.8 4.5 C 2.6 2, 5.1 0, 3.8 -2.5 C 3 -4, 4.6 -5, 3.8 -6" fill="none" stroke="#ff9f43" stroke-width="1.35" stroke-linecap="round"/>`;
+    } else if (isCooling) {
+      glyphGrp.innerHTML =
+        `<g stroke="#5ce1e6" stroke-width="1.35" stroke-linecap="round">` +
+        `<line x1="0" y1="-5.2" x2="0" y2="5.2"/><line x1="-4.5" y1="-2.6" x2="4.5" y2="2.6"/><line x1="-4.5" y1="2.6" x2="4.5" y2="-2.6"/>` +
+        `</g>`;
+    } else {
+      glyphGrp.innerHTML = `<circle cx="0" cy="0" r="2.2" fill="rgba(52,199,89,0.85)"/>`;
+    }
+  }
+
+  // Delta arc between current room temp and target setpoint
+  if ($('nestArcDelta')) {
+    $('nestArcDelta').setAttribute('d', describeArc(NEST_CX, NEST_CY, NEST_R, roomDeg, spDeg));
+    $('nestArcDelta').setAttribute('stroke', isOff ? 'rgba(239,68,68,0.45)' : isHeating ? '#ff9f43' : isCooling ? '#38bdf8' : '#34c759');
+  }
+
+  // Highlight active ticks between roomDeg and spDeg
+  const minDeg = Math.min(roomDeg, spDeg) - 2, maxDeg = Math.max(roomDeg, spDeg) + 2;
+  document.querySelectorAll('#nestArcTicks .tick-line').forEach(tk => {
+    const d = +tk.getAttribute('data-deg');
+    tk.classList.toggle('active-zone', d >= minDeg && d <= maxDeg);
+  });
+
+  // Top-right environmental readouts
+  if ($('qSensorBadge')) {
+    const liveUsb = S.usbConnected && S.bme.hasLive;
+    $('qSensorBadge').textContent = liveUsb ? 'USB BME280 LIVE' : c.sensorAOk ? 'TS-A BME280' : 'TS-B REDUNDANT';
+    $('qSensorBadge').className = 'badge ' + (liveUsb ? 'ok' : c.sensorAOk ? 'ok' : 'warn');
+  }
+  if ($('qRoomTemp')) $('qRoomTemp').innerHTML = `${roomF.toFixed(1)}<small>&deg;F</small>`;
+  if ($('qFeelsLike')) $('qFeelsLike').innerHTML = `${feelsF.toFixed(1)}<small>&deg;F</small>`;
+  if ($('qHumidity')) $('qHumidity').innerHTML = `${f0(S.RH)}<small>% RH</small>`;
+  if ($('qOutdoor')) $('qOutdoor').innerHTML = `${outF.toFixed(1)}<small>&deg;F</small>`;
+  if ($('qPidMini')) $('qPidMini').textContent = `${c.mode} \u2022 ${f2(S.vel)} m/s`;
+  drawNestMiniSpark();
+
+  // Mode selector pills
+  document.querySelectorAll('#nestModePills .mode-pill').forEach(btn => {
+    btn.classList.toggle('on', btn.dataset.mode === S.modeOverride);
+  });
+
+  // 4 iOS Pill Toggle Switches
+  const setIos = (btnId, subId, isOn, onText, offText) => {
+    const b = $(btnId), s = $(subId);
+    if (b) {
+      b.classList.toggle('on', !!isOn);
+      b.setAttribute('aria-checked', isOn ? 'true' : 'false');
+    }
+    if (s && onText && offText) s.textContent = isOn ? onText : offText;
+  };
+  const pwrOn = S.modeOverride !== 'OFF' && !S.wdt.tripped;
+  setIos('iosPowerToggle', 'iosPowerSub', pwrOn,
+    `Active (${c.mode} \u2022 Fan ${f0(S.fanAct)}%)`,
+    S.wdt.tripped ? 'Watchdog fail-safe tripped (0 W)' : 'System standby cutoff (0 W)');
+  const ecoOn = S.modeOverride === 'ECO';
+  setIos('iosEcoToggle', 'iosEcoSub', ecoOn,
+    c.shed ? `Eco + Load shed (${f0(S.pw.total)}/${S.demandLimit} W)` : 'Eco +2.0 \u00b0F deadband active',
+    c.shed ? `Load shed active (${f0(S.pw.total)}/${S.demandLimit} W)` : '+2.0 \u00b0F deadband & smart-plug cap');
+  setIos('iosIotToggle', 'iosIotSub', S.iotAuto,
+    `Auto-dispatch ON (${S.iotSent} sent \u2022 925-407-5652)`,
+    'Tap to enable automatic fault SMS & email');
+  const purgeOn = c.purge || S.fanOverride >= 80;
+  setIos('iosPurgeToggle', 'iosPurgeSub', purgeOn,
+    `High-flow purge active (${f0(S.fanAct)}% \u2022 ${f2(S.vel)} m/s)`,
+    'Outdoor damper 100% & high-flow fan');
+
+  // Bottom-right summary box
+  const diagEntries = Object.entries(S.diag).sort((a, b) => SEVRANK[b[1].sev] - SEVRANK[a[1].sev]);
+  if ($('sumHealthBadge')) {
+    if (diagEntries.length) {
+      const [topCode, topF] = diagEntries[0];
+      $('sumHealthBadge').textContent = `${topCode} (${diagEntries.length})`;
+      $('sumHealthBadge').className = 'badge ' + (topF.sev === 'crit' ? 'crit' : 'warn');
+    } else {
+      $('sumHealthBadge').textContent = 'NOMINAL';
+      $('sumHealthBadge').className = 'badge ok';
+    }
    15. BOOT
    ===================================================================== */
 buildFaultUI(); readSliders(); resize();
