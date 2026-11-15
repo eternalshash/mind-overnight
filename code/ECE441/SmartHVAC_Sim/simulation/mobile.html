@@ -1452,10 +1452,12 @@ setInterval(() => {
 
   $('mAdcStrip').className = 'adc-strip' + (M.usbConnected && M.bmeLive ? ' live' : '');
   $('mAdcTitle').textContent = M.usbConnected && M.bmeLive
-    ? '🟢 LIVE ARDUINO A4 (SDA) / A5 (SCL) BME280:'
+    ? 'LIVE ARDUINO A4 (SDA) / A5 (SCL) BME280:'
     : 'A4 (SDA) / A5 (SCL) BME280 SIGNAL PIPELINE:';
   $('mAdcFlow').innerHTML =
     `Analog <b>${M.vSenseMv.toFixed(1)} mV</b> &rarr; 20-bit ADC <b>0x${M.adcRaw.toString(16).toUpperCase()}</b> &rarr; I2C <b>0x76</b> &rarr; <span class="grn"><b>${fF(M.T)}&deg;F (${M.T.toFixed(2)}&deg;C)</b></span>`;
+
+  updateMobileNestUI();
 
   // Render Watchdog
   const wPct = clamp((M.wdt.elapsed / M.wdt.timeout) * 100, 0, 100);
@@ -1506,9 +1508,11 @@ setInterval(() => {
     });
 }, 1500);
 
+initMobileTurntable();
 buildFaultCards();
 syncControlsFromUI(false);
 updateIoTPreview(null);
+updateMobileNestUI();
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
