@@ -304,59 +304,195 @@ nav.bnav button.on{color:var(--accent);background:rgba(92,225,230,.08);font-weig
         <span class="mcard-t">Zone Climate Turntable</span>
         <span class="pill ok" id="mModePill">COOLING</span>
       </div>
-      <div class="hero">
-        <div class="hero-temp"><span id="mRoomF">75.2</span><small>&deg;F</small></div>
-        <div class="hero-sub">
-          <span>Feels Like <b id="mFeelsF">75.0&deg;F</b></span>
-          <span>Humidity <b id="mRh">48%</b></span>
-          <span>Power <b id="mTotalW">245 W</b></span>
+
+      <!-- BORDERLESS DOMED NEST GEN 4 MOBILE TURNTABLE -->
+      <div class="dial-hero-wrap">
+        <div id="mobNestDial" class="theme-cool" role="slider" tabindex="0" aria-label="Mobile Setpoint Turntable" aria-valuemin="64" aria-valuemax="82" aria-valuenow="73">
+          <div id="mobCoreGlow"></div>
+
+          <!-- Curved Top-Right Specular Studio Glass Glint -->
+          <svg id="mobGlassGlint" viewBox="0 0 268 268" aria-hidden="true">
+            <defs>
+              <linearGradient id="mobGlintGrad" x1="0%" y1="0%" x2="95%" y2="85%">
+                <stop offset="0%" stop-color="rgba(255,255,255,0.04)"/>
+                <stop offset="35%" stop-color="rgba(255,255,255,0.46)"/>
+                <stop offset="72%" stop-color="rgba(255,255,255,0.16)"/>
+                <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+              </linearGradient>
+              <linearGradient id="mobRimGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="rgba(255,255,255,0.22)"/>
+                <stop offset="50%" stop-color="rgba(255,255,255,0.03)"/>
+                <stop offset="100%" stop-color="rgba(255,255,255,0.10)"/>
+              </linearGradient>
+            </defs>
+            <circle cx="134" cy="134" r="132" fill="none" stroke="url(#mobRimGrad)" stroke-width="1.1"/>
+            <path d="M 78 19 A 118 118 0 0 1 218 61 A 126 112 0 0 0 82 30 Z" fill="url(#mobGlintGrad)"/>
+          </svg>
+
+          <!-- Inner "Nest-Esque" Degree Tick Dot Ring + Dual Dots -->
+          <svg id="mobDialSvg" viewBox="0 0 268 268" aria-hidden="true">
+            <path id="mobArcTrack" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1.6" stroke-linecap="round"/>
+            <path id="mobArcDelta" fill="none" stroke="#38bdf8" stroke-width="2.6" stroke-linecap="round"/>
+            <g id="mobDotTicks"></g>
+            <!-- Current Room Temp Dot + Inward Numeral -->
+            <circle id="mobRoomDot" cx="134" cy="34" r="4.2" fill="#ffffff"/>
+            <text id="mobArcRoomNum" x="134" y="53" text-anchor="middle" dominant-baseline="central" fill="rgba(255,255,255,0.86)" font-family="var(--sans)" font-size="12" font-weight="500" style="font-variant-numeric:tabular-nums">75</text>
+            <!-- Target Setpoint Dot + Inward Mini Glyph -->
+            <circle id="mobSpDot" cx="115" cy="36" r="5.2" fill="#38bdf8"/>
+            <g id="mobSpArcGlyph"></g>
+          </svg>
+
+          <!-- Center Readout & Perspective Animated Heating (♨) / Cooling (❄) Icon -->
+          <div class="mob-dial-center">
+            <div id="mobStateCaption">COOLING TO</div>
+            <div class="mob-sp-num"><span id="mSpDisp">73</span></div>
+            <div id="mobDialAnimIcon">
+              <!-- Perspective Heating Animation (♨ Rising Thermal Waves) -->
+              <svg id="mobHeatSvg" class="mob-state-svg" viewBox="0 0 88 42">
+                <ellipse class="heat-pad-ellipse" cx="44" cy="34" rx="27" ry="5.2"/>
+                <circle class="heat-ember e1" cx="31" cy="28" r="1.4"/>
+                <circle class="heat-ember e2" cx="44" cy="30" r="1.7"/>
+                <circle class="heat-ember e3" cx="57" cy="28" r="1.4"/>
+                <path class="heat-wave-path w1" d="M 31 32 C 27 26, 35 20, 31 14 C 28 10, 33 6, 31 4"/>
+                <path class="heat-wave-path w2" d="M 44 34 C 39 27, 49 19, 44 12 C 40 7, 47 3, 44 1"/>
+                <path class="heat-wave-path w3" d="M 57 32 C 53 26, 61 20, 57 14 C 54 10, 59 6, 57 4"/>
+              </svg>
+              <!-- Perspective Cooling Animation (❄ 3D Rotating Crystalline Snowflake) -->
+              <svg id="mobCoolSvg" class="mob-state-svg" viewBox="0 0 88 42">
+                <ellipse class="cool-pad-ellipse" cx="44" cy="34" rx="27" ry="5.2"/>
+                <circle class="cool-sparkle s1" cx="24" cy="18" r="1.4"/>
+                <circle class="cool-sparkle s2" cx="64" cy="15" r="1.5"/>
+                <circle class="cool-sparkle s3" cx="56" cy="28" r="1.2"/>
+                <g class="cool-crystal-grp">
+                  <line class="cool-flake-line" x1="44" y1="5" x2="44" y2="31"/>
+                  <line class="cool-flake-line" x1="32.7" y1="11.5" x2="55.3" y2="24.5"/>
+                  <line class="cool-flake-line" x1="32.7" y1="24.5" x2="55.3" y2="11.5"/>
+                  <path class="cool-flake-line" fill="none" d="M 40.5 8.5 L 44 12 L 47.5 8.5 M 40.5 27.5 L 44 24 L 47.5 27.5"/>
+                  <path class="cool-flake-line" fill="none" d="M 34.5 15.5 L 38.2 14.5 L 37 10.8 M 51 25.2 L 49.8 21.5 L 53.5 20.5"/>
+                  <path class="cool-flake-line" fill="none" d="M 37 25.2 L 38.2 21.5 L 34.5 20.5 M 53.5 15.5 L 49.8 14.5 L 51 10.8"/>
+                </g>
+              </svg>
+              <!-- Eco / Idle Equilibrium Graphic -->
+              <svg id="mobIdleSvg" class="mob-state-svg" viewBox="0 0 88 42">
+                <ellipse cx="44" cy="30" rx="24" ry="4.5" fill="rgba(52,199,89,0.12)" stroke="rgba(52,199,89,0.42)" stroke-width="1.2"/>
+                <path d="M 30 22 Q 44 12, 58 22 Q 44 28, 30 22 Z" fill="rgba(52,199,89,0.22)" stroke="#34c759" stroke-width="1.6"/>
+                <line x1="30" y1="22" x2="56" y2="19" stroke="#6ee7b7" stroke-width="1.3" stroke-linecap="round"/>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Tactile - / + Arc Step Buttons -->
+          <button type="button" class="step-btn" id="btnSpDown" aria-label="Decrease Setpoint">&minus;</button>
+          <button type="button" class="step-btn" id="btnSpUp" aria-label="Increase Setpoint">+</button>
         </div>
+        <div class="dial-hint">Rotate Nest dial ring or tap &minus; / +</div>
       </div>
-      <div class="adc-strip" id="mAdcStrip">
-        <div id="mAdcTitle" style="color:var(--cyan);font-weight:700;margin-bottom:2px">A4 (SDA) / A5 (SCL) BME280 PIPELINE:</div>
-        <div id="mAdcFlow">Analog <b>1689.6 mV</b> &rarr; 20-bit &Sigma;&Delta; ADC <b>0x83126</b> &rarr; I2C <b>0x76</b> &rarr; <span class="grn"><b>75.2&deg;F (24.00&deg;C)</b></span></div>
+
+      <!-- COMPACT 4-METRIC STRIP -->
+      <div class="metric-strip">
+        <div class="mstat"><div class="k">Room</div><div class="v"><span id="mRoomF">75.2</span><small>&deg;F</small></div></div>
+        <div class="mstat"><div class="k">Feels Like</div><div class="v"><b id="mFeelsF" style="font-weight:600">75.0&deg;F</b></div></div>
+        <div class="mstat"><div class="k">Humidity</div><div class="v"><b id="mRh" style="font-weight:600">48%</b></div></div>
+        <div class="mstat"><div class="k">Draw</div><div class="v"><b id="mTotalW" style="font-weight:600">245 W</b></div></div>
+      </div>
+
+      <!-- 5-SEGMENT MODE PILL BAR -->
+      <div class="mob-mode-seg" id="mobModeSeg" role="group" aria-label="HVAC Operating Mode">
+        <button type="button" class="mob-mode-pill on" data-mode="AUTO">Auto</button>
+        <button type="button" class="mob-mode-pill" data-mode="HEAT">Heat</button>
+        <button type="button" class="mob-mode-pill" data-mode="COOL">Cool</button>
+        <button type="button" class="mob-mode-pill" data-mode="ECO">Eco</button>
+        <button type="button" class="mob-mode-pill" data-mode="OFF">Off</button>
       </div>
     </div>
 
-    <div class="mcard">
-      <div class="mcard-h">
-        <span class="mcard-t">Touch Thermostat &amp; Demand Control</span>
-        <span class="pill" id="mActuatorSummary">FAN 30% | HTR OFF</span>
-      </div>
-      <div class="sp-row">
-        <button class="step-btn" id="btnSpDown">&minus;</button>
-        <div class="sp-val">
-          <div class="lbl">TARGET SETPOINT</div>
-          <div class="num"><span id="mSpDisp">73</span>&deg;F</div>
+    <!-- MIDDLE STACK: 4 iOS-STYLE PILL TOGGLE ROWS ([ ___ ] (o) FROM SKETCH) -->
+    <div class="ios-stack">
+      <div class="ios-row" id="rowMobPower">
+        <div class="ios-pill-lbl">
+          <div class="ios-title"><span>System Master Power</span><span class="pill" id="mActuatorSummary">FAN 30% | HTR OFF</span></div>
+          <div class="ios-sub" id="mIosPowerSub">Closed-loop PID &amp; blower active</div>
         </div>
-        <button class="step-btn" id="btnSpUp">+</button>
-      </div>
-      <input type="range" id="mSpSlider" min="64" max="82" step="1" value="73">
-
-      <div class="ctrl-group">
-        <div class="ctrl-lbl"><span>HVAC OPERATING MODE</span><b id="mModeLbl">AUTO (PID)</b></div>
-        <select class="m-in" id="mModeSelect">
-          <option value="AUTO" selected>AUTO (CLOSED-LOOP PID)</option>
-          <option value="COOL">FORCE COOLING (100%)</option>
-          <option value="HEAT">FORCE HEATING (12V PTC RELAY ON)</option>
-          <option value="ECO">ECO (+2.0&deg;F DEADBAND)</option>
-          <option value="OFF">SYSTEM OFF</option>
-        </select>
+        <button type="button" class="ios-switch on" id="mIosPower" role="switch" aria-checked="true" aria-label="System Master Power"></button>
       </div>
 
-      <div class="ctrl-group">
-        <div class="ctrl-lbl"><span>PIN 9 MOSFET FAN (IRLZ44N)</span><b id="mFanLbl">AUTO (PID)</b></div>
-        <input type="range" id="mFanSlider" min="-1" max="100" step="1" value="-1">
+      <div class="ios-row" id="rowMobEco">
+        <div class="ios-pill-lbl">
+          <div class="ios-title"><span>Eco Occupancy &amp; Load Shed</span></div>
+          <div class="ios-sub" id="mIosEcoSub">+2.0 &deg;F deadband &amp; demand limit cap</div>
+        </div>
+        <button type="button" class="ios-switch" id="mIosEco" role="switch" aria-checked="false" aria-label="Eco Occupancy Mode"></button>
       </div>
 
-      <div class="ctrl-group">
-        <div class="ctrl-lbl"><span>RESIDENTIAL DEMAND LIMIT</span><b id="mLimLbl">1500 W</b></div>
-        <input type="range" id="mLimSlider" min="500" max="3500" step="50" value="1500">
+      <div class="ios-row" id="rowMobIot">
+        <div class="ios-pill-lbl">
+          <div class="ios-title"><span>Caregiver SMS &amp; Email Alerts</span></div>
+          <div class="ios-sub" id="mIosIotSub">Auto-dispatch on fault to 925-407-5652</div>
+        </div>
+        <button type="button" class="ios-switch" id="mIosIot" role="switch" aria-checked="false" aria-label="Caregiver SMS and Email Alerts"></button>
+      </div>
+
+      <div class="ios-row" id="rowMobPurge">
+        <div class="ios-pill-lbl">
+          <div class="ios-title"><span>Fresh Air Ventilation Purge</span></div>
+          <div class="ios-sub" id="mIosPurgeSub">Boost blower 85% &amp; open OA damper</div>
+        </div>
+        <button type="button" class="ios-switch amber" id="mIosPurge" role="switch" aria-checked="false" aria-label="Fresh Air Ventilation Purge"></button>
       </div>
     </div>
+
+    <!-- COLLAPSIBLE FINE-TUNE SLIDERS, SPARKLINE & BME280 PIPELINE DRAWER -->
+    <details class="mcard-drawer" id="mFineDrawer">
+      <summary>
+        <span>Fine-Tune Sliders, Trend &amp; BME280 Pipeline</span>
+        <span class="pill" style="font-size:9px">ENGINEER</span>
+      </summary>
+      <div class="drawer-inner">
+        <div class="spark-box">
+          <div class="spark-hdr">
+            <span>ROOM TEMP VS. SETPOINT TREND</span>
+            <span id="mSparkMeta">75.2&deg;F &rarr; 73&deg;F</span>
+          </div>
+          <canvas id="mMiniChart" width="360" height="48"></canvas>
+        </div>
+
+        <div class="ctrl-group">
+          <div class="ctrl-lbl"><span>TARGET SETPOINT SLIDER</span><b>64&ndash;82 &deg;F</b></div>
+          <input type="range" id="mSpSlider" min="64" max="82" step="1" value="73">
+        </div>
+
+        <div class="ctrl-group">
+          <div class="ctrl-lbl"><span>HVAC OPERATING MODE</span><b id="mModeLbl">AUTO (PID)</b></div>
+          <select class="m-in" id="mModeSelect">
+            <option value="AUTO" selected>AUTO (CLOSED-LOOP PID)</option>
+            <option value="COOL">FORCE COOLING (100%)</option>
+            <option value="HEAT">FORCE HEATING (12V PTC RELAY ON)</option>
+            <option value="ECO">ECO (+2.0&deg;F DEADBAND)</option>
+            <option value="OFF">SYSTEM OFF</option>
+          </select>
+        </div>
+
+        <div class="ctrl-group">
+          <div class="ctrl-lbl"><span>PIN 9 MOSFET FAN (IRLZ44N)</span><b id="mFanLbl">AUTO (PID)</b></div>
+          <input type="range" id="mFanSlider" min="-1" max="100" step="1" value="-1">
+        </div>
+
+        <div class="ctrl-group">
+          <div class="ctrl-lbl"><span>RESIDENTIAL DEMAND LIMIT</span><b id="mLimLbl">1500 W</b></div>
+          <input type="range" id="mLimSlider" min="500" max="3500" step="50" value="1500">
+        </div>
+
+        <div class="adc-strip" id="mAdcStrip">
+          <div id="mAdcTitle" style="color:var(--cyan);font-weight:600;margin-bottom:2px">A4 (SDA) / A5 (SCL) BME280 PIPELINE:</div>
+          <div id="mAdcFlow">Analog <b>1689.6 mV</b> &rarr; 20-bit &Sigma;&Delta; ADC <b>0x83126</b> &rarr; I2C <b>0x76</b> &rarr; <span class="grn"><b>75.2&deg;F (24.00&deg;C)</b></span></div>
+        </div>
+      </div>
+    </details>
   </section>
 
-  <!-- TAB 2: BENCH CUTOFF & WATCHDOG -->
+  <!-- =====================================================================
+       TAB 2: BENCH CUTOFF & WATCHDOG
+       ===================================================================== -->
   <section class="tab-sec" id="tab-bench">
     <div class="mcard">
       <div class="mcard-h">
