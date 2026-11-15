@@ -1159,6 +1159,7 @@ $('mBtnKill').addEventListener('click', async () => {
   $('mBtnKill').classList.add('latched');
   $('mKillBadge').textContent = 'KILL LATCHED'; $('mKillBadge').className = 'pill crit';
   syncControlsFromUI(true);
+  updateMobileNestUI();
   await sendUsbCmd('KILL');
   showToast('EMERGENCY HARDWARE KILL: Pin 8 Relay LOW (0V) & Pin 9 Fan 0V!', 'crit');
 });
@@ -1171,6 +1172,7 @@ document.querySelectorAll('[data-fan]').forEach(b => {
     $('mBtnKill').classList.remove('latched');
     $('mKillBadge').textContent = `FAN ${pct}%`; $('mKillBadge').className = 'pill warn';
     syncControlsFromUI(true);
+    updateMobileNestUI();
     await sendUsbCmd(`FAN ${pct}`);
     showToast(`Pin 9 MOSFET Fan set to ${pct}% (PWM ${Math.round(pct * 255 / 100)})`, '');
   });
@@ -1180,6 +1182,7 @@ $('mBtnHeatOff').addEventListener('click', async () => {
   M.modeOvr = 'AUTO'; $('mModeSelect').value = 'AUTO'; M.heat = 0;
   $('mKillBadge').textContent = 'RELAY OFF'; $('mKillBadge').className = 'pill ok';
   syncControlsFromUI(true);
+  updateMobileNestUI();
   await sendUsbCmd('HEAT OFF');
   showToast('Pin 8 12V PTC Heater Relay forced OFF (0V Safe)', 'ok');
 });
@@ -1189,6 +1192,7 @@ $('mBtnHeatOn').addEventListener('click', async () => {
   $('mBtnKill').classList.remove('latched');
   $('mKillBadge').textContent = 'PTC ON'; $('mKillBadge').className = 'pill warn';
   syncControlsFromUI(true);
+  updateMobileNestUI();
   await sendUsbCmd('HEAT ON');
   showToast('Pin 8 12V PTC Heater Relay energized (HIGH)', '');
 });
