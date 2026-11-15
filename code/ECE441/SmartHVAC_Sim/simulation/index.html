@@ -513,10 +513,11 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px;cursor:pointer
               <span class="env-title">Zone Climate &amp; Sensors</span>
               <span class="badge ok" id="qSensorBadge">TS-A BME280</span>
             </div>
-            <div style="font-size:8.5px;color:var(--muted);margin-top:6px;letter-spacing:.5px">DIRECT PIN 8 12V PTC HEATER RELAY TEST:</div>
-            <div class="bench-row2">
-              <button class="btn" id="btnBenchHeatOff" style="margin:0;padding:5px 4px;font-size:9px;border-color:var(--green);color:#6ee7b7">RELAY OFF (0V SAFE)</button>
-              <button class="btn" id="btnBenchHeatOn" style="margin:0;padding:5px 4px;font-size:9px;border-color:var(--amber);color:#fcd34d">RELAY ON (12V PTC)</button>
+            <div class="env-rows" style="margin-top:8px">
+              <div class="env-row"><span class="k">Indoor Room</span><span class="v" id="qRoomTemp">75.2<small>&deg;F</small></span></div>
+              <div class="env-row"><span class="k">Feels Like (Steadman)</span><span class="v" id="qFeelsLike">75.0<small>&deg;F</small></span></div>
+              <div class="env-row"><span class="k">Relative Humidity</span><span class="v" id="qHumidity">48<small>% RH</small></span></div>
+              <div class="env-row"><span class="k">Outdoor Weather</span><span class="v" id="qOutdoor">82.4<small>&deg;F</small></span></div>
             </div>
             <button class="btn" id="btnBenchAuto" style="margin-top:6px;border-color:var(--green);color:var(--green);font-size:9.5px">&#8634; RESTORE CLOSED-LOOP AUTO PID</button>
           </div>
