@@ -416,15 +416,94 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px;cursor:pointer
   </section>
 
   <section id="side">
-    <div id="tele">
-      <div class="pane-h"><span class="pane-t">Live Telemetry</span>
-        <div class="tabs" id="tabs">
-          <button class="tab on" data-v="power">POWER</button>
-          <button class="tab" data-v="multimeter">MULTIMETER (V/I/Ω)</button>
-          <button class="tab" data-v="forecast">6H FORECAST</button>
-          <button class="tab" data-v="thermal">THERMAL</button>
-          <button class="tab" data-v="airflow">AIRFLOW</button>
-          <button class="tab" data-v="iaq">AIR QUALITY</button>
+    <!-- =================================================================
+         MODE 1: STREAMLINED NEST TURNTABLE VIEW (DEFAULT)
+         ================================================================= -->
+    <div id="thermostatView">
+      <div class="nest-top-grid">
+        <!-- TOP-LEFT: BORDERLESS DOMED NEST GEN 4 TURNTABLE -->
+        <div id="nestDialWrap">
+          <div id="nestDial" class="theme-heat" role="slider" tabindex="0" aria-label="Thermostat Setpoint Turntable" aria-valuemin="64" aria-valuemax="82" aria-valuenow="73">
+            <div id="nestCoreGlow"></div>
+
+            <!-- Curved Top-Right Specular Studio Glass Glint -->
+            <svg id="nestGlassGlint" viewBox="0 0 300 300" aria-hidden="true">
+              <defs>
+                <linearGradient id="glintGrad" x1="0%" y1="0%" x2="95%" y2="85%">
+                  <stop offset="0%" stop-color="rgba(255,255,255,0.04)"/>
+                  <stop offset="35%" stop-color="rgba(255,255,255,0.46)"/>
+                  <stop offset="72%" stop-color="rgba(255,255,255,0.18)"/>
+                  <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+                </linearGradient>
+                <linearGradient id="rimGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="rgba(255,255,255,0.22)"/>
+                  <stop offset="50%" stop-color="rgba(255,255,255,0.03)"/>
+                  <stop offset="100%" stop-color="rgba(255,255,255,0.10)"/>
+                </linearGradient>
+              </defs>
+              <!-- Subtle outer domed glass rim -->
+              <circle cx="150" cy="150" r="147.5" fill="none" stroke="url(#rimGrad)" stroke-width="1.2"/>
+              <!-- Top-right curved studio reflection highlight (Nest Gen 4 signature) -->
+              <path d="M 88 21 A 133 133 0 0 1 244 68 A 142 126 0 0 0 92 33 Z" fill="url(#glintGrad)"/>
+            </svg>
+
+            <!-- Interactive 270° Arc Track, Ticks, Current Temp Dot (70) & Target Setpoint Dot (♨/❄) -->
+            <svg id="nestDialSvg" viewBox="0 0 300 300" aria-hidden="true">
+              <g id="nestArcTicks"></g>
+              <path id="nestArcTrack" fill="none" stroke="rgba(255,255,255,0.16)" stroke-width="2.2" stroke-linecap="round"/>
+              <path id="nestArcDelta" fill="none" stroke="#ff9f43" stroke-width="3" stroke-linecap="round"/>
+              <!-- Current Room Temp Dot + Inward Numeral -->
+              <circle id="nestRoomDot" cx="150" cy="38" r="4.2" fill="#ffffff"/>
+              <text id="nestRoomArcLbl" x="150" y="59" text-anchor="middle" dominant-baseline="central" fill="rgba(255,255,255,0.86)" font-family="var(--sans)" font-size="13" font-weight="500" style="font-variant-numeric:tabular-nums">75</text>
+              <!-- Target Setpoint Dot + Inward Mini Glyph -->
+              <circle id="nestSpDot" cx="174" cy="41" r="5.2" fill="#ff9f43"/>
+              <g id="nestSpArcGlyph"></g>
+            </svg>
+
+            <!-- Center Readout & Perspective Animated Heating (♨) / Cooling (❄) Icon -->
+            <div class="nest-center">
+              <div id="nestStateCaption">HEATING TO</div>
+              <div id="nestTargetNum">73</div>
+              <div id="nestAnimStage">
+                <!-- Perspective Heating Animation (♨ Rising Thermal Waves) -->
+                <svg id="nestHeatSvg" class="nest-state-svg" viewBox="0 0 88 42">
+                  <ellipse class="heat-pad-ellipse" cx="44" cy="34" rx="28" ry="5.5"/>
+                  <circle class="heat-ember e1" cx="31" cy="28" r="1.5"/>
+                  <circle class="heat-ember e2" cx="44" cy="30" r="1.8"/>
+                  <circle class="heat-ember e3" cx="57" cy="28" r="1.5"/>
+                  <path class="heat-wave-path w1" d="M 31 32 C 27 26, 35 20, 31 14 C 28 10, 33 6, 31 4"/>
+                  <path class="heat-wave-path w2" d="M 44 34 C 39 27, 49 19, 44 12 C 40 7, 47 3, 44 1"/>
+                  <path class="heat-wave-path w3" d="M 57 32 C 53 26, 61 20, 57 14 C 54 10, 59 6, 57 4"/>
+                </svg>
+                <!-- Perspective Cooling Animation (❄ 3D Rotating Crystalline Snowflake) -->
+                <svg id="nestCoolSvg" class="nest-state-svg" viewBox="0 0 88 42">
+                  <ellipse class="cool-pad-ellipse" cx="44" cy="34" rx="28" ry="5.5"/>
+                  <circle class="cool-sparkle s1" cx="24" cy="18" r="1.5"/>
+                  <circle class="cool-sparkle s2" cx="64" cy="15" r="1.6"/>
+                  <circle class="cool-sparkle s3" cx="56" cy="28" r="1.3"/>
+                  <g class="cool-crystal-grp">
+                    <line class="cool-flake-line" x1="44" y1="5" x2="44" y2="33"/>
+                    <line class="cool-flake-line" x1="31.9" y1="12" x2="56.1" y2="26"/>
+                    <line class="cool-flake-line" x1="31.9" y1="26" x2="56.1" y2="12"/>
+                    <path class="cool-flake-line" fill="none" d="M 40.5 9 L 44 12.5 L 47.5 9 M 40.5 29 L 44 25.5 L 47.5 29"/>
+                    <path class="cool-flake-line" fill="none" d="M 34 16.5 L 38 15.5 L 36.8 11.5 M 51.2 26.5 L 50 22.5 L 54 21.5"/>
+                    <path class="cool-flake-line" fill="none" d="M 36.8 26.5 L 38 22.5 L 34 21.5 M 54 16.5 L 50 15.5 L 51.2 11.5"/>
+                  </g>
+                </svg>
+                <!-- Eco / Idle Equilibrium Graphic -->
+                <svg id="nestIdleSvg" class="nest-state-svg" viewBox="0 0 88 42">
+                  <ellipse cx="44" cy="30" rx="24" ry="4.5" fill="rgba(52,199,89,0.12)" stroke="rgba(52,199,89,0.42)" stroke-width="1.2"/>
+                  <path d="M 30 22 Q 44 12, 58 22 Q 44 28, 30 22 Z" fill="rgba(52,199,89,0.22)" stroke="#34c759" stroke-width="1.6"/>
+                  <line x1="30" y1="22" x2="56" y2="19" stroke="#6ee7b7" stroke-width="1.3" stroke-linecap="round"/>
+                </svg>
+              </div>
+            </div>
+
+            <!-- Tactile - / + Arc Step Buttons -->
+            <button type="button" class="nest-step-btn" id="nestBtnMinus" title="Decrease Setpoint (-1 °F)" aria-label="Decrease Setpoint">&minus;</button>
+            <button type="button" class="nest-step-btn" id="nestBtnPlus" title="Increase Setpoint (+1 °F)" aria-label="Increase Setpoint">+</button>
+          </div>
+          <div class="nest-dial-hint">Drag turntable rim, scroll wheel, or tap &minus; / +</div>
         </div>
       </div>
       <div class="cards" id="cards"></div>
