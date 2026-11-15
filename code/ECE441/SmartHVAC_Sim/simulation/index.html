@@ -3974,7 +3974,7 @@ function initThermostatTurntable() {
 /* =====================================================================
    15. BOOT
    ===================================================================== */
-buildFaultUI(); readSliders(); resize();
+buildFaultUI(); initThermostatTurntable(); readSliders(); resize();
 for (let i = 0; i < HLEN * 5; i++) tick();   // warm-up: fill telemetry history quietly
 S.kWh = 0; S.quiet = false;
 // optional test hook: #inject=clog,mcu&warm=200&tab=airflow
