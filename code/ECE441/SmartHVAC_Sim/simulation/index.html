@@ -529,17 +529,15 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px;cursor:pointer
             </div>
             <canvas id="nestMiniSpark" width="280" height="50"></canvas>
           </div>
-        </div>
-        <div class="iot-box">
-          <div class="iot-grid">
-            <label for="iotPhone">SMS TO</label>
-            <div style="display:flex;gap:4px">
-              <input id="iotPhone" class="iot-in" type="text" value="9254075652" placeholder="Phone (10 digits)">
-              <select id="iotCarrier" class="iot-in" style="width:92px">
-                <option value="verizon" selected>Verizon</option>
-                <option value="att">AT&amp;T</option>
-                <option value="tmobile">T-Mobile</option>
-              </select>
+
+          <!-- Segmented Mode Selector Pills -->
+          <div>
+            <div class="mode-pills" id="nestModePills" role="group" aria-label="HVAC Operating Mode">
+              <button type="button" class="mode-pill on" data-mode="AUTO">Auto</button>
+              <button type="button" class="mode-pill" data-mode="HEAT">Heat</button>
+              <button type="button" class="mode-pill" data-mode="COOL">Cool</button>
+              <button type="button" class="mode-pill" data-mode="ECO">Eco</button>
+              <button type="button" class="mode-pill" data-mode="OFF">Off</button>
             </div>
             <label for="iotEmail">EMAIL TO</label>
             <input id="iotEmail" class="iot-in" type="email" value="choudhryshashwat29@gmail.com" placeholder="Recipient email">
