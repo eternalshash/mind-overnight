@@ -543,11 +543,41 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px;cursor:pointer
         </div>
       </div>
 
-      <div class="col">
-        <div class="pane-h"><span class="pane-t">Arduino Uno R4 / ESP32 Controller Response</span><span id="modeBadge" class="badge">IDLE</span></div>
-        <div class="mcu">
-          <div class="mbox ok" id="mA"><div class="n">MCU-A / ARDUINO UNO R4 (PIN 9/8/A4/A5)</div><div class="st" id="mAs">RUN - IN CONTROL</div><div class="hb" id="mAh">Heartbeat OK</div></div>
-          <div class="mbox stby" id="mB"><div class="n">MCU-B / REDUNDANT WATCHDOG</div><div class="st" id="mBs">HOT STANDBY</div><div class="hb" id="mBh">Mirroring PID state</div></div>
+      <!-- BOTTOM GRID: LEFT iOS PILL SWITCHES + RIGHT SUMMARY BOX -->
+      <div class="nest-bottom-grid">
+        <!-- BOTTOM-LEFT: 4 iOS-STYLE PILL TOGGLE SWITCHES -->
+        <div id="nestTogglesCol">
+          <div class="ios-row" id="rowIosPower">
+            <div class="ios-meta">
+              <div class="ios-title">System Master Power</div>
+              <div class="ios-sub" id="iosPowerSub">Closed-loop PID &amp; blower active</div>
+            </div>
+            <button type="button" class="ios-switch on" id="iosPowerToggle" role="switch" aria-checked="true" aria-label="System Master Power"></button>
+          </div>
+
+          <div class="ios-row" id="rowIosEco">
+            <div class="ios-meta">
+              <div class="ios-title">Eco Occupancy &amp; Load Shed</div>
+              <div class="ios-sub" id="iosEcoSub">+2.0 &deg;F deadband &amp; smart-plug cap</div>
+            </div>
+            <button type="button" class="ios-switch" id="iosEcoToggle" role="switch" aria-checked="false" aria-label="Eco Occupancy and Load Shed"></button>
+          </div>
+
+          <div class="ios-row" id="rowIosIot">
+            <div class="ios-meta">
+              <div class="ios-title">Caregiver SMS &amp; Email Alerts</div>
+              <div class="ios-sub" id="iosIotSub">Auto-dispatch to 925-407-5652 &amp; email</div>
+            </div>
+            <button type="button" class="ios-switch" id="iosIotToggle" role="switch" aria-checked="false" aria-label="Caregiver SMS and Email Alerts"></button>
+          </div>
+
+          <div class="ios-row" id="rowIosPurge">
+            <div class="ios-meta">
+              <div class="ios-title">Fresh Air Ventilation Purge</div>
+              <div class="ios-sub" id="iosPurgeSub">Outdoor damper 100% &amp; high-flow fan</div>
+            </div>
+            <button type="button" class="ios-switch amber" id="iosPurgeToggle" role="switch" aria-checked="false" aria-label="Fresh Air Ventilation Purge"></button>
+          </div>
         </div>
         <div class="wdt-box" id="wdtPanel">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
