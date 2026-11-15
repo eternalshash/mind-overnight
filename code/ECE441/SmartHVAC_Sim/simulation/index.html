@@ -505,51 +505,13 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px;cursor:pointer
           </div>
           <div class="nest-dial-hint">Drag turntable rim, scroll wheel, or tap &minus; / +</div>
         </div>
-      </div>
-      <div class="cards" id="cards"></div>
-      <div class="dmm-strip" id="dmmHelpStrip">
-        <span><b>DIGITAL TWIN vs. LAB BENCH DMM:</b> Live Ohm's Law &amp; MOSFET switching derivations (Pin 9 IRLZ44N + Pin 8 PTC Relay)</span>
-        <button class="btn" id="btnOpenDmmModal" style="width:auto;margin:0;padding:3px 9px;border-color:var(--cyan);color:var(--accent);font-weight:bold;font-size:9.5px">&#128208; EQUATIONS &amp; LAB PROBE GUIDE</button>
-      </div>
-      <div class="adc-bar" id="bmeAdcBar">
-        <span><b id="bmeSrcTag" style="color:var(--cyan)">BME280 (A4 SDA / A5 SCL): SIMULATED</b></span>
-        <span id="bmeAdcFlow">Analog Bridge <b class="stage">1666 mV</b><span class="arr">&rarr;</span>20-bit &Sigma;&Delta; ADC <b class="stage">0x81333</b><span class="arr">&rarr;</span>I2C <b class="stage">0x76 (A4/A5)</b><span class="arr">&rarr;</span>Digital <b class="grn">75.2&deg;F (24.00&deg;C)</b></span>
-      </div>
-      <div class="chartbox"><canvas id="chart"></canvas></div>
-    </div>
 
-    <div id="bottom">
-      <div class="col">
-        <div class="pane-h"><span class="pane-t">Fault Injection</span><div style="display:flex;gap:6px;align-items:center"><span id="autoSolveBadge" class="badge ok" style="cursor:pointer;user-select:none" title="Faults automatically switch to OFF once solved by ESP32 response">AUTO-CLEAR: ON</span><span id="injCount" class="badge">0 INJECTED</span></div></div>
-        <div id="faultGroups"></div>
-        <button class="btn" id="clearAll">CLEAR ALL FAULTS / RESTORE BASELINE</button>
-        <div class="grp-h" style="margin-top:10px">ENVIRONMENT AND CONTROL PARAMETERS</div>
-        <div class="sl"><div class="h"><span>HVAC MODE OVERRIDE (RPI / LOCAL)</span><b id="lModeOvr">AUTO (PID)</b></div>
-          <select id="sModeOvr" class="iot-in" style="margin-top:3px;padding:4px 6px;font-size:10px">
-            <option value="AUTO" selected>AUTO (PID SPLIT-RANGE)</option>
-            <option value="COOL">FORCE COOLING (100% COMP + FAN)</option>
-            <option value="HEAT">FORCE HEATING (100% 12V PTC RELAY + FAN)</option>
-            <option value="ECO">ECO MODE (+2.0°F DEADBAND)</option>
-            <option value="OFF">SYSTEM OFF</option>
-          </select>
-        </div>
-        <div class="sl"><div class="h"><span>THERMOSTAT SETPOINT</span><b id="lSp">73.4 F</b></div><input type="range" id="sSp" min="64" max="82" step="1" value="73"></div>
-        <div class="sl"><div class="h"><span>PIN 9 MOSFET FAN OVERRIDE (IRLZ44N)</span><b id="lFanOvr">AUTO (PID)</b></div><input type="range" id="sFanOvr" min="-1" max="100" step="1" value="-1"></div>
-        <div class="sl"><div class="h"><span>OUTDOOR TEMPERATURE</span><b id="lOut">82.4 F</b></div><input type="range" id="sOut" min="23" max="108" step="1" value="82"></div>
-        <div class="sl"><div class="h"><span>DEMAND LIMIT (LOAD SHEDDING)</span><b id="lLim">1500 W</b></div><input type="range" id="sLim" min="500" max="3500" step="50" value="1500"></div>
-        <div class="sl"><div class="h"><span>SIMULATION SPEED</span><b id="lSpd">x40</b></div><input type="range" id="sSpd" min="5" max="120" step="5" value="40"></div>
-        <details class="bench-drawer" id="benchDrawer">
-          <summary>
-            <span>&#9656; EMERGENCY HARDWARE CUTOFF / BENCH TEST DRAWER</span>
-            <span id="killStateBadge" class="badge">STANDBY</span>
-          </summary>
-          <div class="bench-body">
-            <button class="kill-btn" id="btnMasterKill">&#128721; MASTER HARDWARE KILL (ALL OFF: PIN 8 LOW &amp; PIN 9 0V)</button>
-            <div style="font-size:8.5px;color:var(--muted);margin-top:6px;letter-spacing:.5px">DIRECT PIN 9 MOSFET FAN BENCH TEST:</div>
-            <div class="bench-row">
-              <button class="btn" id="btnBenchFan0" style="margin:0;padding:5px 4px;font-size:9px;border-color:var(--red);color:#fca5a5">FAN OFF (0%)</button>
-              <button class="btn" id="btnBenchFan50" style="margin:0;padding:5px 4px;font-size:9px">FAN 50% (128)</button>
-              <button class="btn" id="btnBenchFan100" style="margin:0;padding:5px 4px;font-size:9px;border-color:var(--cyan);color:var(--accent)">FAN 100% (255)</button>
+        <!-- TOP-RIGHT: LIVE ENVIRONMENTAL READOUT + MINI SPARKLINE + MODE PILLS -->
+        <div id="nestEnvPanel">
+          <div>
+            <div class="env-head">
+              <span class="env-title">Zone Climate &amp; Sensors</span>
+              <span class="badge ok" id="qSensorBadge">TS-A BME280</span>
             </div>
             <div style="font-size:8.5px;color:var(--muted);margin-top:6px;letter-spacing:.5px">DIRECT PIN 8 12V PTC HEATER RELAY TEST:</div>
             <div class="bench-row2">
