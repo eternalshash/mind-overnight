@@ -2981,6 +2981,7 @@ function updatePanel() {
   }
   $('sbR').innerHTML = `CONTROLLER: MCU-${m.active} | ${mode}<br>T ${fF(c.Tctl)} F -> SP ${fF(c.sp)} F | ${f0(S.pw.total)} W`;
   $('lOut').textContent = S.inj.heatwave ? 'HEATWAVE 102.2 F' : fF(S.ToutSet) + ' F';
+  if (typeof updateThermostatView === 'function') updateThermostatView();
 }
 
 /* =====================================================================
