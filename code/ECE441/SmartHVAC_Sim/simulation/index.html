@@ -593,11 +593,11 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px;cursor:pointer
               <div class="sum-line"><span class="k">Duct &amp; Filter</span><span class="v" id="sumAirflow">2.40 m/s &bull; 10 Pa &bull; Filter 96%</span></div>
             </div>
           </div>
-          <div class="wdt-prog"><i id="wdtBar"></i></div>
-          <div id="wdtDetail" style="font-size:9px;color:var(--muted)">Monitoring 1 Hz TinyUSB (COM7) heartbeat packets &bull; Fail-safe cutoff armed</div>
-          <div style="display:flex;gap:5px;margin-top:5px">
-            <button class="btn" id="btnTestWdt" style="flex:1;margin:0;padding:4px 6px;font-size:9px;border-color:var(--amber);color:#fcd34d">&#129514; TEST WATCHDOG TRIP (2.5s)</button>
-            <button class="btn" id="btnResetWdt" style="flex:0 0 auto;width:auto;margin:0;padding:4px 8px;font-size:9px;border-color:var(--green);color:var(--green)">&#8634; RESET</button>
+
+          <div id="sumAlertBox" class="nominal">
+            <div class="r1">Row 1: Fault status nominal (awaiting fault trigger)</div>
+            <div class="r2">Row 2: Room: 75.2&deg;F | Feels Like: 75.0&deg;F | Outside: 82.4&deg;F</div>
+            <div class="r3">Row 3: System Action: Closed-loop PID regulating zone climate</div>
           </div>
           <details class="wdt-info">
             <summary>&#9432; HOW WATCHDOG WORKS: PURPOSE &amp; SIM vs. REAL LAB BENCH &#9662;</summary>
