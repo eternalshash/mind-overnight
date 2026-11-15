@@ -677,6 +677,52 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px;cursor:pointer
               <button class="btn" id="btnBenchAuto" style="margin-top:6px;border-color:var(--green);color:var(--green);font-size:9.5px">&#8634; RESTORE CLOSED-LOOP AUTO PID</button>
             </div>
           </details>
+          <div class="grp-h" style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">
+            <span>IOT SMS / EMAIL ALERT GATEWAY</span>
+            <div style="display:flex;gap:4px;align-items:center">
+              <span id="iotAutoBadge" class="badge" style="cursor:pointer;user-select:none" title="Click to toggle automatic Email + SMS dispatch when a fault is triggered">AUTO-SEND: OFF</span>
+              <span id="iotSentCount" class="badge">0 SENT</span>
+            </div>
+          </div>
+          <div class="iot-box">
+            <div class="iot-grid">
+              <label for="iotPhone">SMS TO</label>
+              <div style="display:flex;gap:4px">
+                <input id="iotPhone" class="iot-in" type="text" value="9254075652" placeholder="Phone (10 digits)">
+                <select id="iotCarrier" class="iot-in" style="width:92px">
+                  <option value="verizon" selected>Verizon</option>
+                  <option value="att">AT&amp;T</option>
+                  <option value="tmobile">T-Mobile</option>
+                </select>
+              </div>
+              <label for="iotEmail">EMAIL TO</label>
+              <input id="iotEmail" class="iot-in" type="email" value="choudhryshashwat29@gmail.com" placeholder="Recipient email">
+              <label for="iotPasscode">PASSCODE</label>
+              <input id="iotPasscode" class="iot-in" type="password" value="hvac441" placeholder="Demo passcode (ask the team)" autocomplete="off">
+            </div>
+            <div class="iot-prev" id="iotPreview"><div class="r1">Row 1: Fault status nominal (awaiting fault trigger)</div><div class="r2">Row 2: Room: 75.2°F | Feels Like: 75.0°F | Outside: 82.4°F</div><div class="r3">Row 3: System Action: Closed-loop PID regulating zone climate</div></div>
+            <button class="btn" id="btnTestIot" style="margin-top:6px;border-color:var(--cyan);color:var(--accent)">SEND TEST ALERT (SMS + EMAIL)</button>
+          </div>
+          <div class="grp-h" style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">
+            <span>USB ARDUINO / RASPBERRY PI 5 SYNC</span>
+            <div style="display:flex;gap:4px;align-items:center">
+              <span id="rpiSyncBadge" class="badge ok" style="cursor:pointer;user-select:none" title="Stream ESP32/Arduino telemetry &amp; receive setpoint commands">SYNC: ON</span>
+              <span id="rpiLatencyBadge" class="badge" title="Live HTTP/USB Round-Trip Time (latency) in milliseconds">-- ms</span>
+              <span id="rpiSyncCount" class="badge">0 PKTS</span>
+            </div>
+          </div>
+          <div class="iot-box">
+            <button class="btn" id="btnConnectUsb" style="margin-bottom:6px;border-color:var(--green);color:var(--green);font-weight:600;padding:6px 8px">CONNECT USB ARDUINO DIRECTLY (NO PI / NO PYTHON NEEDED)</button>
+            <div class="iot-grid">
+              <label for="rpiServerUrl">PI URL</label>
+              <input id="rpiServerUrl" class="iot-in" type="text" value="http://raspberrypi.local:8765" placeholder="http://raspberrypi.local:8765">
+            </div>
+            <div id="rpiStatusLine" style="margin-top:5px;font-size:9px;color:var(--muted)">Click "Connect USB Arduino" above (Chrome/Edge) OR run local RPi server</div>
+            <div style="display:flex;gap:6px;margin-top:6px">
+              <button class="btn" id="btnExportCsv" style="flex:1;border-color:var(--cyan);color:var(--accent);font-size:9.5px;padding:4px 6px">EXPORT CSV</button>
+              <button class="btn" id="btnBenchmarkComm" style="flex:1;border-color:var(--cyan);color:var(--accent);font-size:9.5px;padding:4px 6px">TEST SPEED</button>
+            </div>
+          </div>
         </div>
         <div class="grp-h">ACTUATOR OUTPUTS</div>
         <div id="bars"></div>
