@@ -1203,6 +1203,7 @@ $('mBtnRestoreAuto').addEventListener('click', async () => {
   $('mBtnKill').classList.remove('latched');
   $('mKillBadge').textContent = 'STANDBY'; $('mKillBadge').className = 'pill';
   syncControlsFromUI(true);
+  updateMobileNestUI();
   await sendUsbCmd('AUTO');
   showToast('Closed-loop AUTO PID control restored.', 'ok');
 });
@@ -1221,6 +1222,7 @@ $('mBtnResetWdt').addEventListener('click', () => {
     $('mKillBadge').textContent = 'STANDBY'; $('mKillBadge').className = 'pill';
     syncControlsFromUI(true);
   }
+  updateMobileNestUI();
   showToast('Serial Comms Watchdog reset — AUTO PID armed.', 'ok');
 });
 
@@ -1229,9 +1231,14 @@ function buildFaultCards() {
   const box = $('mFaultList');
   box.innerHTML = '';
   FAULTS.forEach(f => {
+    const isOn = !!M.inj[f.id];
     const el = document.createElement('div');
-    el.className = 'fault-item' + (M.inj[f.id] ? ' on' : '');
-    el.innerHTML = `<div><div class="fn">${f.nm}</div><div class="fd">${f.ds}</div></div><span class="fault-sw">${M.inj[f.id] ? 'ACTIVE' : 'OFF'}</span>`;
+    el.className = 'fault-item' + (isOn ? ' on' : '');
+    el.dataset.f = f.id;
+    el.id = 'mf_' + f.id;
+    el.innerHTML =
+      `<div><div class="fn">${f.nm}</div><div class="fd">${f.ds}</div></div>` +
+      `<div class="fault-right"><span class="fault-sw">${isOn ? 'ACTIVE' : 'OFF'}</span><span class="ios-switch amber${isOn ? ' on' : ''}"></span></div>`;
     el.addEventListener('click', () => {
       M.inj[f.id] = !M.inj[f.id];
       buildFaultCards();
