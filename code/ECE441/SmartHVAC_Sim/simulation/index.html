@@ -579,10 +579,19 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px;cursor:pointer
             <button type="button" class="ios-switch amber" id="iosPurgeToggle" role="switch" aria-checked="false" aria-label="Fresh Air Ventilation Purge"></button>
           </div>
         </div>
-        <div class="wdt-box" id="wdtPanel">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
-            <span style="font-size:9.5px;color:#fff;letter-spacing:.5px"><b>SERIAL COMMS WATCHDOG</b> (1Hz USB / 2.5s TRIP)</span>
-            <span id="wdtBadge" class="badge ok">HB OK (0.2s)</span>
+
+        <!-- BOTTOM-RIGHT: LIVE HARDWARE & ALERT SUMMARY CARD -->
+        <div id="nestSummaryCard">
+          <div>
+            <div class="env-head">
+              <span class="env-title">Hardware &amp; Alert Summary</span>
+              <span class="badge ok" id="sumHealthBadge">NOMINAL</span>
+            </div>
+            <div class="sum-kv" style="margin-top:8px">
+              <div class="sum-line"><span class="k">Actuators</span><span class="v" id="sumActuators">Comp 0% &bull; Heat 0% &bull; Fan 30%</span></div>
+              <div class="sum-line"><span class="k">Electrical / DMM</span><span class="v" id="sumPower">150 W &bull; V_GS 1.50 V &bull; 169.3 &Omega;</span></div>
+              <div class="sum-line"><span class="k">Duct &amp; Filter</span><span class="v" id="sumAirflow">2.40 m/s &bull; 10 Pa &bull; Filter 96%</span></div>
+            </div>
           </div>
           <div class="wdt-prog"><i id="wdtBar"></i></div>
           <div id="wdtDetail" style="font-size:9px;color:var(--muted)">Monitoring 1 Hz TinyUSB (COM7) heartbeat packets &bull; Fail-safe cutoff armed</div>
