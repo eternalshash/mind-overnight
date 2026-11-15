@@ -1082,6 +1082,7 @@ function broadcastControl() {
   const payload = {
     command_seq: Date.now() % 100000,
     setpoint_f: Math.round(M.spC * 9 / 5 + 32),
+    setpoint_c: +M.spC.toFixed(2),
     mode_override: M.modeOvr,
     fan_override_pct: M.fanOvr,
     demand_limit_w: M.demandLimit
@@ -1102,9 +1103,12 @@ if (ctrlChan) {
     const d = ev && ev.data;
     if (!d) return;
     if (typeof d.setpoint_f === 'number') { M.spC = (d.setpoint_f - 32) * 5 / 9; $('mSpSlider').value = Math.round(d.setpoint_f); }
+    else if (typeof d.setpoint_c === 'number') { M.spC = d.setpoint_c; $('mSpSlider').value = Math.round(d.setpoint_c * 9 / 5 + 32); }
     if (d.mode_override) { M.modeOvr = d.mode_override; $('mModeSelect').value = d.mode_override; }
     if (typeof d.fan_override_pct === 'number') { M.fanOvr = d.fan_override_pct; $('mFanSlider').value = d.fan_override_pct; }
     if (typeof d.demand_limit_w === 'number') { M.demandLimit = d.demand_limit_w; $('mLimSlider').value = d.demand_limit_w; }
+    syncControlsFromUI(false);
+    updateMobileNestUI();
   });
 }
 
@@ -1143,10 +1147,10 @@ function syncControlsFromUI(pushRemote = true) {
   }
 }
 
-$('btnSpDown').addEventListener('click', () => { $('mSpSlider').value = clamp(+$('mSpSlider').value - 1, 64, 82); syncControlsFromUI(true); });
-$('btnSpUp').addEventListener('click', () => { $('mSpSlider').value = clamp(+$('mSpSlider').value + 1, 64, 82); syncControlsFromUI(true); });
-['mSpSlider', 'mFanSlider', 'mLimSlider'].forEach(id => $(id).addEventListener('input', () => syncControlsFromUI(false)));
-['mSpSlider', 'mModeSelect', 'mFanSlider', 'mLimSlider'].forEach(id => $(id).addEventListener('change', () => syncControlsFromUI(true)));
+$('btnSpDown').addEventListener('click', ev => { ev.stopPropagation(); $('mSpSlider').value = clamp(+$('mSpSlider').value - 1, 64, 82); syncControlsFromUI(true); updateMobileNestUI(); });
+$('btnSpUp').addEventListener('click', ev => { ev.stopPropagation(); $('mSpSlider').value = clamp(+$('mSpSlider').value + 1, 64, 82); syncControlsFromUI(true); updateMobileNestUI(); });
+['mSpSlider', 'mFanSlider', 'mLimSlider'].forEach(id => $(id).addEventListener('input', () => { syncControlsFromUI(false); updateMobileNestUI(); }));
+['mSpSlider', 'mModeSelect', 'mFanSlider', 'mLimSlider'].forEach(id => $(id).addEventListener('change', () => { syncControlsFromUI(true); updateMobileNestUI(); }));
 
 // Emergency Cutoff & Bench Test
 $('mBtnKill').addEventListener('click', async () => {
