@@ -318,11 +318,13 @@ main{flex:1;display:flex;min-height:0}
 .frow .st{font-family:var(--mono);font-size:8.5px;color:var(--amber);letter-spacing:.5px;margin-top:2px;display:none}
 .frow.on .st{display:block}
 .frow.solved .st{display:block;color:var(--green)}
-.sw{flex:0 0 30px;height:14px;border:1px solid var(--muted);position:relative}
-.sw::after{content:'';position:absolute;top:2px;left:2px;width:8px;height:8px;background:var(--muted);transition:left .15s}
-.frow.on .sw{border-color:var(--amber)} .frow.on .sw::after{left:18px;background:var(--amber)}
-.btn{width:100%;margin-top:4px;background:var(--card);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:10px;padding:6px;cursor:pointer;letter-spacing:1px}
-.btn:hover{border-color:var(--cyan);color:#fff}
+/* Upgraded iOS-style pill fault switches */
+.sw{flex:0 0 36px;height:20px;border-radius:999px;background:#2b3140;border:1px solid rgba(255,255,255,.1);position:relative;transition:background .18s var(--ease-out),border-color .18s}
+.sw::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#d1d5db;box-shadow:0 1px 3px rgba(0,0,0,.4);transition:transform .18s var(--ease-out),background .18s}
+.frow.on .sw{background:var(--amber);border-color:rgba(245,158,11,.6)}
+.frow.on .sw::after{transform:translateX(16px);background:#fff}
+.btn{width:100%;margin-top:4px;background:var(--card);border:1px solid var(--border-strong);border-radius:6px;color:var(--text);font-family:var(--sans);font-weight:500;font-size:10.5px;padding:6px 8px;cursor:pointer;letter-spacing:.02em;transition:border-color .15s,background .15s,color .15s}
+.btn:hover{border-color:var(--cyan);background:var(--card-raised);color:#fff}
 .sl{margin-top:6px}
 .sl .h{display:flex;justify-content:space-between;font-size:9px;color:var(--muted)}
 .sl .h b{color:var(--cyan)}
