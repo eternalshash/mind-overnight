@@ -724,13 +724,41 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px;cursor:pointer
             </div>
           </div>
         </div>
-        <div class="grp-h">ACTUATOR OUTPUTS</div>
-        <div id="bars"></div>
-        <div class="kv" id="kv"></div>
-        <div class="grp-h" style="margin-top:8px">DIAGNOSTICS / ACTIVE FAULTS</div>
-        <div id="flist"></div>
-        <div class="grp-h" style="margin-top:8px">FIRMWARE EVENT LOG (NEWEST FIRST)</div>
-        <div id="log"></div>
+
+        <div class="col">
+          <div class="pane-h"><span class="pane-t">Arduino Uno R4 / ESP32 Controller Response</span><span id="modeBadge" class="badge">IDLE</span></div>
+          <div class="mcu">
+            <div class="mbox ok" id="mA"><div class="n">MCU-A / ARDUINO UNO R4 (PIN 9/8/A4/A5)</div><div class="st" id="mAs">RUN - IN CONTROL</div><div class="hb" id="mAh">Heartbeat OK</div></div>
+            <div class="mbox stby" id="mB"><div class="n">MCU-B / REDUNDANT WATCHDOG</div><div class="st" id="mBs">HOT STANDBY</div><div class="hb" id="mBh">Mirroring PID state</div></div>
+          </div>
+          <div class="wdt-box" id="wdtPanel">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+              <span style="font-size:9.5px;color:#fff;letter-spacing:.3px"><b>SERIAL COMMS WATCHDOG</b> (1Hz USB / 2.5s TRIP)</span>
+              <span id="wdtBadge" class="badge ok">HB OK (0.2s)</span>
+            </div>
+            <div class="wdt-prog"><i id="wdtBar"></i></div>
+            <div id="wdtDetail" style="font-size:9px;color:var(--muted)">Monitoring 1 Hz TinyUSB (COM7) heartbeat packets &bull; Fail-safe cutoff armed</div>
+            <div style="display:flex;gap:5px;margin-top:5px">
+              <button class="btn" id="btnTestWdt" style="flex:1;margin:0;padding:4px 6px;font-size:9px;border-color:var(--amber);color:#fcd34d">TEST WATCHDOG TRIP (2.5s)</button>
+              <button class="btn" id="btnResetWdt" style="flex:0 0 auto;width:auto;margin:0;padding:4px 8px;font-size:9px;border-color:var(--green);color:var(--green)">&#8634; RESET</button>
+            </div>
+            <details class="wdt-info">
+              <summary>&#9432; HOW WATCHDOG WORKS: PURPOSE &amp; SIM vs. REAL LAB BENCH &#9662;</summary>
+              <div style="margin-top:4px">
+                &bull; <b>Core Safety Goal:</b> Prevents hazardous 12V PTC heater thermal runaway ("latched-ON" state) if firmware hangs, USB serial disconnects, or logic power browns out.<br>
+                &bull; <b>In Digital Twin Sim:</b> Models a redundant dual-MCU supervisor where hot-standby <b>MCU-B</b> detects missed 1 Hz heartbeats (&gt;1.6s) from <b>MCU-A</b> and executes bumpless PID takeover.<br>
+                &bull; <b>In Physical Lab Bench (Arduino Uno R4 / COM7):</b> Combines (1) <b>Serial Heartbeat Watchdog</b> monitoring 1 Hz <code>hb_seq</code> USB packets (trips <code>E-204</code> alarm &amp; commands <code>KILL</code> at &gt;2.5s silence) + (2) <b>10k&Omega; Hardware Pull-Down Resistors</b> on Pin 9 MOSFET Gate &amp; Pin 8 Relay so power loss defaults physically to <code>0V (OFF)</code>.
+              </div>
+            </details>
+          </div>
+          <div class="grp-h">ACTUATOR OUTPUTS</div>
+          <div id="bars"></div>
+          <div class="kv" id="kv"></div>
+          <div class="grp-h" style="margin-top:8px">DIAGNOSTICS / ACTIVE FAULTS</div>
+          <div id="flist"></div>
+          <div class="grp-h" style="margin-top:8px">FIRMWARE EVENT LOG (NEWEST FIRST)</div>
+          <div id="log"></div>
+        </div>
       </div>
     </div>
   </section>
