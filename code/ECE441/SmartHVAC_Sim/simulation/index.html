@@ -3236,6 +3236,95 @@ function render(now) {
   ctx.globalAlpha = 1;
   lbl(`SUPPLY DIFFUSER  SA ${fF(S.SAT)} F`, scx, sy - 5, '#7dd3fc', 'center', 8);
 
+  // PERSPECTIVE HEATING vs COOLING ROOM ANIMATION (radiating from ceiling supply diffuser into bedroom)
+  const isHeatingRoom = !S.wdt.tripped && S.modeOverride !== 'OFF' && !c.blowerFault && (c.heat > 0.5 || S.modeOverride === 'HEAT' || c.sp > c.Tctl + 0.35);
+  const isCoolingRoom = !isHeatingRoom && !S.wdt.tripped && S.modeOverride !== 'OFF' && !c.blowerFault && (c.comp > 0.5 || S.modeOverride === 'COOL' || c.sp < c.Tctl - 0.35);
+  if (isHeatingRoom || isCoolingRoom) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(rx, ry, rw, rh);
+    ctx.clip();
+
+    // 1. Directional perspective thermal aura from supply diffuser toward occupancy zone
+    const auraR = Dd(0.42);
+    const aura = ctx.createRadialGradient(scx, scy, 8, scx - Dd(0.06), scy - Dd(0.02), auraR);
+    if (isHeatingRoom) {
+      aura.addColorStop(0, 'rgba(255, 148, 56, 0.22)');
+      aura.addColorStop(0.48, 'rgba(224, 96, 32, 0.08)');
+      aura.addColorStop(1, 'rgba(224, 96, 32, 0)');
+    } else {
+      aura.addColorStop(0, 'rgba(56, 189, 248, 0.22)');
+      aura.addColorStop(0.48, 'rgba(14, 165, 233, 0.08)');
+      aura.addColorStop(1, 'rgba(14, 165, 233, 0)');
+    }
+    ctx.fillStyle = aura;
+    ctx.fillRect(rx, ry, rw, rh);
+
+    // 2. Three expanding 2.5D perspective elliptical wave rings
+    for (let ring = 0; ring < 3; ring++) {
+      const prog = ((now / 2100) + ring / 3) % 1;
+      const radX = 18 + prog * Dd(0.28);
+      const radY = radX * 0.56;
+      const cxR = scx - prog * Dd(0.05);
+      const cyR = scy + prog * Dd(0.025);
+      ctx.strokeStyle = isHeatingRoom
+        ? `rgba(255, 159, 67, ${(1 - prog) * 0.52})`
+        : `rgba(92, 225, 230, ${(1 - prog) * 0.52})`;
+      ctx.lineWidth = 1.6 - prog * 0.7;
+      ctx.beginPath();
+      ctx.ellipse(cxR, cyR, radX, radY, -0.18, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // 3. Perspective Heating Wave Plumes (♨) vs Crystalline Cooling Snowflakes (❄)
+    if (isHeatingRoom) {
+      const plumeOffsets = [[-0.08, -0.04], [-0.03, 0.03], [0.03, -0.02], [-0.14, 0.01]];
+      plumeOffsets.forEach(([oxN, oyN], idx) => {
+        const px0 = scx + Dd(oxN), py0 = scy + Dd(oyN);
+        const phase = (now / 260) + idx * 1.4;
+        ctx.strokeStyle = 'rgba(255, 174, 88, 0.65)';
+        ctx.lineWidth = 1.7;
+        for (let w = -1; w <= 1; w++) {
+          const wx0 = px0 + w * 6;
+          ctx.beginPath();
+          for (let step = 0; step <= 14; step++) {
+            const u = step / 14;
+            const wy = py0 + 8 - u * 24;
+            const wx = wx0 + Math.sin(phase + u * Math.PI * 2.2) * (2.6 * (1 - u * 0.25));
+            if (step === 0) ctx.moveTo(wx, wy); else ctx.lineTo(wx, wy);
+          }
+          ctx.stroke();
+        }
+      });
+      lbl('PERSPECTIVE HEATING WAVE ACTIVE', scx, sy + sh + 12, '#ffb878', 'center', 8, true);
+    } else {
+      const crystalNodes = [[-0.09, -0.05], [-0.04, 0.04], [0.04, -0.03], [-0.15, -0.01], [0.01, 0.07]];
+      crystalNodes.forEach(([oxN, oyN], idx) => {
+        const drift = ((now / 2400) + idx * 0.21) % 1;
+        const cxC = lerp(scx, scx + Dd(oxN * 1.8), drift);
+        const cyC = lerp(scy, scy + Dd(oyN * 1.8), drift);
+        const rot = (now / 900) + idx;
+        const rad = 5.5 * (1 - drift * 0.3);
+        ctx.save();
+        ctx.translate(cxC, cyC);
+        ctx.scale(1, 0.78);
+        ctx.rotate(rot);
+        ctx.strokeStyle = `rgba(103, 232, 249, ${(1 - drift) * 0.85})`;
+        ctx.lineWidth = 1.4;
+        for (let arm = 0; arm < 3; arm++) {
+          const a = arm * Math.PI / 3;
+          ctx.beginPath();
+          ctx.moveTo(-Math.cos(a) * rad, -Math.sin(a) * rad);
+          ctx.lineTo(Math.cos(a) * rad, Math.sin(a) * rad);
+          ctx.stroke();
+        }
+        ctx.restore();
+      });
+      lbl('PERSPECTIVE COOLING FLOW ACTIVE', scx, sy + sh + 12, '#67e8f9', 'center', 8, true);
+    }
+    ctx.restore();
+  }
+
   // return grille + filter + FS3000
   const filtCol = S.filterH < .4 ? '#ef4444' : S.filterH < .7 ? '#f59e0b' : '#10b981';
   const [gx, gy, gw, gh] = rect(R.ret, c.clogLevel ? 'rgba(245,158,11,.12)' : '#091e3b', c.clogLevel === 2 ? '#ef4444' : c.clogLevel ? '#f59e0b' : '#38bdf8', 1.8);
