@@ -5,29 +5,64 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>ECE 441 Smart HVAC — Mobile Control</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#07152b">
+<meta name="theme-color" content="#07090d">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg:#061123; --panel:#0b1c36; --card:#0f2547; --border:#1e3d6b;
-  --cyan:#38bdf8; --accent:#00e5ff; --text:#eaf2fb; --muted:#8ba3c4;
-  --amber:#f59e0b; --red:#ef4444; --green:#10b981;
-  --mono:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* Unslop Ink-Graphite Neutral Dark Ramp */
+  --bg-deep:#07090d;
+  --bg:#0b0d12;
+  --panel:#10131a;
+  --card:#161a23;
+  --card-raised:#1e2330;
+  --border:rgba(238,240,245,.08);
+  --border-strong:rgba(238,240,245,.15);
+
+  /* Text Hierarchy */
+  --text:#eef0f5;
+  --text-sec:#a3a9b8;
+  --muted:#71798a;
+
+  /* Semantic & Thermal Accents */
+  --cyan:#38bdf8;
+  --accent:#5ce1e6;
+  --heat-amber:#e07a38;
+  --heat-bright:#ff9f43;
+  --cool-ice:#38bdf8;
+  --cool-bright:#5ce1e6;
+  --green:#34c759;
+  --amber:#f59e0b;
+  --red:#ef4444;
+
+  /* Typography & Motion */
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',Roboto,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --ease-out:cubic-bezier(0.22,1,0.36,1);
+  --r-sm:8px;
+  --r-md:12px;
+  --r-lg:16px;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding-bottom:74px}
-header{position:sticky;top:0;z-index:50;background:rgba(6,17,35,.95);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px}
-.brand{display:flex;align-items:center;gap:8px}
-.dot{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 8px currentColor;flex-shrink:0}
-.brand-t{font-size:13px;font-weight:700;letter-spacing:.6px;color:#fff}
-.brand-s{font-size:10px;color:var(--muted);font-family:var(--mono)}
-.top-actions{display:flex;gap:6px;align-items:center}
-.chip-btn{background:var(--card);border:1px solid var(--border);color:var(--accent);font-family:var(--mono);font-size:10.5px;font-weight:600;padding:6px 9px;border-radius:6px;text-decoration:none;cursor:pointer;white-space:nowrap}
-.chip-btn.usb{border-color:var(--green);color:#6ee7b7}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13px;padding-bottom:84px;-webkit-font-smoothing:antialiased}
 
-main{padding:12px;max-width:560px;margin:0 auto}
-.tab-sec{display:none;flex-direction:column;gap:12px}
+/* STICKY GLASS HEADER */
+header{position:sticky;top:0;z-index:50;background:rgba(7,9,13,.88);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--border);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.brand{display:flex;align-items:center;gap:9px;min-width:0}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px currentColor;flex-shrink:0}
+.brand-t{font-size:13px;font-weight:600;letter-spacing:-.01em;color:var(--text);white-space:nowrap}
+.brand-s{font-size:9px;letter-spacing:-.02em;color:var(--muted);font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top-actions{display:flex;gap:5px;align-items:center;flex-shrink:0}
+.chip-btn{background:var(--card);border:1px solid var(--border-strong);color:var(--text);font-family:var(--sans);font-size:10.5px;font-weight:500;padding:5px 8px;border-radius:var(--r-sm);text-decoration:none;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;transition:background .15s,border-color .15s}
+.chip-btn:hover{background:var(--card-raised);border-color:var(--cyan)}
+.chip-btn.usb{border-color:rgba(52,199,89,.45);color:#6ee7b7}
+
+/* MAIN CONTAINER & TABS */
+main{padding:10px 12px;max-width:480px;margin:0 auto}
+.tab-sec{display:none;flex-direction:column;gap:9px}
 .tab-sec.active{display:flex}
 
 .mcard{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px;box-shadow:0 6px 20px rgba(0,0,0,.32)}
