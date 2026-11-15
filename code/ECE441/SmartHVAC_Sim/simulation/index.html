@@ -2690,6 +2690,7 @@ async function benchSetHeaterRelay(turnOn) {
 }
 
 async function benchRestoreAutoPid() {
+  S.manualPurge = false;
   S.modeOverride = 'AUTO';
   S.fanOverride = -1;
   if ($('sModeOvr')) $('sModeOvr').value = 'AUTO';
