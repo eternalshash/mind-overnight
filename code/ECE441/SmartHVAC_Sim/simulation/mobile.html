@@ -499,7 +499,7 @@ nav.bnav button.on{color:var(--accent);background:rgba(92,225,230,.08);font-weig
         <span class="mcard-t">Emergency Hardware Cutoff</span>
         <span class="pill" id="mKillBadge">STANDBY</span>
       </div>
-      <button class="kill-big" id="mBtnKill">&#128721; MASTER HARDWARE KILL (PIN 8 LOW &amp; PIN 9 0V)</button>
+      <button class="kill-big" id="mBtnKill">MASTER HARDWARE KILL (PIN 8 LOW &amp; PIN 9 0V)</button>
       <div style="font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:10px">DIRECT PIN 9 FAN BENCH OVERRIDE:</div>
       <div class="btn-grid3">
         <button class="m-btn red" data-fan="0">FAN 0%</button>
@@ -520,16 +520,16 @@ nav.bnav button.on{color:var(--accent);background:rgba(92,225,230,.08);font-weig
         <span class="pill ok" id="mWdtBadge">HB OK (0.2s)</span>
       </div>
       <div class="wdt-bar"><i id="mWdtBar"></i></div>
-      <div id="mWdtMsg" style="font-size:11px;font-family:var(--mono);color:var(--muted);line-height:1.45">
+      <div id="mWdtMsg" style="font-size:11px;font-family:var(--mono);color:var(--text-sec);line-height:1.45">
         1 Hz heartbeat active &bull; Fail-safe cutoff armed at 2.5s timeout
       </div>
       <div class="btn-grid2" style="margin-top:10px">
-        <button class="m-btn amb" id="mBtnTestWdt">&#129514; TEST WDT TRIP</button>
+        <button class="m-btn amb" id="mBtnTestWdt">TEST WDT TRIP</button>
         <button class="m-btn grn" id="mBtnResetWdt">&#8634; RESET WDT</button>
       </div>
       <div class="eq-card" style="margin-top:10px;border-left-color:var(--amber)">
         <div class="et">Watchdog: Digital Twin Sim vs. Lab Bench</div>
-        <div style="color:#dbe7f5;margin-top:3px">
+        <div style="color:var(--text-sec);margin-top:3px">
           &bull; <b>Purpose:</b> Prevents 12V PTC heater thermal runaway if MCU freezes or serial cable drops.<br>
           &bull; <b>Digital Twin:</b> Dual-MCU hot-standby <code>MCU-B</code> takes over PID in 1.6s.<br>
           &bull; <b>Lab Bench (COM7 TinyUSB):</b> Monitors 1 Hz <code>hb_seq</code> JSON packets (trips <code>E-204</code> &amp; sends <code>KILL</code> at &gt;2.5s) + physical <code>10k&Omega;</code> pull-downs on Pin 9 &amp; Pin 8 keep hardware at <code>0V</code> during reset.
