@@ -16,10 +16,42 @@ if (!navigator.webdriver && window.innerWidth < 720 && /Mobi|Android|iPhone|iPod
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#07152b; --grid1:rgba(56,189,248,.20); --grid2:rgba(56,189,248,.06);
-  --cyan:#38bdf8; --accent:#00e5ff; --panel:#0b1b34; --card:#11264a; --border:#1f3d6b;
-  --text:#dbe7f5; --muted:#7f97b8; --red:#ef4444; --amber:#f59e0b; --green:#10b981;
-  --mono:'SF Mono',Menlo,Consolas,'Courier New',monospace;
+  /* Unslop Ink-Graphite Neutral Dark Ramp */
+  --bg-deep:#07090d;
+  --bg:#0b0d12;
+  --panel:#10131a;
+  --card:#161a23;
+  --card-raised:#1e2330;
+  --border:rgba(238,240,245,.08);
+  --border-strong:rgba(238,240,245,.15);
+  --grid1:rgba(56,189,248,.11);
+  --grid2:rgba(56,189,248,.035);
+
+  /* Text Hierarchy */
+  --text:#eef0f5;
+  --text-sec:#a3a9b8;
+  --muted:#71798a;
+
+  /* Semantic & Thermal Accents */
+  --cyan:#38bdf8;
+  --accent:#5ce1e6;
+  --heat-amber:#e07a38;
+  --heat-bright:#ff9f43;
+  --heat-deep:#9c3d10;
+  --cool-ice:#38bdf8;
+  --cool-bright:#5ce1e6;
+  --cool-deep:#0c4a6e;
+  --green:#34c759;
+  --amber:#f59e0b;
+  --red:#ef4444;
+
+  /* Typography & Motion */
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;
+  --mono:'JetBrains Mono','SF Mono',Menlo,Consolas,'Courier New',monospace;
+  --ease-out:cubic-bezier(0.22,1,0.36,1);
+  --r-sm:8px;
+  --r-md:12px;
+  --r-lg:16px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
