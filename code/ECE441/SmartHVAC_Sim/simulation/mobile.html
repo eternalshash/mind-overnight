@@ -1360,8 +1360,10 @@ $('mBtnConnectRpi').addEventListener('click', () => {
 });
 
 // Main 200ms simulation & UI update loop
+let mobTick = 0;
 setInterval(() => {
   const dt = 0.2;
+  mobTick++;
   // Watchdog step
   if (M.wdt.testing) {
     M.wdt.elapsed = Math.min(4.0, M.wdt.elapsed + dt);
@@ -1414,6 +1416,13 @@ setInterval(() => {
     M.vSenseMv = +((M.adcRaw / 1048575) * 3300).toFixed(1);
   }
 
+  if (mobTick % 3 === 0) {
+    M.histT.push(+(M.T * 9 / 5 + 32).toFixed(2));
+    M.histSp.push(+(M.spC * 9 / 5 + 32).toFixed(1));
+    if (M.histT.length > 36) M.histT.shift();
+    if (M.histSp.length > 36) M.histSp.shift();
+  }
+
   // Electrical calculations
   const pwm = Math.round(clamp((M.fanPct / 100) * 255, 0, 255));
   const D = pwm / 255;
@@ -1431,7 +1440,7 @@ setInterval(() => {
   M.elec = { pwm, D, vGs, vFan, iFan, i5v, iHtr, i12v, rFan, r5v, rTot, p5v };
   M.totalW = Math.round(150 + (M.comp / 100) * 420 + (M.heat / 100) * 50 + (M.fanPct / 100) * 35);
 
-  // Render Climate
+  // Render Climate & Turntable
   const feelsC = apparentTempC(M.T, M.RH, (M.fanPct / 100) * 3.2);
   $('mRoomF').textContent = fF(M.T);
   $('mFeelsF').textContent = fF(feelsC) + '°F';
