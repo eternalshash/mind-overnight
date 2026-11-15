@@ -296,9 +296,9 @@ main{flex:1;display:flex;min-height:0}
 .bench-drawer summary{cursor:pointer;padding:7px 10px;font-size:10px;font-weight:600;letter-spacing:.03em;color:var(--amber);display:flex;justify-content:space-between;align-items:center;user-select:none;list-style:none}
 .bench-drawer summary::-webkit-details-marker{display:none}
 .bench-drawer summary:hover{background:rgba(245,158,11,.08);color:#fff}
-.bench-drawer[open]{border-color:var(--amber)}
-.bench-body{padding:8px;border-top:1px solid var(--border);background:#061224}
-.kill-btn{width:100%;background:rgba(239,68,68,.16);border:1px solid var(--red);color:#fca5a5;font-family:var(--mono);font-size:10.5px;font-weight:bold;padding:7px 8px;cursor:pointer;letter-spacing:1px}
+.bench-drawer[open]{border-color:rgba(245,158,11,.45)}
+.bench-body{padding:8px 10px;border-top:1px solid var(--border);background:var(--card)}
+.kill-btn{width:100%;background:rgba(239,68,68,.15);border:1px solid var(--red);border-radius:6px;color:#fca5a5;font-family:var(--mono);font-size:10px;font-weight:600;padding:7px 8px;cursor:pointer;letter-spacing:.5px;transition:background .15s,color .15s}
 .kill-btn:hover{background:var(--red);color:#fff}
 .kill-btn.latched{background:var(--red);color:#fff;box-shadow:0 0 12px rgba(239,68,68,.45)}
 .bench-row{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:6px}
