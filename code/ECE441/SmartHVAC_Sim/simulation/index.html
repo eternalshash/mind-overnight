@@ -2531,7 +2531,7 @@ function renderDmmModal() {
     `<div class="dmm-eq"><div class="et">2. 5V Rail &amp; GDSTIME Blower Current (I_fan, I_5V)</div>` +
     `<div class="ef">I_fan = D &times; [5.00V / (14.286&Omega; + 0.028&Omega;)] = ${duty.toFixed(3)} &times; 349.3 mA<br>I_5V = I_MCU (45.0 mA) + I_fan (${(e.i_fan_a * 1000).toFixed(1)} mA)</div>` +
     `<div class="ev">I_fan = ${(e.i_fan_a * 1000).toFixed(1)} mA &nbsp;|&nbsp; I_5V,total = ${(e.i_5v_total * 1000).toFixed(1)} mA (${f2(e.p_5v_w)} W)</div></div>` +
-    `<div class="dmm-eq"><div class="et">3. Pin 8 12V PTC Heater &amp; Primary 12V Bus Current</div>` +
+    `<div class="dmm-eq"><div class="et">3. Pin 10 12V PTC Heater &amp; Primary 12V Bus Current</div>` +
     `<div class="ef">I_htr = D_htr(${(htrDuty * 100).toFixed(0)}%) &times; (12.00V / 2.88&Omega;)<br>I_12V,bus = I_htr + [P_5V (${f2(e.p_5v_w)}W) / (12.00V &times; 0.88 buck)]</div>` +
     `<div class="ev">I_heater = ${f2(e.i_heater_a)} A &nbsp;|&nbsp; I_12V,bus = ${f2(e.i_12v_bus_a)} A (${f2(e.p_bench_w)} W bench)</div></div>` +
     `<div class="dmm-eq"><div class="et">4. Equivalent Dynamic Circuit Resistances (&Omega;)</div>` +
@@ -2877,7 +2877,16 @@ function updateKillDrawerUI(stateText, cls) {
   }
 }
 
+let benchHeatPulseTimer = null;
+let benchCooldownTimer = null;
+
 async function triggerMasterHardwareKill() {
+  if (benchHeatPulseTimer) { clearTimeout(benchHeatPulseTimer); benchHeatPulseTimer = null; }
+  if (benchCooldownTimer) { clearTimeout(benchCooldownTimer); benchCooldownTimer = null; }
+  S.bme.heaterOn = false;
+  S.bme.cooldownActive = false;
+  S.bme.safetyLockout = true;
+  S.bme.lockoutReason = 'Manual emergency stop';
   S.modeOverride = 'OFF';
   S.fanOverride = 0;
   S.ctl.heat = 0;
