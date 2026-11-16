@@ -4,6 +4,438 @@ This technical log is automatically maintained to record engineering implementat
 
 ---
 
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `4079185`
+* **Technical Summary:** Fix(mobile): enable pointer-event pass-through on toast banner and tune 393x852 vertical rhythm. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `cf24067`
+* **Technical Summary:** Updated the mobile simulation's 200 ms execution loop to sample Fahrenheit-converted ambient temperature and setpoint values every 600 ms. These telemetry values are recorded into rolling history buffers (`M.histT` and `M.histSp`) bounded to a maximum depth of 36 samples for sparkline plotting.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `7b464eb`
+* **Technical Summary:** Feat(mobile): implement touch and pointer rotary drag turntable controller with dead-zone locks. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `594c021`
+* **Technical Summary:** Updated the mobile interface to synchronize the Nest UI state via `updateMobileNestUI()` upon restoring closed-loop AUTO PID control and resetting the serial communications watchdog timer. Additionally, enhanced the fault injection card generator with explicit element IDs, dataset attributes, and toggle switch indicators to accurately reflect active hardware fault states.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `d6ccf9e`
+* **Technical Summary:** Integrates `updateMobileNestUI()` calls across mobile control event handlers for emergency kill, fan PWM scaling, and PTC heater relay switching. This ensures the simulated thermostat display state immediately synchronizes after dispatching actuation commands for the Pin 8 relay and Pin 9 MOSFET fan circuits.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `c7092e1`
+* **Technical Summary:** Feat(mobile): build mobile Nest turntable DOM with 19 inner degree dots and perspective icons. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `8da87ce`
+* **Technical Summary:** Style(mobile): style sleek bottom glass navigation dock for Climate, Bench, DMM, and Faults. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `8424135`
+* **Technical Summary:** Style(mobile): implement 51x31px iOS pill toggle switch cards and collapsible fine-tune drawer. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `fd99445`
+* **Technical Summary:** Style(mobile): style compact 4-metric strip and 5-segment mode pill selector bar. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `35dd181`
+* **Technical Summary:** Style(mobile): style inner degree dot ring ticks and perspective heating/cooling SVGs. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `7425dd6`
+* **Technical Summary:** Style(mobile): add heating, cooling, idle, and off radial core glow themes for mobile dial. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `a1fa377`
+* **Technical Summary:** Updates the simulation mobile interface styling in `mobile.html` by applying tabular numeric alignment and standardized design tokens across telemetry tiles and equation cards. It also refines layout metrics, font weights, and active state transitions for the interactive fault injection controls.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `8d84e05`
+* **Technical Summary:** Refactors the mobile simulation interface styling for HVAC telemetry cards and status indicators. Integrates a touch-interactive rotary dial component (`#mobNestDial`) to enable mobile temperature setpoint control within the web client.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `670f770`
+* **Technical Summary:** Style(mobile): apply unslop ink-graphite neutral dark palette and tabular-nums tokens. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `9c6b9cd`
+* **Technical Summary:** Chore(sim): sync blueprint_sim.html with streamlined Nest turntable web UI. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `5e3ac10`
+* **Technical Summary:** Fix(toggles): bind iOS Eco and Fresh Air Purge switches with manualPurge state persistence. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `220dc13`
+* **Technical Summary:** Fix(turntable): add directional bottom dead-zone stop clamping at 64F min and 82F max. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `7928f18`
+* **Technical Summary:** Implemented rotary dial interaction math using polar coordinate transformations across a 270-degree SVG track with dead-zone clamping to handle thermostat setpoint adjustments. Additionally expanded simulation telemetry updates to report live actuator percentages, MOSFET gate-source voltage, total circuit resistance, and airflow differential pressure.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `95cf639`
+* **Technical Summary:** Implemented geometric arc projection and angular mapping routines in `simulation/index.html` to render the interactive thermostat turntable dial across a 64°F–82°F span and 270° sweep. The additions include polar-to-Cartesian coordinate transformations, setpoint synchronization with the simulation control loop, and mini canvas sparkline visualization.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `e5e90e6`
+* **Technical Summary:** Implemented real-time perspective heating and cooling visualizations within the simulation canvas render loop, evaluating controller state parameters including watchdog timer status, blower faults, stage actuation, and setpoint deviations. The routine dynamically projects clipped radial thermal gradients, propagating elliptical wavefronts, and animated thermal wave paths radiating from the ceiling supply diffuser.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `48d2508`
+* **Technical Summary:** Integrated a conditional invocation of `updateThermostatView()` into the simulation's `updatePanel()` refresh loop. This links the real-time room temperature versus setpoint trajectory plotter directly to the telemetry update cycle.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `87335ad`
+* **Technical Summary:** Updates the HVAC simulation's `benchRestoreAutoPid` routine to explicitly clear the manual purge state by setting `S.manualPurge` to false when restoring automatic PID control.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `9eb36df`
+* **Technical Summary:** Updated the simulation controller loop to support a manual fresh air purge override via `S.manualPurge`. When asserted, the controller forces the IAQ ventilation purge state active, bypassing the automated VOC and CO2 hysteresis thresholds.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `116edc8`
+* **Technical Summary:** Feat(turntable): implement polarToCartesian, describeArc, and tempFToAngle SVG arc helpers. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `fee9b8d`
+* **Technical Summary:** Feat(Blueprint): render rotating crystalline snowflakes and cyan cooling waves during Cooling mode. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `2495cc4`
+* **Technical Summary:** Feat(Blueprint): render rising warm convection wave plumes in bedroom during Heating mode. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `7794681`
+* **Technical Summary:** Feat(Blueprint): add 2.5D perspective thermal wave rings radiating from ceiling supply diffuser. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `7ac4478`
+* **Technical Summary:** Feat(html): mount telemetry graphs, bench test drawer, and fault controls inside backendView. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `c18b187`
+* **Technical Summary:** Feat(html): add Hardware & Alert Summary card and persistent bottom view switcher dock. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `bebea27`
+* **Technical Summary:** Feat(html): add 4 iOS pill toggle control rows for Power, Eco, Caregiver SMS, and Purge. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `84139a1`
+* **Technical Summary:** Feat(html): build Zone Climate & Sensors card, mini sparkline canvas, and mode pills. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `bb120dd`
+* **Technical Summary:** Feat(html): embed animated perspective heating waves SVG and cooling crystal snowflake SVG. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `aa9b237`
+* **Technical Summary:** Feat(html): add current-temperature dot, target-setpoint dot, and inward arc labels. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `a8b72f6`
+* **Technical Summary:** Feat(html): build borderless Nest Gen 4 turntable dial SVG arc and glass glint layer. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `3385d63`
+* **Technical Summary:** Feat(html): structure persistent left bedroom blueprint and right swappable side pane. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `3b4d65d`
+* **Technical Summary:** Style(backend): refine DMM equations modal and firmware event log typography. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `166d9ed`
+* **Technical Summary:** Style(backend): polish Dual-MCU status boxes, Serial Watchdog progress bar, and actuator bars. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `813a80e`
+* **Technical Summary:** Style(backend): upgrade fault injection rows with smooth pill toggle switches. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `cc26ce1`
+* **Technical Summary:** Style(backend): refine Emergency Hardware Cutoff and Bench Test drawer styling. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `5a28fe8`
+* **Technical Summary:** Style(backend): polish A4/A5 BME280 signal pipeline strip and live USB indicator. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `eaf0ebc`
+* **Technical Summary:** Style(backend): refine telemetry tabs and 4-column metric cards with unslop graphite tokens. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `03b6781`
+* **Technical Summary:** Style(summary): style quick-action buttons for USB Arduino, Test Alert, and Faults & Bench. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `66d1942`
+* **Technical Summary:** Style(summary): style Hardware & Alert Summary card and 3-row caregiver alert preview box. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `484fd14`
+* **Technical Summary:** Style(toggles): implement authentic 51x31px iOS pill switch track and sliding thumb. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `38d489b`
+* **Technical Summary:** Style(toggles): layout bottom-left iOS toggle switches column and bottom-right summary grid. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `cdba6bf`
+* **Technical Summary:** Style(env): style 5-segment mode selector pill bar for Auto, Heat, Cool, Eco, and Off. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `cbca1d3`
+* **Technical Summary:** Style(env): style Room vs Setpoint mini sparkline container and header. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `5fb38e8`
+* **Technical Summary:** Style(env): style top-right Zone Climate & Sensors readout card and tabular rows. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `e9a1269`
+* **Technical Summary:** Style(turntable): style bottom-arc minus and plus step buttons and interaction hint. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `a7fb63a`
+* **Technical Summary:** Style(anim): implement 3D rotating crystalline cooling snowflake keyframes and frost sparkles. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `898b784`
+* **Technical Summary:** Style(anim): implement undulating 3-path heating wave keyframe animations and ember particles. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `7bbaf17`
+* **Technical Summary:** Style(anim): create perspective heating and cooling SVG stage container inside dial. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `783a0f8`
+* **Technical Summary:** Style(turntable): style center mode caption and 82px tabular-nums target temperature numeral. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `9b7d4ac`
+* **Technical Summary:** Style(turntable): style 270-degree SVG scale tick marks and active zone highlights. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `08cb4ce`
+* **Technical Summary:** Style(turntable): style top-right curved studio glass reflection overlay. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `8220cf6`
+* **Technical Summary:** Style(turntable): implement nestCoreBreathe keyframe animation for active thermal aura. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `6153b8e`
+* **Technical Summary:** Style(turntable): add idle, eco, and system-off radial core glow themes. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `4672d63`
+* **Technical Summary:** Style(turntable): create dynamic radial thermal core glow for heating and cooling states. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `d685943`
+* **Technical Summary:** Style(turntable): add multi-layered inset rim highlights and deep ambient drop shadows. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `fb6ca1d`
+* **Technical Summary:** Style(turntable): implement borderless domed Nest Gen 4 obsidian glass puck styling. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `a671a1e`
+* **Technical Summary:** Style(turntable): scaffold nest-top-grid and nestDialWrap container layout. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `feaea72`
+* **Technical Summary:** Style(dock): style Backend & Engineer View toggle button and hover states. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `5030631`
+* **Technical Summary:** Style(dock): design persistent bottom view switcher dock bar and status pills. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `e3f49ea`
+* **Technical Summary:** Style(layout): add smooth opacity and transform transitions for thermostatView and backendView. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `42807e4`
+* **Technical Summary:** Style(layout): configure persistent left room pane and swappable right side container. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `da41af7`
+* **Technical Summary:** Style(blueprint): refine bottom status bar backdrop blur and border accent. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `3ecf81e`
+* **Technical Summary:** Style(blueprint): clean up left bedroom CAD pane overlay toolbar chrome. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `7b80cbd`
+* **Technical Summary:** Style(header): update brand badge and system status pill typography. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `5bf160d`
+* **Technical Summary:** Style(header): refine top header bar surface and 1px hairline border. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `775f7af`
+* **Technical Summary:** Style(ui): add 4px spacing scale radii and cubic-bezier easing tokens. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `9a5feb8`
+* **Technical Summary:** Style(ui): configure Inter sans and JetBrains Mono tabular-nums typography variables. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `62fd594`
+* **Technical Summary:** Style(ui): introduce unslop ink-graphite neutral dark color tokens. Modified files in the Smart HVAC subsystem.
+
+---
+
 ### [2026-11-12] Shashwat Choudhry
 * **Commit:** `938e15e`
 * **Technical Summary:** Docs(ece441): add formal 34-page ECE441 Smart HVAC final technical report PDF under papers. Modified files in the Smart HVAC subsystem.
