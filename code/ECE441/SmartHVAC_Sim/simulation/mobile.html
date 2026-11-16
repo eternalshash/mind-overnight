@@ -1137,10 +1137,100 @@ function normalizeMobV5Cmd(cmd) {
 
 async function sendUsbCmd(cmd) {
   if (!M.usbConnected || !usbPort || !usbPort.writable) return;
+  const wire = normalizeMobV5Cmd(cmd);
+  if (!wire) return;
   try {
     const w = usbPort.writable.getWriter();
-    await w.write(new TextEncoder().encode(cmd.trim() + '\n'));
+    await w.write(new TextEncoder().encode(wire + '\n'));
     w.releaseLock();
+  } catch (e) {}
+}
+
+function handleMobUsbLine(line) {
+  const trimmed = line.trim();
+  if (!trimmed) return;
+  if (!M.wdt.testing) {
+    M.wdt.elapsed = 0;
+    M.wdt.tripped = false;
+  }
+  if (!trimmed.startsWith('{')) {
+    let m;
+    if ((m = trimmed.match(/Chip ID 0x([0-9A-Fa-f]+)/i))) M.chipId = '0x' + m[1].toUpperCase();
+    if ((m = trimmed.match(/(?:Sensor ready at|Sensor address:|Address)\s*0x([0-9A-Fa-f]+)/i))) M.i2cAddr = '0x' + m[1].toUpperCase();
+    if ((m = trimmed.match(/^Temperature:\s*([-\d.]+)\s*F\s*\/\s*([-\d.]+)\s*C/i))) {
+      const tc = parseFloat(m[2]);
+      if (!isNaN(tc)) {
+        M.bmeLive = true; M.T = tc; M.wdt.seq++;
+        M.adcRaw = Math.round(clamp((tc + 40) * 8388.6, 0, 1048575));
+        M.vSenseMv = +((M.adcRaw / 1048575) * 3300).toFixed(1);
+      }
+    } else if ((m = trimmed.match(/^Temperature C:\s*([-\d.]+)/i))) {
+      const tc = parseFloat(m[1]);
+      if (!isNaN(tc)) { M.bmeLive = true; M.T = tc; }
+    } else if ((m = trimmed.match(/^Humidity(?:\s*%|\s*:)\s*([-\d.]+)/i))) {
+      const rh = parseFloat(m[1]);
+      if (!isNaN(rh)) M.RH = rh;
+    } else if ((m = trimmed.match(/^Pressure(?:\s*hPa|\s*:)\s*([-\d.]+)/i))) {
+      const p = parseFloat(m[1]);
+      if (!isNaN(p)) M.pressHpa = p;
+    } else if ((m = trimmed.match(/^Dew point:\s*([-\d.]+)\s*F/i))) {
+      const dp = parseFloat(m[1]);
+      if (!isNaN(dp)) M.dewPointF = dp;
+    } else if ((m = trimmed.match(/^Approx\.\s*altitude:\s*([-\d.]+)\s*ft/i))) {
+      const alt = parseFloat(m[1]);
+      if (!isNaN(alt)) M.altitudeFt = alt;
+    } else if ((m = trimmed.match(/^Gas resistance(?:\s*kOhms)?:\s*([-\d.]+)/i))) {
+      const g = parseFloat(m[1]);
+      if (!isNaN(g) && g > 0) M.gasKOhms = g;
+    } else if ((m = trimmed.match(/^Baseline:\s*([-\d.]+)\s*kOhms/i))) {
+      const b = parseFloat(m[1]);
+      if (!isNaN(b) && b > 0) M.gasBaseline = b;
+    } else if ((m = trimmed.match(/^Relative resistance:\s*([-\d.]+)%/i))) {
+      const rel = parseFloat(m[1]);
+      if (!isNaN(rel)) M.gasRelPct = rel;
+    } else if ((m = trimmed.match(/^Trend:\s*(.+)/i))) {
+      M.gasTrend = m[1].trim();
+    } else if ((m = trimmed.match(/^Heater:\s*(ON|OFF)/i))) {
+      M.heat = m[1].toUpperCase() === 'ON' ? 100 : 0;
+    } else if (/^HEATER ON$/i.test(trimmed)) {
+      M.heat = 100; M.fanPct = 100;
+    } else if (/^HEATER OFF$/i.test(trimmed)) {
+      M.heat = 0;
+    } else if (/30-second fan cooldown started/i.test(trimmed)) {
+      M.cooldownActive = true; M.fanPct = 100;
+    } else if (/Cooldown completed/i.test(trimmed)) {
+      M.cooldownActive = false;
+    } else if ((m = trimmed.match(/^Cooldown:\s*(ACTIVE|OFF)/i))) {
+      M.cooldownActive = m[1].toUpperCase() === 'ACTIVE';
+    } else if ((m = trimmed.match(/^(?:Safety lockout|Lockout):\s*(ACTIVE|CLEAR)/i))) {
+      M.safetyLockout = m[1].toUpperCase() === 'ACTIVE';
+    } else if ((m = trimmed.match(/^(?:Lockout reason|Reason):\s*(.+)/i))) {
+      M.lockoutReason = m[1].trim();
+    } else if ((m = trimmed.match(/^Fan PWM:\s*([-\d.]+)%/i))) {
+      const pct = clamp(parseFloat(m[1]), 0, 100);
+      if (!isNaN(pct)) M.fanPct = pct;
+    } else if (/^Fan ON 100%$/i.test(trimmed)) {
+      M.fanPct = 100;
+    } else if (/^Fan ON 50%$/i.test(trimmed)) {
+      M.fanPct = 50;
+    } else if (/^Fan OFF$/i.test(trimmed)) {
+      M.fanPct = 0;
+    } else if (/SAFETY LOCKOUT/i.test(trimmed)) {
+      M.safetyLockout = true; M.heat = 0; M.fanPct = 100;
+    } else if (/SAFETY RESET SUCCESSFUL/i.test(trimmed)) {
+      M.safetyLockout = false;
+    }
+    return;
+  }
+  try {
+    const d = JSON.parse(trimmed);
+    if (!M.wdt.testing) { M.wdt.elapsed = 0; M.wdt.seq = d.hb_seq || (M.wdt.seq + 1); M.wdt.tripped = false; }
+    if (typeof d.temp_c === 'number') { M.bmeLive = true; M.T = d.temp_c; M.adcRaw = d.adc_raw_20b || Math.round((d.temp_c + 40) * 8388.6); M.vSenseMv = d.v_sense_mv || +((M.adcRaw / 1048575) * 3300).toFixed(1); }
+    if (typeof d.humidity === 'number') M.RH = d.humidity;
+    if (typeof d.pressure_hpa === 'number') M.pressHpa = d.pressure_hpa;
+    if (typeof d.gas_kohms === 'number') M.gasKOhms = d.gas_kohms;
+    if (typeof d.fan_pwm === 'number') M.fanPct = (d.fan_pwm / 255) * 100;
+    if (typeof d.heater_relay === 'number') M.heat = d.heater_relay ? 100 : 0;
   } catch (e) {}
 }
 
