@@ -1635,18 +1635,226 @@ async function syncUsbOnFault(id, on) {
     await sendUsbSerialCommand('S');
     toast('warn', 'USB ARDUINO ENVELOPE PAUSE', 'Window Open -> Paused Heater & Fan (0%)', 'Sent: H | S to physical Arduino', 'Preventing conditioning outdoors');
   } else if (id === 'mcu') {
-    await sendUsbSerialCommand('HEAT OFF');
-    toast('crit', 'USB ARDUINO FAIL-SAFE', 'Primary MCU Fault -> Gated Heater Relay OFF', 'Sent: HEAT OFF to physical Arduino', 'Hardware pull-down safety state');
+    await sendUsbSerialCommand('X');
+    toast('crit', 'USB ARDUINO FAIL-SAFE', 'Primary MCU Fault -> Emergency Stop (Pin 10 LOW)', 'Sent: X to physical Arduino', 'Hardware safety lockout engaged');
   }
 }
 
 function handleArduinoUsbLine(line) {
   const trimmed = line.trim();
   if (!trimmed) return;
+
+  // Any live serial line from the Arduino resets the serial comms watchdog
+  S.rpiOnline = true;
+  if (!S.wdt.testBlocking) {
+    S.wdt.elapsedS = 0;
+    if (S.wdt.tripped) {
+      S.wdt.tripped = false;
+      log('ok', `[WATCHDOG] Live USB serial stream restored (pkt #${S.wdt.lastHbSeq}). E-204 cleared.`);
+    }
+  }
+
+  // 1. Parse multi-line text output from Andy's HVAC-proto.ino (SMART HVAC DEMO V5 — BME688 ONLY)
   if (!trimmed.startsWith('{')) {
-    log('sim', `[ARDUINO-USB] ${trimmed}`);
+    let matchedTelemetry = false;
+    let m;
+
+    if ((m = trimmed.match(/Chip ID 0x([0-9A-Fa-f]+)/i))) {
+      S.bme.chipId = '0x' + m[1].toUpperCase();
+      if (S.bme.chipId === '0x61') S.bme.bmeOk = true;
+    }
+    if ((m = trimmed.match(/(?:Sensor ready at|Sensor address:|Address)\s*0x([0-9A-Fa-f]+)/i))) {
+      S.bme.i2cAddr = '0x' + m[1].toUpperCase();
+    }
+    if (/BME688 INITIALIZED|Sensor detected:\s*YES/i.test(trimmed)) {
+      S.bme.bmeOk = true;
+    } else if (/BME688 not detected|BME688 missing|BME688 reading failed|Sensor detected:\s*NO/i.test(trimmed)) {
+      S.bme.bmeOk = false;
+    }
+
+    if ((m = trimmed.match(/^Temperature:\s*([-\d.]+)\s*F\s*\/\s*([-\d.]+)\s*C/i))) {
+      const tc = parseFloat(m[2]);
+      if (!isNaN(tc)) {
+        S.bme.hasLive = true;
+        S.bme.bmeOk = true;
+        S.bme.tempC = tc;
+        S.T = tc;
+        if (!S.inj.sensor) S.sensA = tc;
+        S.sensB = tc;
+        S.ctl.Tctl = tc;
+        const rawAdc = Math.round(clamp((tc + 40) * 8388.6, 0, 1048575));
+        S.bme.adcRaw20b = rawAdc;
+        S.bme.vSenseMv = +((rawAdc / 1048575) * 3300).toFixed(1);
+        S.rpiPkts++;
+        S.wdt.lastHbSeq = S.rpiPkts;
+        matchedTelemetry = true;
+      }
+    } else if ((m = trimmed.match(/^Temperature C:\s*([-\d.]+)/i))) {
+      const tc = parseFloat(m[1]);
+      if (!isNaN(tc)) {
+        S.bme.hasLive = true;
+        S.bme.tempC = tc;
+        S.T = tc;
+        if (!S.inj.sensor) S.sensA = tc;
+        S.sensB = tc;
+        S.ctl.Tctl = tc;
+        matchedTelemetry = true;
+      }
+    } else if ((m = trimmed.match(/^Humidity(?:\s*%|\s*:)\s*([-\d.]+)/i))) {
+      const rh = parseFloat(m[1]);
+      if (!isNaN(rh)) {
+        S.bme.rh = rh;
+        S.RH = rh;
+        matchedTelemetry = true;
+      }
+    } else if ((m = trimmed.match(/^Pressure(?:\s*hPa|\s*:)\s*([-\d.]+)/i))) {
+      const p = parseFloat(m[1]);
+      if (!isNaN(p)) {
+        S.bme.pressHpa = p;
+        matchedTelemetry = true;
+      }
+    } else if ((m = trimmed.match(/^Dew point:\s*([-\d.]+)\s*F/i))) {
+      const dp = parseFloat(m[1]);
+      if (!isNaN(dp)) S.bme.dewPointF = dp;
+      matchedTelemetry = true;
+    } else if ((m = trimmed.match(/^Approx\.\s*altitude:\s*([-\d.]+)\s*ft/i))) {
+      const alt = parseFloat(m[1]);
+      if (!isNaN(alt)) S.bme.altitudeFt = alt;
+      matchedTelemetry = true;
+    } else if ((m = trimmed.match(/^Gas resistance(?:\s*kOhms)?:\s*([-\d.]+)/i))) {
+      const g = parseFloat(m[1]);
+      if (!isNaN(g) && g > 0) {
+        S.bme.gasKOhms = g;
+        matchedTelemetry = true;
+      }
+    } else if ((m = trimmed.match(/^Reference samples:\s*(\d+\/\d+)/i))) {
+      S.bme.gasSamples = m[1];
+      S.bme.gasReady = false;
+      matchedTelemetry = true;
+    } else if ((m = trimmed.match(/^Baseline:\s*([-\d.]+)\s*kOhms/i))) {
+      const b = parseFloat(m[1]);
+      if (!isNaN(b) && b > 0) {
+        S.bme.gasBaseline = b;
+        S.bme.gasReady = true;
+      }
+      matchedTelemetry = true;
+    } else if ((m = trimmed.match(/^Relative resistance:\s*([-\d.]+)%/i))) {
+      const rel = parseFloat(m[1]);
+      if (!isNaN(rel)) {
+        S.bme.gasRelPct = rel;
+        S.bme.gasReady = true;
+      }
+      matchedTelemetry = true;
+    } else if ((m = trimmed.match(/^Trend:\s*(.+)/i))) {
+      S.bme.gasTrend = m[1].trim();
+      matchedTelemetry = true;
+    } else if ((m = trimmed.match(/^Heater:\s*(ON|OFF)/i))) {
+      const isOn = m[1].toUpperCase() === 'ON';
+      S.bme.heaterOn = isOn;
+      S.ctl.heat = isOn ? 100 : 0;
+      matchedTelemetry = true;
+    } else if (/^HEATER ON$/i.test(trimmed)) {
+      S.bme.heaterOn = true;
+      S.ctl.heat = 100;
+      updateKillDrawerUI('5s HEATER ON', 'warn');
+      log('warn', '[ARDUINO V5] HEATER ON (Pin 10 HIGH) — 5-second heating test started @ 100% fan.');
+      matchedTelemetry = true;
+    } else if (/^HEATER OFF$/i.test(trimmed)) {
+      S.bme.heaterOn = false;
+      S.ctl.heat = 0;
+      log('info', '[ARDUINO V5] HEATER OFF (Pin 10 LOW).');
+      matchedTelemetry = true;
+    } else if (/30-second fan cooldown started/i.test(trimmed)) {
+      S.bme.cooldownActive = true;
+      S.fanAct = 100;
+      S.ctl.fanCmd = 100;
+      S.elec.fan_pwm = 255;
+      S.rpm = 2800;
+      updateKillDrawerUI('30s COOLDOWN', 'warn');
+      log('info', '[ARDUINO V5] 30-second post-heat fan cooldown started (Pin 9 @ 100%).');
+      matchedTelemetry = true;
+    } else if (/Cooldown completed/i.test(trimmed)) {
+      S.bme.cooldownActive = false;
+      if (!S.bme.safetyLockout) {
+        S.fanAct = 0;
+        S.ctl.fanCmd = 0;
+        S.elec.fan_pwm = 0;
+        S.rpm = 0;
+        updateKillDrawerUI('STANDBY', '');
+      }
+      log('ok', '[ARDUINO V5] 30-second fan cooldown completed.');
+      matchedTelemetry = true;
+    } else if ((m = trimmed.match(/^Fan PWM:\s*([-\d.]+)%/i))) {
+      const pct = clamp(parseFloat(m[1]), 0, 100);
+      if (!isNaN(pct)) {
+        S.fanAct = pct;
+        S.ctl.fanCmd = pct;
+        S.elec.fan_pwm = Math.round((pct / 100) * 255);
+        S.rpm = Math.round(pct * 28);
+        matchedTelemetry = true;
+      }
+    } else if (/^Fan ON 100%$/i.test(trimmed)) {
+      S.fanAct = 100; S.ctl.fanCmd = 100; S.elec.fan_pwm = 255; S.rpm = 2800;
+      updateKillDrawerUI('FAN 100%', 'ok');
+      log('ok', '[ARDUINO V5] Fan ON 100% (Pin 9 PWM 255).');
+      matchedTelemetry = true;
+    } else if (/^Fan ON 50%$/i.test(trimmed)) {
+      S.fanAct = 50; S.ctl.fanCmd = 50; S.elec.fan_pwm = 128; S.rpm = 1400;
+      updateKillDrawerUI('FAN 50%', 'ok');
+      log('ok', '[ARDUINO V5] Fan ON 50% (Pin 9 PWM 128).');
+      matchedTelemetry = true;
+    } else if (/^Fan OFF$/i.test(trimmed)) {
+      S.fanAct = 0; S.ctl.fanCmd = 0; S.elec.fan_pwm = 0; S.rpm = 0;
+      updateKillDrawerUI('FAN OFF (0%)', 'warn');
+      log('warn', '[ARDUINO V5] Fan OFF (Pin 9 PWM 0).');
+      matchedTelemetry = true;
+    } else if ((m = trimmed.match(/^Cooldown:\s*(ACTIVE|OFF)/i))) {
+      S.bme.cooldownActive = m[1].toUpperCase() === 'ACTIVE';
+      matchedTelemetry = true;
+    } else if ((m = trimmed.match(/^(?:Safety lockout|Lockout):\s*(ACTIVE|CLEAR)/i))) {
+      S.bme.safetyLockout = m[1].toUpperCase() === 'ACTIVE';
+      if (S.bme.safetyLockout) updateKillDrawerUI('SAFETY LOCKOUT', 'crit');
+      matchedTelemetry = true;
+    } else if (/SAFETY LOCKOUT/i.test(trimmed)) {
+      S.bme.safetyLockout = true;
+      S.bme.heaterOn = false;
+      S.ctl.heat = 0;
+      S.fanAct = 100;
+      S.elec.fan_pwm = 255;
+      updateKillDrawerUI('SAFETY LOCKOUT', 'crit');
+      log('crit', '[ARDUINO V5] SAFETY LOCKOUT ENGAGED — Pin 10 Relay forced LOW, Fan 100%!');
+      matchedTelemetry = true;
+    } else if ((m = trimmed.match(/^(?:Lockout reason|Reason):\s*(.+)/i))) {
+      S.bme.lockoutReason = m[1].trim();
+      matchedTelemetry = true;
+    } else if (/SAFETY RESET SUCCESSFUL/i.test(trimmed)) {
+      S.bme.safetyLockout = false;
+      S.bme.lockoutReason = 'None';
+      updateKillDrawerUI('STANDBY', '');
+      log('ok', '[ARDUINO V5] SAFETY RESET SUCCESSFUL — BME688 verified & lockout cleared.');
+      matchedTelemetry = true;
+    }
+
+    if (matchedTelemetry) {
+      if ($('rpiSyncCount')) {
+        $('rpiSyncCount').textContent = `${S.rpiPkts} PKTS`;
+        $('rpiSyncCount').className = 'badge ok';
+      }
+      if ($('rpiStatusLine')) {
+        const gasTxt = S.bme.gasKOhms ? ` | Gas: ${S.bme.gasKOhms.toFixed(1)} kΩ (${S.bme.gasRelPct.toFixed(0)}%)` : '';
+        const stateTxt = S.bme.safetyLockout ? `LOCKOUT (${S.bme.lockoutReason})` : S.bme.cooldownActive ? '30s COOLDOWN' : S.bme.heaterOn ? '5s HEATER ON' : 'NOMINAL';
+        $('rpiStatusLine').textContent = `USB V5 BME688 (${S.bme.i2cAddr}) | ${fF(S.T)}°F (${S.T.toFixed(2)}°C) | ${S.RH.toFixed(1)}% RH${gasTxt} | Fan: ${Math.round(S.fanAct)}% | Pin 10 Relay: ${S.bme.heaterOn ? 'ON' : 'OFF'} | ${stateTxt}`;
+        $('rpiStatusLine').style.color = S.bme.safetyLockout ? '#fca5a5' : '#6ee7b7';
+      }
+      recordCommMetric('USB->WEB', 'Serial(115200)', 1.5, 200, `BME688 RX #${S.rpiPkts}`);
+      updateCards();
+      updatePanel();
+    } else if (!/^={4,}$/.test(trimmed) && !/^!{4,}$/.test(trimmed) && !/^\[BME688\]|^\[GAS SENSOR\]|^\[HVAC SYSTEM\]|^SMART HVAC DEMO V5/i.test(trimmed)) {
+      log('sim', `[ARDUINO-USB] ${trimmed}`);
+    }
     return;
   }
+
   try {
     const d = JSON.parse(trimmed);
     S.rpiOnline = true;
