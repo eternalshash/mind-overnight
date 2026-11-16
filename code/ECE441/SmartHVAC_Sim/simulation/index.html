@@ -669,12 +669,16 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px;cursor:pointer
                 <button class="btn" id="btnBenchFan50" style="margin:0;padding:5px 4px;font-size:9px">M: FAN 50% (128)</button>
                 <button class="btn" id="btnBenchFan100" style="margin:0;padding:5px 4px;font-size:9px;border-color:var(--cyan);color:var(--accent)">F: FAN 100% (255)</button>
               </div>
-              <div style="font-size:8.5px;color:var(--muted);margin-top:6px;letter-spacing:.5px">DIRECT PIN 8 12V PTC HEATER RELAY TEST:</div>
+              <div style="font-size:8.5px;color:var(--muted);margin-top:6px;letter-spacing:.5px">DIRECT PIN 10 12V PTC HEATER RELAY TEST (H / 5):</div>
               <div class="bench-row2">
-                <button class="btn" id="btnBenchHeatOff" style="margin:0;padding:5px 4px;font-size:9px;border-color:var(--green);color:#6ee7b7">RELAY OFF (0V SAFE)</button>
-                <button class="btn" id="btnBenchHeatOn" style="margin:0;padding:5px 4px;font-size:9px;border-color:var(--amber);color:#fcd34d">RELAY ON (12V PTC)</button>
+                <button class="btn" id="btnBenchHeatOff" style="margin:0;padding:5px 4px;font-size:9px;border-color:var(--green);color:#6ee7b7">H: STOP HEATER (0V)</button>
+                <button class="btn" id="btnBenchHeatOn" style="margin:0;padding:5px 4px;font-size:9px;border-color:var(--amber);color:#fcd34d">5: 5s HEATER TEST (12V)</button>
               </div>
-              <button class="btn" id="btnBenchAuto" style="margin-top:6px;border-color:var(--green);color:var(--green);font-size:9.5px">&#8634; RESTORE CLOSED-LOOP AUTO PID</button>
+              <div class="bench-row2" style="margin-top:5px">
+                <button class="btn" id="btnBenchDiag" style="margin:0;padding:5px 4px;font-size:9px;border-color:var(--cyan);color:var(--accent)">D: BME688 DIAGNOSTICS</button>
+                <button class="btn" id="btnBenchGasReset" style="margin:0;padding:5px 4px;font-size:9px;border-color:var(--purple);color:#c4b5fd">B: RESET GAS BASELINE</button>
+              </div>
+              <button class="btn" id="btnBenchAuto" style="margin-top:6px;border-color:var(--green);color:var(--green);font-size:9.5px">&#8634; R: RESET SAFETY LOCKOUT / RESTORE AUTO PID</button>
             </div>
           </details>
           <div class="grp-h" style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">
