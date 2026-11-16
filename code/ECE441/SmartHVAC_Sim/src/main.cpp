@@ -8,16 +8,17 @@
 // ECE 441 Smart HVAC Control - Primary Arduino Uno / Uno R4 Firmware
 // File: src/main.cpp
 //
-// Hardware Pinout (Aligned 1:1 with Andy Tran & Kaleb Cowgur's 10-26-29 Report):
-//   - Pin 9 : IRLZ44N Logic-Level N-Channel MOSFET Gate (PWM Fan Control)
-//   - Pin 8 : 12V PTC Heating Element Relay Trigger (IN)
-//   - A4    : Bosch BME280 I2C SDA
-//   - A5    : Bosch BME280 I2C SCL
-//   - 5V    : Bosch BME280 VIN & 5V Fan Rail
-//   - GND   : Dedicated Arduino GND to BME280 GND (isolated from Fan return)
+// Hardware Pinout (Aligned 1:1 with Andy Tran's SMART HVAC DEMO V5 — BME688 ONLY):
+//   - Pin 9  : IRLZ44N Logic-Level N-Channel MOSFET Gate (PWM Fan Control, 0-255)
+//   - Pin 10 : Active-HIGH 12V PTC Heating Element Relay Trigger (RELAY_PIN = 10)
+//   - A4     : Bosch BME688 I2C SDA (100 kHz)
+//   - A5     : Bosch BME688 I2C SCL (100 kHz)
+//   - 5V     : Bosch BME688 VIN & 5V Fan Rail
+//   - GND    : Dedicated Arduino GND to BME688 GND (isolated from Fan return)
 //
 // Serial Telemetry & Interactive Commands (115200 baud):
-//   FAN <0-100> | PWM <0-255> | SET <15-30> | HEAT ON | HEAT OFF | AUTO
+//   Single-char V5: 5 (5s Heater) | H (Stop Heater) | F (Fan 100%) | M (Fan 50%) | S (Fan OFF) | X (Emergency Stop) | R (Reset Safety) | D (Diagnostics) | B (Reset Gas Baseline) | ? (Menu)
+//   Extended:       FAN <0-100> | PWM <0-255> | SET <15-30> | HEAT ON | HEAT OFF | AUTO
 // ============================================================================
 
 SensorHAL hal;
@@ -92,10 +93,27 @@ static bool extractJsonFloat(const char* json, const char* key, float& outVal) {
 }
 
 static void handleSerialCommand(const char* line) {
+    if (strlen(line) == 1) {
+        char cmd = toupper(line[0]);
+        if (cmd == '5') { line = "HEAT ON"; }
+        else if (cmd == 'H') { line = "HEAT OFF"; }
+        else if (cmd == 'F') { line = "FAN 100"; }
+        else if (cmd == 'M') { line = "FAN 50"; }
+        else if (cmd == 'S') { line = "FAN 0"; }
+        else if (cmd == 'X') {
+            manual_heater_mode = 0; heater_relay_on = false;
+            digitalWrite(PIN_HEATER_RELAY, LOW);
+            manual_fan_pwm = 255; current_fan_pwm = 255;
+            analogWrite(PIN_FAN_MOSFET, 255);
+            Serial.println(F("SAFETY LOCKOUT"));
+            return;
+        } else if (cmd == 'R') { line = "AUTO"; }
+    }
     if (strncasecmp(line, "AUTO", 4) == 0 || strstr(line, "\"auto\"")) {
         manual_fan_pwm = -1;
         manual_heater_mode = -1;
         Serial.println(F("{\"ack\":\"mode_auto\",\"status\":\"Closed-loop PID restored\"}"));
+        Serial.println(F("SAFETY RESET SUCCESSFUL"));
         return;
     }
     if (strncasecmp(line, "HEAT ON", 7) == 0) {
