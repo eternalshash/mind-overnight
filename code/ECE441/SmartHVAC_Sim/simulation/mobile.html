@@ -671,7 +671,7 @@ const IOT_GATEWAY_URL = new URLSearchParams(location.search).get('gateway') ||
 const FAULTS = [
   { id: 'heatwave', code: 'E-403', nm: 'Severe Heatwave (102.2°F)', ds: 'Triggers emergency max cooling + caregiver alert', act: 'System Action: Maximum emergency cooling engaged, caregiver notified' },
   { id: 'blower',   code: 'E-302', nm: 'Blower Motor Failure (0 RPM)', ds: 'Interlocks heater & compressor OFF', act: 'System Action: Safety interlock engaged, heater and compressor shut off' },
-  { id: 'sensor',   code: 'E-202', nm: 'BME280 (TS-A) Sensor Fault', ds: 'Votes out TS-A, switches loop to TS-B', act: 'System Action: TS-A voted out, control loop switched to redundant TS-B' },
+  { id: 'sensor',   code: 'E-202', nm: 'BME688 (TS-A) Sensor Fault', ds: 'Votes out TS-A, switches loop to TS-B', act: 'System Action: TS-A voted out, control loop switched to redundant TS-B' },
   { id: 'mcu',      code: 'E-201', nm: 'Primary Controller Crash', ds: 'Hot-standby MCU-B takes over in 1.6s', act: 'System Action: Watchdog failover to MCU-B, heater relay gated safe' },
   { id: 'clog',     code: 'E-301', nm: 'MERV-13 Filter Restriction', ds: 'Boosts blower PWM + maintenance alert', act: 'System Action: Blower boosted, compressor capped at 50%, replace filter' },
   { id: 'smoke',    code: 'E-102', nm: 'Outdoor Wildfire Smoke', ds: 'Locks OA damper closed + recirculates', act: 'System Action: Outdoor damper locked closed, MERV-13 recirculation active' }
@@ -682,9 +682,10 @@ const M = {
   modeOvr: 'AUTO', fanOvr: -1, demandLimit: 1500,
   mode: 'COOLING', comp: 25, heat: 0, fanPct: 35,
   bmeLive: false, adcRaw: 536870, vSenseMv: 1689.6,
+  i2cAddr: '0x76', chipId: '0x61', pressHpa: 1013.25, gasKOhms: 142.5, gasRelPct: 101.8, cooldownActive: false, safetyLockout: false,
   elec: { pwm: 89, vGs: 1.75, vFan: 1.74, iFan: 0.122, i5v: 0.167, iHtr: 0, i12v: 0.079, rFan: 41.0, r5v: 29.9, rTot: 151.9, pBench: 0.84 },
   totalW: 235,
-  wdt: { elapsed: 0.2, timeout: 2.5, seq: 1, tripped: false, testing: false, _sec: 0 },
+  wdt: { elapsed: 0.2, timeout: 3.5, seq: 1, tripped: false, testing: false, _sec: 0 },
   inj: {}, iotAuto: false, iotSent: 0, lastAlert: null,
   usbConnected: false, rpiUrl: '',
   histT: Array.from({ length: 32 }, () => 75.2),
@@ -1110,6 +1111,28 @@ if (ctrlChan) {
     syncControlsFromUI(false);
     updateMobileNestUI();
   });
+}
+
+function normalizeMobV5Cmd(cmd) {
+  const raw = String(cmd || '').trim().toUpperCase();
+  if (!raw || raw.startsWith('SET ')) return null;
+  if (raw === '5' || raw === 'HEAT ON') return '5';
+  if (raw === 'H' || raw === 'HEAT OFF') return 'H';
+  if (raw === 'F' || raw === 'FAN 100') return 'F';
+  if (raw === 'M' || raw === 'FAN 50') return 'M';
+  if (raw === 'S' || raw === 'FAN 0') return 'S';
+  if (raw === 'X' || raw === 'KILL') return 'X';
+  if (raw === 'R' || raw === 'AUTO' || raw === 'RESET') return 'R';
+  if (raw === 'D' || raw === 'DIAG') return 'D';
+  if (raw === 'B' || raw === 'GAS RESET') return 'B';
+  if (raw === '?') return '?';
+  if (raw.startsWith('FAN ')) {
+    const pct = parseFloat(raw.slice(4));
+    if (pct <= 0) return 'S';
+    if (pct <= 65) return 'M';
+    return 'F';
+  }
+  return raw.charAt(0);
 }
 
 async function sendUsbCmd(cmd) {
