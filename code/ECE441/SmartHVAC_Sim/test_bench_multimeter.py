@@ -98,7 +98,7 @@ def main():
     sock = try_live_wokwi_session()
     if sock is not None:
         print("[CONNECTED] Attached to live Wokwi Simulator in VS Code via RFC2217 (localhost:4000)!\n")
-        commands = ["AUTO\n", "FAN 0\n", "FAN 25\n", "FAN 50\n", "FAN 75\n", "FAN 100\n", "HEAT ON\n", "HEAT OFF\n", "AUTO\n"]
+        commands = ["R\n", "S\n", "M\n", "F\n", "5\n", "H\n", "D\n"]
         for cmd in commands:
             print(f">>> Sending Command to Arduino: {cmd.strip()}")
             sock.sendall(cmd.encode("utf-8"))
@@ -114,7 +114,7 @@ def main():
         return
 
     print("[INFO] Wokwi RFC2217 bridge (port 4000) starts when you click the green Play button in VS Code.")
-    print("[SIMULATION SWEEP] Executing full Fan Speed (0% -> 100%) & PTC Heater Electrical Circuit Sweep:\n")
+    print("[SIMULATION SWEEP] Executing full Fan Speed (0% -> 100%) & Pin 10 PTC Heater Electrical Circuit Sweep:\n")
 
     header = (
         f"{'Command':<12} | {'Fan % (PWM)':<13} | {'V_GS':<6} | {'V_Fan':<6} | "
@@ -125,14 +125,14 @@ def main():
     print("-" * len(header))
 
     scenarios = [
-        ("FAN 0",    0.0,   False, "MANUAL"),
-        ("AUTO(20%)",20.0,  False, "AUTO"),
-        ("FAN 35",   35.0,  False, "MANUAL"),
-        ("FAN 50",   50.0,  False, "MANUAL"),
-        ("FAN 75",   75.0,  False, "MANUAL"),
-        ("FAN 100",  100.0, False, "MANUAL"),
-        ("HEAT ON",  100.0, True,  "MANUAL+PTC"),
-        ("AUTO+PTC", 85.0,  True,  "AUTO+PTC"),
+        ("S (FAN 0%)",   0.0,   False, "MANUAL"),
+        ("AUTO(20%)",    20.0,  False, "AUTO"),
+        ("FAN 35",       35.0,  False, "MANUAL"),
+        ("M (FAN 50%)",  50.0,  False, "MANUAL"),
+        ("FAN 75",       75.0,  False, "MANUAL"),
+        ("F (FAN 100%)", 100.0, False, "MANUAL"),
+        ("5 (5s HEAT)",  100.0, True,  "MANUAL+PTC"),
+        ("AUTO+PTC",     85.0,  True,  "AUTO+PTC"),
     ]
 
     for cmd, pct, heat, mode in scenarios:
