@@ -1469,9 +1469,9 @@ setInterval(() => {
   mobTick++;
   // Watchdog step
   if (M.wdt.testing) {
-    M.wdt.elapsed = Math.min(4.0, M.wdt.elapsed + dt);
-  } else if (M.usbConnected) {
     M.wdt.elapsed = Math.min(5.0, M.wdt.elapsed + dt);
+  } else if (M.usbConnected) {
+    M.wdt.elapsed = Math.min(6.0, M.wdt.elapsed + dt);
   } else if (!M.wdt.tripped) {
     M.wdt.elapsed = (M.wdt.elapsed + dt) % 1.0;
     const s = Math.floor(Date.now() / 1000);
@@ -1482,7 +1482,7 @@ setInterval(() => {
     M.modeOvr = 'OFF'; M.fanOvr = 0; M.heat = 0; M.comp = 0; M.fanPct = 0;
     $('mModeSelect').value = 'OFF'; $('mFanSlider').value = 0;
     $('mKillBadge').textContent = 'WDT CUTOFF'; $('mKillBadge').className = 'pill crit';
-    sendUsbCmd('KILL');
+    sendUsbCmd('X');
     updateIoTPreview(null);
     showToast('ALARM E-204: Serial Watchdog Timeout (>2.5s)! Pin 8 & Pin 9 gated OFF.', 'crit');
   }
