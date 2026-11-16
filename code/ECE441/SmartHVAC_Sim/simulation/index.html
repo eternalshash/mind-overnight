@@ -3000,8 +3000,31 @@ async function benchRestoreAutoPid() {
   plant(0.1);
   updateCards();
   updatePanel();
-  log('ok', '[BENCH TEST] Restored closed-loop automatic PID regulation.');
-  toast('ok', 'AUTO PID RESTORED', 'Bench Overrides Cleared', 'Pin 9 Fan & Pin 8 PTC Relay returned to closed-loop BME280 PID control', '');
+  log('ok', '[BENCH TEST] Safety lockout reset (R) & closed-loop automatic PID regulation restored.');
+  toast('ok', 'SAFETY RESET & AUTO PID (R)', 'Lockout & Bench Overrides Cleared', 'Pin 9 Fan & Pin 10 PTC Relay returned to closed-loop BME688 control', '');
+}
+
+async function benchRequestDiagnostics() {
+  if (S.usbConnected) {
+    await sendUsbSerialCommand('D');
+    toast('info', 'BME688 DIAGNOSTICS (D)', 'Requested Hardware Diagnostics Dump', 'Sent: D to Arduino Uno R4 V5 over USB', 'Inspect Firmware Event Log for full report');
+  } else {
+    log('info', `[BME688 DIAG] Sensor: YES (${S.bme.i2cAddr}, Chip ${S.bme.chipId}) | Temp: ${S.T.toFixed(2)}°C | RH: ${S.RH.toFixed(1)}% | Press: ${S.bme.pressHpa.toFixed(2)} hPa | Gas: ${S.bme.gasKOhms.toFixed(2)} kΩ (${S.bme.gasRelPct.toFixed(1)}%) | Pin 10 Heater: ${S.ctl.heat > 0 ? 'ON' : 'OFF'} | Cooldown: ${S.bme.cooldownActive ? 'ACTIVE' : 'OFF'} | Lockout: ${S.bme.safetyLockout ? 'ACTIVE' : 'CLEAR'}`);
+    toast('ok', 'BME688 DIAGNOSTICS (D)', `Sensor ${S.bme.i2cAddr} (Chip ${S.bme.chipId}) Valid`, `Temp ${fF(S.T)}°F | RH ${S.RH.toFixed(1)}% | Gas ${S.bme.gasKOhms.toFixed(1)} kΩ (${S.bme.gasRelPct.toFixed(0)}%)`, `Pin 10 Heater: ${S.ctl.heat > 0 ? 'ON' : 'OFF'} | Lockout: ${S.bme.safetyLockout ? 'ACTIVE' : 'CLEAR'}`);
+  }
+}
+
+async function benchResetGasBaseline() {
+  S.bme.gasBaseline = S.bme.gasKOhms || 140.0;
+  S.bme.gasRelPct = 100.0;
+  S.bme.gasTrend = 'Near baseline';
+  if (S.usbConnected) {
+    await sendUsbSerialCommand('B');
+  }
+  log('ok', '[BME688 GAS] Reset MOX gas resistance baseline (B) — collecting 20 reference samples.');
+  toast('ok', 'GAS BASELINE RESET (B)', 'BME688 MOX Reference Reset', 'Recalibrating 20-sample gas resistance baseline (320°C / 150ms heater)', '');
+  updateCards();
+  updatePanel();
 }
 
 if ($('btnMasterKill')) $('btnMasterKill').addEventListener('click', triggerMasterHardwareKill);
@@ -3011,6 +3034,8 @@ if ($('btnBenchFan100')) $('btnBenchFan100').addEventListener('click', () => ben
 if ($('btnBenchHeatOff')) $('btnBenchHeatOff').addEventListener('click', () => benchSetHeaterRelay(false));
 if ($('btnBenchHeatOn')) $('btnBenchHeatOn').addEventListener('click', () => benchSetHeaterRelay(true));
 if ($('btnBenchAuto')) $('btnBenchAuto').addEventListener('click', benchRestoreAutoPid);
+if ($('btnBenchDiag')) $('btnBenchDiag').addEventListener('click', benchRequestDiagnostics);
+if ($('btnBenchGasReset')) $('btnBenchGasReset').addEventListener('click', benchResetGasBaseline);
 
 function startWatchdogTripTest() {
   S.wdt.tripped = false;
@@ -3018,8 +3043,8 @@ function startWatchdogTripTest() {
   S.wdt.elapsedS = 0;
   delete S.diag['E-204'];
   delete S.iotDispatched['E-204'];
-  log('warn', '[WATCHDOG TEST] Blocking 1 Hz serial heartbeat packets — counting up to 2.5s fail-safe cutoff...');
-  toast('warn', 'WATCHDOG TEST STARTED', 'Simulating Lost Arduino Heartbeat', 'Blocking 1 Hz packets... E-204 fail-safe trips at 2.5s', '');
+  log('warn', '[WATCHDOG TEST] Blocking 2s BME688 serial telemetry packets — counting up to 3.5s fail-safe cutoff...');
+  toast('warn', 'WATCHDOG TEST STARTED', 'Simulating Lost Arduino Serial Link', 'Blocking packets... E-204 fail-safe trips at 3.5s', '');
   updatePanel();
 }
 
