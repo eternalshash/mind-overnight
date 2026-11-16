@@ -741,17 +741,17 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px;cursor:pointer
               <span id="wdtBadge" class="badge ok">HB OK (0.2s)</span>
             </div>
             <div class="wdt-prog"><i id="wdtBar"></i></div>
-            <div id="wdtDetail" style="font-size:9px;color:var(--muted)">Monitoring 1 Hz TinyUSB (COM7) heartbeat packets &bull; Fail-safe cutoff armed</div>
+            <div id="wdtDetail" style="font-size:9px;color:var(--muted)">Monitoring 2s BME688 USB telemetry stream &bull; Fail-safe cutoff armed</div>
             <div style="display:flex;gap:5px;margin-top:5px">
-              <button class="btn" id="btnTestWdt" style="flex:1;margin:0;padding:4px 6px;font-size:9px;border-color:var(--amber);color:#fcd34d">TEST WATCHDOG TRIP (2.5s)</button>
+              <button class="btn" id="btnTestWdt" style="flex:1;margin:0;padding:4px 6px;font-size:9px;border-color:var(--amber);color:#fcd34d">TEST WATCHDOG TRIP (3.5s)</button>
               <button class="btn" id="btnResetWdt" style="flex:0 0 auto;width:auto;margin:0;padding:4px 8px;font-size:9px;border-color:var(--green);color:var(--green)">&#8634; RESET</button>
             </div>
             <details class="wdt-info">
               <summary>&#9432; HOW WATCHDOG WORKS: PURPOSE &amp; SIM vs. REAL LAB BENCH &#9662;</summary>
               <div style="margin-top:4px">
                 &bull; <b>Core Safety Goal:</b> Prevents hazardous 12V PTC heater thermal runaway ("latched-ON" state) if firmware hangs, USB serial disconnects, or logic power browns out.<br>
-                &bull; <b>In Digital Twin Sim:</b> Models a redundant dual-MCU supervisor where hot-standby <b>MCU-B</b> detects missed 1 Hz heartbeats (&gt;1.6s) from <b>MCU-A</b> and executes bumpless PID takeover.<br>
-                &bull; <b>In Physical Lab Bench (Arduino Uno R4 / COM7):</b> Combines (1) <b>Serial Heartbeat Watchdog</b> monitoring 1 Hz <code>hb_seq</code> USB packets (trips <code>E-204</code> alarm &amp; commands <code>KILL</code> at &gt;2.5s silence) + (2) <b>10k&Omega; Hardware Pull-Down Resistors</b> on Pin 9 MOSFET Gate &amp; Pin 8 Relay so power loss defaults physically to <code>0V (OFF)</code>.
+                &bull; <b>In Digital Twin Sim:</b> Models a redundant dual-MCU supervisor where hot-standby <b>MCU-B</b> detects missed heartbeats (&gt;1.6s) from <b>MCU-A</b> and executes bumpless PID takeover.<br>
+                &bull; <b>In Physical Lab Bench (Arduino Uno R4 V5 / BME688):</b> Combines (1) <b>5-Second Max Heater Timer + 30s Cooldown</b> on Pin 10 Relay, (2) <b>Serial Watchdog</b> monitoring 2s BME688 packets (trips <code>E-204</code> &amp; sends <code>X</code> emergency stop at &gt;3.5s silence), and (3) <b>10k&Omega; Pull-Down Resistors</b> on Pin 9 MOSFET Gate &amp; Pin 10 Relay so power loss defaults physically to <code>0V (OFF)</code>.
               </div>
             </details>
           </div>
@@ -798,7 +798,7 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px;cursor:pointer
       <button class="btn" id="btnCloseDmmModal" style="width:auto;margin:0;padding:4px 10px;border-color:var(--red);color:#fca5a5;font-weight:bold">&#10005; CLOSE (VIEW GRAPH)</button>
     </div>
     <div style="font-size:9.5px;color:var(--muted);margin-bottom:8px">
-      Live values below update every 200 ms from the active circuit state (<b class="cy">Arduino Uno R4 + Pin 9 IRLZ44N N-MOSFET + 5V GDSTIME Blower + Pin 8 12V 50W PTC Relay + LM2596 Buck</b>):
+      Live values below update every 200 ms from the active circuit state (<b class="cy">Arduino Uno R4 + Pin 9 IRLZ44N N-MOSFET + 5V GDSTIME Blower + Pin 10 12V 50W PTC Relay + BME688</b>):
     </div>
     <div class="dmm-grid" id="dmmLiveEqGrid"></div>
     <div class="grp-h" style="margin:8px 0 5px;color:var(--accent)">SIMULATED MULTIMETER vs. PHYSICAL HANDHELD LAB MULTIMETER (WHERE TO PROBE ON BREADBOARD)</div>
