@@ -2900,16 +2900,14 @@ async function triggerMasterHardwareKill() {
   readSliders();
   updateKillDrawerUI('KILL LATCHED', 'crit');
   if (S.usbConnected) {
-    await sendUsbSerialCommand('KILL');
-    await sendUsbSerialCommand('HEAT OFF');
-    await sendUsbSerialCommand('FAN 0');
+    await sendUsbSerialCommand('X');
   }
   pushSimControlToRPi();
   plant(0.05);
   updateCards();
   updatePanel();
-  log('crit', '[BENCH KILL] Emergency Hardware Cutoff engaged: Pin 8 PTC Relay -> LOW (0V), Pin 9 MOSFET Gate -> 0V (PWM 0).');
-  toast('crit', 'EMERGENCY HARDWARE CUTOFF', 'Master Kill Switch Latched (ALL OFF)', 'Pin 8 PTC Relay = LOW (0V) | Pin 9 Fan MOSFET = 0V (0% PWM)', 'Click "Restore Closed-Loop Auto PID" to resume');
+  log('crit', '[BENCH KILL] Emergency Hardware Stop (X) engaged: Pin 10 PTC Relay -> LOW (0V), Safety Lockout ACTIVE.');
+  toast('crit', 'EMERGENCY HARDWARE STOP (X)', 'Safety Lockout Latched (Pin 10 LOW)', 'Pin 10 PTC Relay = LOW (0V) | Safety Lockout Active', 'Click "R: Reset Safety Lockout / Restore Auto PID" to resume');
 }
 
 async function benchSetFanSpeed(pct) {
@@ -2922,7 +2920,7 @@ async function benchSetFanSpeed(pct) {
   readSliders();
   updateKillDrawerUI(`FAN ${S.fanOverride}%`, S.fanOverride === 0 ? 'warn' : 'ok');
   if (S.usbConnected) {
-    await sendUsbSerialCommand(`FAN ${S.fanOverride}`);
+    await sendUsbSerialCommand(S.fanOverride === 0 ? 'S' : S.fanOverride <= 65 ? 'M' : 'F');
   }
   pushSimControlToRPi();
   plant(0.05);
@@ -2932,6 +2930,8 @@ async function benchSetFanSpeed(pct) {
 }
 
 async function benchSetHeaterRelay(turnOn) {
+  if (benchHeatPulseTimer) { clearTimeout(benchHeatPulseTimer); benchHeatPulseTimer = null; }
+  if (benchCooldownTimer) { clearTimeout(benchCooldownTimer); benchCooldownTimer = null; }
   S.modeOverride = turnOn ? 'HEAT' : 'AUTO';
   if ($('sModeOvr')) $('sModeOvr').value = S.modeOverride;
   S.ctl.heat = turnOn ? 100 : 0;
