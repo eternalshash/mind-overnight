@@ -5,6 +5,384 @@ This technical log is automatically maintained to record engineering implementat
 ---
 
 ### [2026-11-15] Shashwat Choudhry
+* **Commit:** `7b68f8e`
+* **Technical Summary:** Test(v5): verify end-to-end HVAC-proto.ino V5 serial parsing, Pin 10 relay, and BME688 parity. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `232e416`
+* **Technical Summary:** Feat(mobile): display live BME688 Chip 0x61 and MOX gas kOhms in mobile A4/A5 pipeline strip. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `f97b1c6`
+* **Technical Summary:** Feat(mobile): simulate realistic BME688 MOX gas resistance dynamics in standalone mobile loop. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `b1e993d`
+* **Technical Summary:** Feat(mobile): wire mobile Web Serial reader loop to handleMobUsbLine with 3.5s watchdog. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `55cffca`
+* **Technical Summary:** Feat(mobile): parse Heater, Fan PWM, 30s Cooldown, and Safety Lockout in handleMobUsbLine. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `a3b1e19`
+* **Technical Summary:** Feat(mobile): implement handleMobUsbLine multi-line parser for V5 BME688 and Gas Sensor blocks. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `d3c4f00`
+* **Technical Summary:** Feat(mobile): update mobile Bench buttons to emit 'X', 'S', 'M', 'F', 'H', '5', and 'R'. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `b428ba3`
+* **Technical Summary:** Feat(mobile): implement normalizeMobV5Cmd single-character command mapper for V5 sketch. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `aae417b`
+* **Technical Summary:** Feat(mobile): extend mobile state M with gasKOhms, gasBase, gasRelPct, cooldown, and lockout. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `d8bec4f`
+* **Technical Summary:** Refactor(mobile): update Mobile Serial Watchdog and DMM probe labels for Pin 10 and BME688. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `263e356`
+* **Technical Summary:** Feat(mobile): update Mobile Bench tab buttons for V5 commands (X, S, M, F, H, 5, R). Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `3e63ea0`
+* **Technical Summary:** Refactor(mobile): update fine-tune drawer and A4/A5 pipeline labels to BME688. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `8d8a0f9`
+* **Technical Summary:** Chore(sim): sync blueprint_sim.html with BME688, Pin 10 relay, and V5 serial protocol. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `07afc28`
+* **Technical Summary:** Feat(sim): display USB BME688 gas resistance badge in Thermostat View and KV diagnostics table. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `2523b28`
+* **Technical Summary:** Feat(sim): display live BME688 MOX gas kOhms and relative baseline % in A4/A5 pipeline bar. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `39bd617`
+* **Technical Summary:** Feat(sim): wire D (BME688 Diagnostics) and B (Reset Gas Baseline) buttons in Bench Drawer. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `fdc9081`
+* **Technical Summary:** Feat(sim): update benchSetHeaterRelay to send V5 '5' (5s pulse + 30s cooldown) and 'H' (stop). Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `218aa5d`
+* **Technical Summary:** Feat(sim): update benchSetFanSpeed to send V5 'F' (100%), 'M' (50%), and 'S' (0%) commands. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `b061037`
+* **Technical Summary:** Feat(sim): update benchMasterKill to send V5 'X' emergency stop and latch Pin 10 LOW. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `5335835`
+* **Technical Summary:** Refactor(sim): update DMM live equation cards and Chart.js dataset labels for Pin 10 and BME688. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `8505e04`
+* **Technical Summary:** Refactor(sim): update thermal and electrical circuit comments for Pin 10 Relay and BME688. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `d7ccb24`
+* **Technical Summary:** Feat(sim): preserve JSON telemetry backward compatibility with BME688 gas fields in USB parser. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `350f7c4`
+* **Technical Summary:** Feat(sim): trigger immediate UI and DMM refresh on V5 block delimiter in handleArduinoUsbLine. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `4c5b010`
+* **Technical Summary:** Feat(sim): parse Heater ON/OFF, Fan PWM %, Cooldown, and Safety Lockout in handleArduinoUsbLine. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `6707181`
+* **Technical Summary:** Feat(sim): parse GAS SENSOR kOhms, Baseline kOhms, Relative %, and Trend in handleArduinoUsbLine. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `274d09a`
+* **Technical Summary:** Feat(sim): parse BME688 Dew point F and Approx. altitude ft in handleArduinoUsbLine. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `552fd89`
+* **Technical Summary:** Feat(sim): parse BME688 Temperature F/C, Humidity % RH, and Pressure hPa in handleArduinoUsbLine. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `62d2a0b`
+* **Technical Summary:** Feat(sim): add multi-line V5 state parser in handleArduinoUsbLine for BME688 header & Chip ID. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `88bdbe2`
+* **Technical Summary:** Feat(sim): update syncUsbControlFromUI and syncUsbOnFault to emit V5 single-char commands. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `cde40f1`
+* **Technical Summary:** Feat(sim): update sendUsbSerialCommand to transmit normalized V5 single-character commands. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `2893690`
+* **Technical Summary:** Feat(sim): implement normalizeArduinoV5Cmd to enforce 1-character serial commands for V5. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `ff107fb`
+* **Technical Summary:** Feat(sim): set serial watchdog timeoutS to 3.5s to accommodate 2000ms BME688 read interval. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `2e479e0`
+* **Technical Summary:** Feat(sim): extend S.bme state with gasKOhms, gasBaseline, gasRelPct, cooldown, and lockout. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `c437a70`
+* **Technical Summary:** Refactor(sim): update fault descriptions and caregiver alert actions for BME688 and Pin 10. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `3b000a6`
+* **Technical Summary:** Refactor(sim): update DMM modal equations and probe guide from Pin 8 to Pin 10 PTC Relay. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `b1f1144`
+* **Technical Summary:** Refactor(sim): update Serial Comms Watchdog UI for 2s BME688 cadence and 3.5s trip threshold. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `c782381`
+* **Technical Summary:** Feat(sim): update Bench Drawer buttons for V5 single-char commands (X, S, M, F, H, 5, D, B, R). Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `5102ed9`
+* **Technical Summary:** Refactor(sim): update DMM strip and A4/A5 signal pipeline header to BME688 Chip ID 0x61. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `37c8fea`
+* **Technical Summary:** Refactor(sim): update Zone Climate sensor badge from BME280 to TS-A BME688. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `25d3152`
+* **Technical Summary:** Feat(rpi): display BME688 MOX gas resistance in RPi 5 live telemetry cards. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `2b7968d`
+* **Technical Summary:** Style(rpi): update RPi 5 Edge Console labels for Pin 10 relay and BME688 sensor. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `b143911`
+* **Technical Summary:** Feat(rpi): normalize outbound Raspberry Pi serial control commands to V5 single-char set. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `f2eb077`
+* **Technical Summary:** Feat(rpi): commit completed V5 serial telemetry blocks to HVACEdgeStore SQLite DB. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `3c7c702`
+* **Technical Summary:** Feat(rpi): parse HVAC SYSTEM heater, fan PWM, 30s cooldown, and safety lockout lines. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `8c1143a`
+* **Technical Summary:** Feat(rpi): parse BME688 MOX gas resistance kOhms, baseline, and relative percentage. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `32d76c4`
+* **Technical Summary:** Feat(rpi): parse BME688 temperature, humidity, pressure, dew point, and altitude lines. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `0c1199c`
+* **Technical Summary:** Feat(rpi): add V5 multi-line state accumulator to SerialEdgeBridge in serial_bridge.py. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `1028819`
+* **Technical Summary:** Test(dmm): verify Pin 10 relay and Pin 9 MOSFET impedance table calculations. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `88ea5c6`
+* **Technical Summary:** Refactor(dmm): update bench multimeter model for Pin 10 PTC relay and BME688 sensor. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `295c8ba`
+* **Technical Summary:** Feat(firmware): add single-character V5 serial command support (5/H/F/M/S/X/R/D/B) to main.cpp. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `170e4f7`
+* **Technical Summary:** Refactor(firmware): update main.cpp header documentation and Pin 10 relay trigger. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `06d35de`
+* **Technical Summary:** Refactor(config): update PIN_HEATER_RELAY to Pin 10 and add BME688 Chip ID 0x61 constants. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `c8ffc31`
+* **Technical Summary:** Feat(bench): sync SmartHVAC_Arduino_Bench with V5 5s heater pulse and single-char commands. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `32b3ffc`
+* **Technical Summary:** Refactor(bench): update SmartHVAC_Arduino_Bench to Pin 10 relay and BME688 sensor. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `10a20fc`
+* **Technical Summary:** Chore(arduino): add Arduino IDE folder wrapper HVAC-proto/HVAC-proto.ino. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `c652458`
+* **Technical Summary:** Feat(arduino): implement 5s heater test, safety reset, and single-char serial command loop. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `6f106d1`
+* **Technical Summary:** Feat(arduino): implement multi-line BME688, Gas Sensor, and HVAC System serial printouts. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `7d1baa9`
+* **Technical Summary:** Feat(arduino): implement MOX gas resistance baseline tracking and sensor validation. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `18254c3`
+* **Technical Summary:** Feat(arduino): implement BME688 I2C Chip ID 0x61 detection at 0x76/0x77 and oversampling. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `31d11e0`
+* **Technical Summary:** Feat(arduino): implement emergencyStop safety lockout and unit conversion helpers. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `52d5ba6`
+* **Technical Summary:** Feat(arduino): implement active-HIGH Pin 10 relay control and 30s fan cooldown logic. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `a981f72`
+* **Technical Summary:** Feat(arduino): add BME688 sensor state and 20-sample MOX gas baseline variables. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
+* **Commit:** `c5ddc9c`
+* **Technical Summary:** Feat(arduino): add HVAC-proto.ino V5 header, Pin 10 relay, and Pin 9 fan constants. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-15] Shashwat Choudhry
 * **Commit:** `4079185`
 * **Technical Summary:** Fix(mobile): enable pointer-event pass-through on toast banner and tune 393x852 vertical rhythm. Modified files in the Smart HVAC subsystem.
 
