@@ -1614,15 +1614,14 @@ async function syncUsbOnFault(id, on) {
     return;
   }
   if (id === 'blower') {
-    await sendUsbSerialCommand('HEAT OFF');
-    await sendUsbSerialCommand('FAN 0');
-    toast('crit', 'USB ARDUINO HARDWARE INTERLOCK', 'Blower Fault -> Forced Relay OFF & Fan 0%', 'Sent: HEAT OFF | FAN 0 to physical Arduino', 'Prevents PTC heater thermal runaway');
+    await sendUsbSerialCommand('X');
+    toast('crit', 'USB ARDUINO HARDWARE INTERLOCK', 'Blower Fault -> Emergency Stop & Lockout (Pin 10 LOW)', 'Sent: X to physical Arduino Uno R4', 'Prevents 12V PTC heater thermal runaway');
   } else if (id === 'clog') {
-    await sendUsbSerialCommand('FAN 100');
-    toast('warn', 'USB ARDUINO BOOST', 'Filter Clog -> Boosting Physical Fan to 100%', 'Sent: FAN 100 (PWM 255) to Pin 9 MOSFET', 'Compensating for static pressure drop');
+    await sendUsbSerialCommand('F');
+    toast('warn', 'USB ARDUINO BOOST', 'Filter Clog -> Boosting Physical Fan to 100%', 'Sent: F (Fan ON 100%, PWM 255) to Pin 9 MOSFET', 'Compensating for static pressure drop');
   } else if (id === 'voc') {
-    await sendUsbSerialCommand('FAN 100');
-    toast('warn', 'USB ARDUINO PURGE', 'High VOC/CO2 -> Max Ventilation Purge (100% Fan)', 'Sent: FAN 100 to physical Arduino', 'Flushing zone air');
+    await sendUsbSerialCommand('F');
+    toast('warn', 'USB ARDUINO PURGE', 'High VOC/CO2 -> Max Ventilation Purge (100% Fan)', 'Sent: F (Fan ON 100%) to physical Arduino', 'Flushing zone air');
   } else if (id === 'smoke') {
     await sendUsbSerialCommand('HEAT OFF');
     await sendUsbSerialCommand('FAN 40');
