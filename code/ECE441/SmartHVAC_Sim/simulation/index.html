@@ -1589,16 +1589,16 @@ async function syncUsbControlFromUI() {
   if (S.modeOverride === 'HEAT') {
     await sendUsbSerialCommand('5');
   } else if (S.modeOverride === 'COOL') {
-    await sendUsbSerialCommand('HEAT OFF');
-    await sendUsbSerialCommand(`FAN ${S.fanOverride >= 0 ? S.fanOverride : 100}`);
+    await sendUsbSerialCommand('H');
+    await sendUsbSerialCommand(S.fanOverride === 0 ? 'S' : S.fanOverride > 0 && S.fanOverride <= 65 ? 'M' : 'F');
   } else if (S.modeOverride === 'OFF') {
-    await sendUsbSerialCommand('HEAT OFF');
-    await sendUsbSerialCommand('FAN 0');
+    await sendUsbSerialCommand('H');
+    await sendUsbSerialCommand('S');
   } else {
     if (S.fanOverride >= 0) {
-      await sendUsbSerialCommand(`FAN ${S.fanOverride}`);
-    } else {
-      await sendUsbSerialCommand('AUTO');
+      await sendUsbSerialCommand(S.fanOverride === 0 ? 'S' : S.fanOverride <= 65 ? 'M' : 'F');
+    } else if (S.bme.safetyLockout) {
+      await sendUsbSerialCommand('R');
     }
   }
 }
@@ -1608,8 +1608,8 @@ async function syncUsbOnFault(id, on) {
   if (!on) {
     const remaining = Object.values(S.inj).filter(Boolean).length;
     if (remaining === 0) {
-      await sendUsbSerialCommand('AUTO');
-      toast('ok', 'USB ARDUINO RESTORED', 'Fault Cleared -> Closed-Loop PID Restored', 'Sent: AUTO to Arduino Uno R4 over USB', 'Pin 9 PWM & Pin 8 Relay back on BME280 PID');
+      await sendUsbSerialCommand('R');
+      toast('ok', 'USB ARDUINO RESTORED', 'Fault Cleared -> Safety Reset & Auto Restored', 'Sent: R (Reset Safety / Retry BME688) over USB', 'Pin 9 PWM & Pin 10 Relay back to nominal');
     }
     return;
   }
