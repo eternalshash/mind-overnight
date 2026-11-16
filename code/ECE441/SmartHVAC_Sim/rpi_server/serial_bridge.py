@@ -361,6 +361,30 @@ class SerialEdgeBridge:
                 self.last_error = str(exc)
         return False
 
+    def publish_control_state(self, ctrl: Dict[str, Any], fan_speed: Optional[float] = None) -> bool:
+        # Map high-level control state to Andy's HVAC-proto.ino V5 single-char serial commands
+        mode_ovr = str(ctrl.get("mode_override", "AUTO")).upper()
+        fan_ovr = fan_speed if fan_speed is not None else ctrl.get("fan_override_pct", -1)
+
+        if mode_ovr == "OFF":
+            self._send_single_char_cmd("H")
+            return self._send_single_char_cmd("S")
+        if mode_ovr == "HEAT":
+            return self._send_single_char_cmd("5")
+        if mode_ovr == "COOL":
+            self._send_single_char_cmd("H")
+            return self._send_single_char_cmd("F")
+
+        if fan_ovr is not None and float(fan_ovr) >= 0:
+            pct = float(fan_ovr)
+            if pct <= 0:
+                return self._send_single_char_cmd("S")
+            if pct <= 65:
+                return self._send_single_char_cmd("M")
+            return self._send_single_char_cmd("F")
+
+        return True
+
     def get_status(self) -> Dict[str, Any]:
         return {
             "connected": self.connected,
