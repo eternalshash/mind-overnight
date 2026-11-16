@@ -2319,7 +2319,7 @@ function plant(dtS) {
   S.pw.total = S.pw.comp + S.pw.heat + S.pw.fan + S.pw.plugs + S.pw.ctrl;
   S.kWh += S.pw.total * dtS / 3.6e6;
 
-  // thermal balance & humidity (locked to physical A4/A5 BME280 when Arduino USB is connected)
+  // thermal balance & humidity (locked to physical A4/A5 BME688 when Arduino USB is connected)
   const achInf = inj.window ? 6 : 0.4, achOA = S.damperAct / 100 * 4;
   if (S.usbConnected && S.bme.hasLive) {
     S.T = S.bme.tempC;
@@ -2359,8 +2359,8 @@ function diagnose(alive) {
   if (inj.wifi) d['E-203'] = { sev: 'info', title: 'CLOUD LINK LOST', target: 'thermostat', short: `${c.buffered} BUFFERED`,
     msg: 'MQTT broker unreachable. Remote dashboard offline.', act: `Edge autonomy: local PID unaffected. ${c.buffered} telemetry samples buffered.` };
   if (S.wdt && S.wdt.tripped) d['E-204'] = { sev: 'crit', title: 'SERIAL WATCHDOG TIMEOUT', target: 'thermostat', short: 'FAIL-SAFE OFF',
-    msg: `No Arduino USB heartbeat for ${S.wdt.elapsedS.toFixed(1)} s (> ${S.wdt.timeoutS.toFixed(1)} s limit, last seq #${S.wdt.lastHbSeq}).`,
-    act: 'Fail-safe cutoff engaged: Pin 8 PTC Relay -> LOW (0V) & Pin 9 Fan MOSFET -> 0V (0%).' };
+    msg: `No Arduino USB telemetry for ${S.wdt.elapsedS.toFixed(1)} s (> ${S.wdt.timeoutS.toFixed(1)} s limit, last seq #${S.wdt.lastHbSeq}).`,
+    act: 'Fail-safe cutoff engaged: Pin 10 PTC Relay -> LOW (0V) & Pin 9 Fan MOSFET -> fail-safe.' };
   if (c.purge) d['E-101'] = { sev: 'warn', title: 'POOR INDOOR AIR QUALITY', target: 'iaq', short: `VOC ${f0(S.VOC)} CO2 ${f0(S.CO2)}`,
     msg: `VOC ${f0(S.VOC)} ppb, CO2 ${f0(S.CO2)} ppm.`,
     act: c.smokeLock ? 'Purge INHIBITED by smoke lockout. Recirculating only.' : 'Ventilation purge: OA damper 100%, blower 85%.' };
@@ -2491,7 +2491,7 @@ function buildChart() {
   } else if (view === 'thermal') {
     data = { labels: H.lab, datasets: [
       ds('Room (true)', H.T, '#ffffff', { borderWidth: 2 }),
-      ds('TS-A (BME280)', H.TA, '#f59e0b', { borderDash: [3, 3] }),
+      ds('TS-A (BME688)', H.TA, '#f59e0b', { borderDash: [3, 3] }),
       ds('TS-B (SHT31)', H.TB, '#38bdf8', { borderDash: [1, 2] }),
       ds('Setpoint', H.SP, '#10b981', { borderDash: [6, 4], tension: 0 }),
       ds('Feels like', H.AT, '#c084fc'),
