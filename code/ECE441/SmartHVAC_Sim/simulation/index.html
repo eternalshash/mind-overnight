@@ -1889,6 +1889,12 @@ function handleArduinoUsbLine(line) {
     if (typeof d.pressure_hpa === 'number' && !isNaN(d.pressure_hpa)) {
       S.bme.pressHpa = d.pressure_hpa;
     }
+    if (typeof d.gas_kohms === 'number' && !isNaN(d.gas_kohms)) {
+      S.bme.gasKOhms = d.gas_kohms;
+    }
+    if (typeof d.gas_rel_pct === 'number' && !isNaN(d.gas_rel_pct)) {
+      S.bme.gasRelPct = d.gas_rel_pct;
+    }
     if (typeof d.bme_ok === 'number') {
       S.bme.bmeOk = d.bme_ok === 1;
     }
@@ -1904,6 +1910,13 @@ function handleArduinoUsbLine(line) {
     }
     if (typeof d.heater_relay === 'number') {
       S.ctl.heat = d.heater_relay ? 100 : 0;
+      S.bme.heaterOn = !!d.heater_relay;
+    }
+    if (typeof d.cooldown_active === 'boolean' || typeof d.cooldown_active === 'number') {
+      S.bme.cooldownActive = !!d.cooldown_active;
+    }
+    if (typeof d.safety_lockout === 'boolean' || typeof d.safety_lockout === 'number') {
+      S.bme.safetyLockout = !!d.safety_lockout;
     }
     if (typeof d.air_velocity_ms === 'number') S.vel = d.air_velocity_ms;
     if (typeof d.v_supply_12v === 'number') S.elec.v_supply_12v = d.v_supply_12v;
@@ -1929,7 +1942,7 @@ function handleArduinoUsbLine(line) {
 
     recordCommMetric('USB->WEB', 'Serial(115200)', 1.5, 200, `Arduino RX #${S.rpiPkts}`);
     if ($('rpiStatusLine')) {
-      $('rpiStatusLine').textContent = `USB LIVE (115200 baud) | Temp: ${fF(S.T)}°F (${S.T.toFixed(1)}°C) | RH: ${S.RH.toFixed(0)}% | Fan PWM: ${S.elec.fan_pwm}/255 | Relay: ${d.heater_relay ? 'ON' : 'OFF'}`;
+      $('rpiStatusLine').textContent = `USB LIVE (115200 baud) | Temp: ${fF(S.T)}°F (${S.T.toFixed(1)}°C) | RH: ${S.RH.toFixed(0)}% | Gas: ${S.bme.gasKOhms.toFixed(1)} kΩ | Fan PWM: ${S.elec.fan_pwm}/255 | Pin 10 Relay: ${d.heater_relay ? 'ON' : 'OFF'}`;
       $('rpiStatusLine').style.color = '#6ee7b7';
     }
     updateCards();
