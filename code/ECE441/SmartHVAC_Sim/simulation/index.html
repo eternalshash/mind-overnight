@@ -1623,17 +1623,17 @@ async function syncUsbOnFault(id, on) {
     await sendUsbSerialCommand('F');
     toast('warn', 'USB ARDUINO PURGE', 'High VOC/CO2 -> Max Ventilation Purge (100% Fan)', 'Sent: F (Fan ON 100%) to physical Arduino', 'Flushing zone air');
   } else if (id === 'smoke') {
-    await sendUsbSerialCommand('HEAT OFF');
-    await sendUsbSerialCommand('FAN 40');
-    toast('crit', 'USB ARDUINO SMOKE LOCKOUT', 'Wildfire Smoke -> Heater OFF, Recirc Fan 40%', 'Sent: HEAT OFF | FAN 40 to physical Arduino', 'MERV-13 recirculation mode');
+    await sendUsbSerialCommand('H');
+    await sendUsbSerialCommand('M');
+    toast('crit', 'USB ARDUINO SMOKE LOCKOUT', 'Wildfire Smoke -> Heater OFF, Recirc Fan 50%', 'Sent: H | M to physical Arduino', 'MERV-13 recirculation mode');
   } else if (id === 'heatwave' || id === 'surge') {
-    await sendUsbSerialCommand('HEAT OFF');
-    await sendUsbSerialCommand('FAN 100');
-    toast('crit', 'USB ARDUINO EMERGENCY COOLING', 'Thermal Spike -> Heater OFF, Fan 100% Max Cooling', 'Sent: HEAT OFF | FAN 100 to physical Arduino', 'Mitigating indoor heat stress');
+    await sendUsbSerialCommand('H');
+    await sendUsbSerialCommand('F');
+    toast('crit', 'USB ARDUINO EMERGENCY COOLING', 'Thermal Spike -> Heater OFF, Fan 100% Max Cooling', 'Sent: H | F to physical Arduino', 'Mitigating indoor heat stress');
   } else if (id === 'window') {
-    await sendUsbSerialCommand('HEAT OFF');
-    await sendUsbSerialCommand('FAN 0');
-    toast('warn', 'USB ARDUINO ENVELOPE PAUSE', 'Window Open -> Paused Heater & Fan (0%)', 'Sent: HEAT OFF | FAN 0 to physical Arduino', 'Preventing conditioning outdoors');
+    await sendUsbSerialCommand('H');
+    await sendUsbSerialCommand('S');
+    toast('warn', 'USB ARDUINO ENVELOPE PAUSE', 'Window Open -> Paused Heater & Fan (0%)', 'Sent: H | S to physical Arduino', 'Preventing conditioning outdoors');
   } else if (id === 'mcu') {
     await sendUsbSerialCommand('HEAT OFF');
     toast('crit', 'USB ARDUINO FAIL-SAFE', 'Primary MCU Fault -> Gated Heater Relay OFF', 'Sent: HEAT OFF to physical Arduino', 'Hardware pull-down safety state');
