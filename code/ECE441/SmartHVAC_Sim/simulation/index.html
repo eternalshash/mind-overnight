@@ -1575,8 +1575,8 @@ async function sendUsbSerialCommand(cmdStr) {
     const data = new TextEncoder().encode(norm.wire + '\n');
     await writer.write(data);
     writer.releaseLock();
-    recordCommMetric('WEB->USB', 'Serial(115200)', 2.1, 200, `TX: ${cmdStr.trim()}`);
-    log('ok', `[USB->ARDUINO] Sent command: ${cmdStr.trim()}`);
+    recordCommMetric('WEB->USB', 'Serial(115200)', 2.1, 200, `TX: ${norm.wire}`);
+    log('ok', `[USB->ARDUINO V5] Sent command '${norm.wire}': ${norm.desc}`);
     return true;
   } catch (err) {
     log('warn', `[USB] Failed to write command: ${err && err.message ? err.message : err}`);
@@ -1586,10 +1586,8 @@ async function sendUsbSerialCommand(cmdStr) {
 
 async function syncUsbControlFromUI() {
   if (!S.usbConnected) return;
-  await sendUsbSerialCommand(`SET ${S.setpoint.toFixed(1)}`);
   if (S.modeOverride === 'HEAT') {
-    await sendUsbSerialCommand('HEAT ON');
-    await sendUsbSerialCommand(`FAN ${S.fanOverride >= 0 ? S.fanOverride : 100}`);
+    await sendUsbSerialCommand('5');
   } else if (S.modeOverride === 'COOL') {
     await sendUsbSerialCommand('HEAT OFF');
     await sendUsbSerialCommand(`FAN ${S.fanOverride >= 0 ? S.fanOverride : 100}`);
