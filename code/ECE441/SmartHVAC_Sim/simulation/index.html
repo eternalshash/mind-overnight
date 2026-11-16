@@ -511,7 +511,7 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px;cursor:pointer
           <div>
             <div class="env-head">
               <span class="env-title">Zone Climate &amp; Sensors</span>
-              <span class="badge ok" id="qSensorBadge">TS-A BME280</span>
+              <span class="badge ok" id="qSensorBadge">TS-A BME688</span>
             </div>
             <div class="env-rows" style="margin-top:8px">
               <div class="env-row"><span class="k">Indoor Room</span><span class="v" id="qRoomTemp">75.2<small>&deg;F</small></span></div>
@@ -626,12 +626,12 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px;cursor:pointer
         </div>
         <div class="cards" id="cards"></div>
         <div class="dmm-strip" id="dmmHelpStrip">
-          <span><b>DIGITAL TWIN vs. LAB BENCH DMM:</b> Live Ohm's Law &amp; MOSFET switching derivations (Pin 9 IRLZ44N + Pin 8 PTC Relay)</span>
+          <span><b>DIGITAL TWIN vs. LAB BENCH DMM:</b> Live Ohm's Law &amp; MOSFET switching derivations (Pin 9 IRLZ44N + Pin 10 PTC Relay)</span>
           <button class="btn" id="btnOpenDmmModal" style="width:auto;margin:0;padding:3px 9px;border-color:var(--cyan);color:var(--accent);font-weight:600;font-size:9.5px">Equations &amp; Lab Probe Guide</button>
         </div>
         <div class="adc-bar" id="bmeAdcBar">
-          <span><b id="bmeSrcTag" style="color:var(--cyan)">BME280 (A4 SDA / A5 SCL): SIMULATED</b></span>
-          <span id="bmeAdcFlow">Analog Bridge <b class="stage">1666 mV</b><span class="arr">&rarr;</span>20-bit &Sigma;&Delta; ADC <b class="stage">0x81333</b><span class="arr">&rarr;</span>I2C <b class="stage">0x76 (A4/A5)</b><span class="arr">&rarr;</span>Digital <b class="grn">75.2&deg;F (24.00&deg;C)</b></span>
+          <span><b id="bmeSrcTag" style="color:var(--cyan)">BME688 (A4 SDA / A5 SCL): SIMULATED</b></span>
+          <span id="bmeAdcFlow">Analog Sense <b class="stage">1689.6 mV</b><span class="arr">&rarr;</span>BME688 I2C <b class="stage">0x76 (Chip 0x61)</b><span class="arr">&rarr;</span>Digital <b class="grn">75.2&deg;F (24.00&deg;C) | 48.0% RH</b><span class="arr">&rarr;</span>MOX Gas <b class="stage">142.5 k&Omega; (101.8%)</b></span>
         </div>
         <div class="chartbox"><canvas id="chart"></canvas></div>
       </div>
