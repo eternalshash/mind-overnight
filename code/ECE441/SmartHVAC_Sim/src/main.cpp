@@ -121,7 +121,7 @@ static void handleSerialCommand(const char* line) {
         heater_relay_on = true;
         digitalWrite(PIN_HEATER_RELAY, HIGH);
         CircuitMetrics cm = hal.computeCircuitMetrics(heater_relay_on, current_fan_pwm);
-        Serial.println(F("{\"ack\":\"heater_forced_on\",\"relay_pin_8\":1}"));
+        Serial.println(F("{\"ack\":\"heater_forced_on\",\"relay_pin_10\":1}"));
         printMultimeterSummary(cm);
         return;
     }
@@ -130,7 +130,7 @@ static void handleSerialCommand(const char* line) {
         heater_relay_on = false;
         digitalWrite(PIN_HEATER_RELAY, LOW);
         CircuitMetrics cm = hal.computeCircuitMetrics(heater_relay_on, current_fan_pwm);
-        Serial.println(F("{\"ack\":\"heater_forced_off\",\"relay_pin_8\":0}"));
+        Serial.println(F("{\"ack\":\"heater_forced_off\",\"relay_pin_10\":0}"));
         printMultimeterSummary(cm);
         return;
     }
@@ -247,8 +247,8 @@ void setup() {
     hvacPID.SetSampleTime(CONTROL_LOOP_MS);
 
     Serial.println(F("================================================================================"));
-    Serial.println(F("ECE 441 SMART HVAC BENCH CONTROLLER (Arduino Uno R4 + IRLZ44N MOSFET + BME280)"));
-    Serial.println(F("Commands: FAN <0-100> | PWM <0-255> | SET <15-30> | HEAT ON | HEAT OFF | AUTO"));
+    Serial.println(F("ECE 441 SMART HVAC DEMO V5 (Arduino Uno R4 + Pin 9 MOSFET + Pin 10 Relay + BME688)"));
+    Serial.println(F("Commands: 5 | H | F | M | S | X | R | D | B | ?"));
     Serial.println(F("================================================================================"));
 }
 
@@ -268,7 +268,7 @@ void loop() {
         Input = (double)feels_like_c;
         hvacPID.Compute();
 
-        // Heater Relay control (12V PTC Element via Relay on Pin 8)
+        // Heater Relay control (12V PTC Element via Relay on Pin 10)
         current_heater_pwm = (int)Output;
         if (manual_heater_mode >= 0) {
             heater_relay_on = (manual_heater_mode == 1);
