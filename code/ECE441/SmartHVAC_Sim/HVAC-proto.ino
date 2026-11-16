@@ -711,3 +711,105 @@ void loop() {
   // Always force relay OFF during lockout
   if (safetyLockout) {
     relayOff();
+  }
+
+  // Read sensor periodically
+  if (now - lastSensorRead >= SENSOR_INTERVAL_MS) {
+    lastSensorRead = now;
+
+    if (sensorFound) {
+      readSensor();
+    }
+  }
+
+  // Check heater timer again after reading
+  now = millis();
+
+  if (heaterOn &&
+      now - heaterStart >= HEAT_TIME_MS) {
+    stopHeater();
+  }
+
+  // Cooldown timer
+  if (cooldownActive &&
+      now - cooldownStart >= COOLDOWN_MS) {
+
+    cooldownActive = false;
+
+    if (!safetyLockout) {
+      setFan(0);
+    }
+
+    Serial.println("Cooldown completed.");
+  }
+
+  // Serial commands
+  if (Serial.available()) {
+    char cmd = toupper(Serial.read());
+
+    switch (cmd) {
+
+      case '5':
+        startHeaterTest();
+        break;
+
+      case 'H':
+        stopHeater();
+        break;
+
+      case 'F':
+        setFan(255);
+        Serial.println("Fan ON 100%");
+        break;
+
+      case 'M':
+        if (!heaterOn &&
+            !cooldownActive &&
+            !safetyLockout) {
+
+          setFan(128);
+          Serial.println("Fan ON 50%");
+        }
+        else {
+          Serial.println("Fan change denied");
+        }
+        break;
+
+      case 'S':
+        if (!heaterOn &&
+            !cooldownActive &&
+            !safetyLockout) {
+
+          setFan(0);
+          Serial.println("Fan OFF");
+        }
+        else {
+          Serial.println("Fan OFF denied");
+        }
+        break;
+
+      case 'X':
+        emergencyStop("Manual emergency stop");
+        break;
+
+      case 'R':
+        resetSafety();
+        break;
+
+      case 'D':
+        printDiagnostics();
+        break;
+
+      case 'B':
+        resetGasBaseline();
+        break;
+
+      case '?':
+        printMenu();
+        break;
+
+      default:
+        break;
+    }
+  }
+}
