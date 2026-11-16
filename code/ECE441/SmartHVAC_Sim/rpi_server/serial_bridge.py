@@ -8,12 +8,16 @@ Automatically discovers and connects to:
      over USB Serial (/dev/ttyACM*, /dev/ttyUSB*, /dev/cu.usbmodem*)
   2. Live VS Code Wokwi Simulator via TCP RFC2217 port (127.0.0.1:4000)
 
-Streams incoming JSON telemetry directly into HVACEdgeStore (SQLite) and
-forwards setpoint / fan speed control commands back to the Arduino over Serial.
+Parses BOTH:
+  - Andy's HVAC-proto.ino V5 multi-line text output ([BME688], [GAS SENSOR], [HVAC SYSTEM])
+  - Single-line JSON telemetry packets
+And forwards single-character V5 control commands (5, H, F, M, S, X, R, D, B) over Serial.
 """
 
 import glob
 import json
+import math
+import re
 import socket
 import threading
 import time
