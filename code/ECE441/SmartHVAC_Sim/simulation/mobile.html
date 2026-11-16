@@ -441,10 +441,10 @@ nav.bnav button.on{color:var(--accent);background:rgba(92,225,230,.08);font-weig
       </div>
     </div>
 
-    <!-- COLLAPSIBLE FINE-TUNE SLIDERS, SPARKLINE & BME280 PIPELINE DRAWER -->
+    <!-- COLLAPSIBLE FINE-TUNE SLIDERS, SPARKLINE & BME688 PIPELINE DRAWER -->
     <details class="mcard-drawer" id="mFineDrawer">
       <summary>
-        <span>Fine-Tune Sliders, Trend &amp; BME280 Pipeline</span>
+        <span>Fine-Tune Sliders, Trend &amp; BME688 Pipeline</span>
         <span class="pill" style="font-size:9px">ENGINEER</span>
       </summary>
       <div class="drawer-inner">
@@ -466,7 +466,7 @@ nav.bnav button.on{color:var(--accent);background:rgba(92,225,230,.08);font-weig
           <select class="m-in" id="mModeSelect">
             <option value="AUTO" selected>AUTO (CLOSED-LOOP PID)</option>
             <option value="COOL">FORCE COOLING (100%)</option>
-            <option value="HEAT">FORCE HEATING (12V PTC RELAY ON)</option>
+            <option value="HEAT">FORCE HEATING (PIN 10 12V PTC RELAY ON)</option>
             <option value="ECO">ECO (+2.0&deg;F DEADBAND)</option>
             <option value="OFF">SYSTEM OFF</option>
           </select>
