@@ -3276,7 +3276,7 @@ function updatePanel() {
     bar('OA DAMPER', S.damperAct, c.smokeLock ? 'LOCKED' : `${f0(S.damperAct)}%`, c.smokeLock ? '#ef4444' : '#38bdf8');
   $('kv').innerHTML =
     `<span>HVAC Mode</span><span><b style="color:${/FORCE|ECO/.test(mode) ? '#fcd34d' : '#00e5ff'}">${mode}</b> (${S.modeOverride})</span>` +
-    `<span>Control sensor (A4/A5 I2C)</span><span>${c.sensorAOk ? 'TS-A (BME280)' : 'TS-B'} ${fF(c.Tctl)} F</span>` +
+    `<span>Control sensor (A4/A5 I2C)</span><span>${c.sensorAOk ? 'TS-A (BME688)' : 'TS-B'} ${fF(c.Tctl)} F | Gas ${f1(S.bme.gasKOhms)} k&Omega;</span>` +
     `<span>PID (P / I / FF)</span><span>${f1(c.P)} / ${f1(c.I)} / ${f1(c.ff)} %</span>` +
     `<span>Pin 9 IRLZ44N Gate</span><span>V_GS ${f2(S.elec.v_mosfet_gs)} V | PWM ${S.elec.fan_pwm}/255 (${S.fanOverride >= 0 ? 'MANUAL' : 'AUTO'})</span>` +
     `<span>Bench V / Current</span><span>V_fan ${f2(S.elec.v_fan_eff)} V | I_fan ${f0(S.elec.i_fan_a * 1000)} mA | I_5V ${f0(S.elec.i_5v_total * 1000)} mA</span>` +
@@ -3364,7 +3364,7 @@ const R = {
 const ctr = o => [X(o.x + o.w / 2), Y(o.y + o.h / 2)];
 const TGT = { thermostat: R.thermostat, iaq: R.iaq, damper: R.damper, ret: R.ret, ahu: R.ahu, window: R.window, tv: R.plugTv, desk: R.desk, bed: R.bed, tsb: R.tsb };
 const DEV = {
-  thermostat: { o: R.thermostat, name: 'CTRL-HUB Arduino Uno R4 (Pin 9 MOSFET / Pin 8 Relay / A4-A5 BME280)', info: () => `MCU-A ${S.mcu.a}, MCU-B ${S.mcu.b}. TS-A ${fF(S.sensA)} F ${S.ctl.sensorAOk ? '(in loop)' : '(voted out)'}. Pin 9 V_GS ${f2(S.elec.v_mosfet_gs)}V, R_tot ${f2(S.elec.r_total_circuit_ohm)} Ω.` },
+  thermostat: { o: R.thermostat, name: 'CTRL-HUB Arduino Uno R4 V5 (Pin 9 MOSFET / Pin 10 Relay / A4-A5 BME688)', info: () => `MCU-A ${S.mcu.a}, MCU-B ${S.mcu.b}. TS-A BME688 ${fF(S.sensA)} F ${S.ctl.sensorAOk ? '(in loop)' : '(voted out)'}, Gas ${f1(S.bme.gasKOhms)} kΩ (${f0(S.bme.gasRelPct)}%). Pin 9 V_GS ${f2(S.elec.v_mosfet_gs)}V, R_tot ${f2(S.elec.r_total_circuit_ohm)} Ω.` },
   iaq: { o: R.iaq, name: 'IAQ node (SGP30 VOC/CO2 + PM2.5)', info: () => `VOC ${f0(S.VOC)} ppb, CO2 ${f0(S.CO2)} ppm, PM2.5 ${f1(S.PM)} ug/m3.` },
   tsb: { o: R.tsb, name: 'TS-B redundant temp sensor (SHT31)', info: () => `${fF(S.sensB)} F. Used for cross-check voting against TS-A.` },
   supply: { o: R.supply, name: 'Ceiling supply diffuser', info: () => `Supply air ${fF(S.SAT)} F, duct velocity ${f2(S.vel)} m/s.` },
@@ -3974,7 +3974,7 @@ function updateThermostatView() {
   // Top-right environmental readouts
   if ($('qSensorBadge')) {
     const liveUsb = S.usbConnected && S.bme.hasLive;
-    $('qSensorBadge').textContent = liveUsb ? 'USB BME280 LIVE' : c.sensorAOk ? 'TS-A BME280' : 'TS-B REDUNDANT';
+    $('qSensorBadge').textContent = liveUsb ? `USB BME688 (${S.bme.gasKOhms.toFixed(0)}k\u03a9)` : c.sensorAOk ? 'TS-A BME688' : 'TS-B REDUNDANT';
     $('qSensorBadge').className = 'badge ' + (liveUsb ? 'ok' : c.sensorAOk ? 'ok' : 'warn');
   }
   if ($('qRoomTemp')) $('qRoomTemp').innerHTML = `${roomF.toFixed(1)}<small>&deg;F</small>`;
