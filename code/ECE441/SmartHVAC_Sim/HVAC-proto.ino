@@ -202,3 +202,105 @@ int readChipID(uint8_t address) {
 
 void initializeSensor() {
   // Ensure heater is OFF during initialization
+  relayOff();
+
+  sensorFound = false;
+  sensorValid = false;
+
+  Serial.println();
+  Serial.println("===== BME688 DETECTION =====");
+
+  const uint8_t addresses[] = {0x76, 0x77};
+
+  for (int i = 0; i < 2; i++) {
+    uint8_t addr = addresses[i];
+
+    int chipID = readChipID(addr);
+
+    Serial.print("Address 0x");
+    Serial.print(addr, HEX);
+    Serial.print(": ");
+
+    if (chipID < 0) {
+      Serial.println("NO RESPONSE");
+      continue;
+    }
+
+    Serial.print("Chip ID 0x");
+    Serial.println(chipID, HEX);
+
+    if (chipID == 0x61) {
+      if (bme688.begin(addr)) {
+        sensorFound = true;
+        sensorAddress = addr;
+
+        Serial.println("BME688 INITIALIZED");
+        break;
+      }
+      else {
+        Serial.println("INITIALIZATION FAILED");
+      }
+    }
+    else {
+      Serial.println("Not a BME688/BME680");
+    }
+  }
+
+  if (sensorFound) {
+    bme688.setTemperatureOversampling(
+      BME680_OS_8X
+    );
+
+    bme688.setHumidityOversampling(
+      BME680_OS_2X
+    );
+
+    bme688.setPressureOversampling(
+      BME680_OS_4X
+    );
+
+    bme688.setIIRFilterSize(
+      BME680_FILTER_SIZE_3
+    );
+
+    // Internal gas-sensing heater
+    // Does NOT control external PTC
+    bme688.setGasHeater(320, 150);
+
+    Serial.print("Sensor ready at 0x");
+    Serial.println(sensorAddress, HEX);
+  }
+  else {
+    emergencyStop("BME688 not detected");
+  }
+
+  Serial.println("============================");
+}
+
+// =======================================
+// RESET GAS BASELINE
+// =======================================
+
+void resetGasBaseline() {
+  gasTotal = 0;
+  gasBaseline = 0;
+  gasCount = 0;
+  gasReady = false;
+
+  Serial.println("Gas baseline reset.");
+}
+
+void updateGasBaseline() {
+  if (gasReady || !isfinite(gasKOhms) ||
+      gasKOhms <= 0) {
+    return;
+  }
+
+  gasTotal += gasKOhms;
+  gasCount++;
+
+  if (gasCount >= GAS_BASELINE_SAMPLES) {
+    gasBaseline = gasTotal / gasCount;
+    gasReady = true;
+
+    Serial.println("Gas baseline established.");
