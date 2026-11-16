@@ -1544,11 +1544,35 @@ function updateUsbButtonsUI() {
   }
 }
 
+function normalizeArduinoV5Cmd(cmdStr) {
+  const raw = String(cmdStr || '').trim().toUpperCase();
+  if (!raw || raw.startsWith('SET ')) return null;
+  if (raw === '5' || raw === 'HEAT ON') return { wire: '5', desc: '5 (Heater ON for 5s on Pin 10 + Fan 100%)' };
+  if (raw === 'H' || raw === 'HEAT OFF') return { wire: 'H', desc: 'H (Stop Heater on Pin 10)' };
+  if (raw === 'F' || raw === 'FAN 100') return { wire: 'F', desc: 'F (Fan ON 100% PWM 255 on Pin 9)' };
+  if (raw === 'M' || raw === 'FAN 50') return { wire: 'M', desc: 'M (Fan ON 50% PWM 128 on Pin 9)' };
+  if (raw === 'S' || raw === 'FAN 0') return { wire: 'S', desc: 'S (Fan OFF PWM 0 on Pin 9)' };
+  if (raw === 'X' || raw === 'KILL') return { wire: 'X', desc: 'X (Emergency software stop / Lockout)' };
+  if (raw === 'R' || raw === 'AUTO' || raw === 'RESET') return { wire: 'R', desc: 'R (Reset safety lockout / retry BME688)' };
+  if (raw === 'D' || raw === 'DIAG') return { wire: 'D', desc: 'D (BME688 & HVAC Diagnostics)' };
+  if (raw === 'B' || raw === 'GAS RESET') return { wire: 'B', desc: 'B (Reset BME688 gas baseline)' };
+  if (raw === '?') return { wire: '?', desc: '? (Show HVAC Command Menu)' };
+  if (raw.startsWith('FAN ')) {
+    const pct = parseFloat(raw.slice(4));
+    if (pct <= 0) return { wire: 'S', desc: 'S (Fan OFF PWM 0 on Pin 9)' };
+    if (pct <= 65) return { wire: 'M', desc: 'M (Fan ON 50% PWM 128 on Pin 9)' };
+    return { wire: 'F', desc: 'F (Fan ON 100% PWM 255 on Pin 9)' };
+  }
+  return { wire: raw.charAt(0), desc: raw };
+}
+
 async function sendUsbSerialCommand(cmdStr) {
   if (!S.usbConnected || !usbPort || !usbPort.writable) return false;
+  const norm = normalizeArduinoV5Cmd(cmdStr);
+  if (!norm) return true;
   try {
     const writer = usbPort.writable.getWriter();
-    const data = new TextEncoder().encode(cmdStr.trim() + '\n');
+    const data = new TextEncoder().encode(norm.wire + '\n');
     await writer.write(data);
     writer.releaseLock();
     recordCommMetric('WEB->USB', 'Serial(115200)', 2.1, 200, `TX: ${cmdStr.trim()}`);
