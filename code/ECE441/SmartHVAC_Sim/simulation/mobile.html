@@ -483,8 +483,8 @@ nav.bnav button.on{color:var(--accent);background:rgba(92,225,230,.08);font-weig
         </div>
 
         <div class="adc-strip" id="mAdcStrip">
-          <div id="mAdcTitle" style="color:var(--cyan);font-weight:600;margin-bottom:2px">A4 (SDA) / A5 (SCL) BME280 PIPELINE:</div>
-          <div id="mAdcFlow">Analog <b>1689.6 mV</b> &rarr; 20-bit &Sigma;&Delta; ADC <b>0x83126</b> &rarr; I2C <b>0x76</b> &rarr; <span class="grn"><b>75.2&deg;F (24.00&deg;C)</b></span></div>
+          <div id="mAdcTitle" style="color:var(--cyan);font-weight:600;margin-bottom:2px">A4 (SDA) / A5 (SCL) BME688 PIPELINE:</div>
+          <div id="mAdcFlow">Analog <b>1689.6 mV</b> &rarr; I2C <b>0x76 (Chip 0x61)</b> &rarr; <span class="grn"><b>75.2&deg;F (24.00&deg;C) | Gas 142.5 k&Omega;</b></span></div>
         </div>
       </div>
     </details>
@@ -496,17 +496,17 @@ nav.bnav button.on{color:var(--accent);background:rgba(92,225,230,.08);font-weig
   <section class="tab-sec" id="tab-bench">
     <div class="mcard">
       <div class="mcard-h">
-        <span class="mcard-t">Emergency Hardware Cutoff</span>
+        <span class="mcard-t">Emergency Hardware Cutoff (Arduino V5)</span>
         <span class="pill" id="mKillBadge">STANDBY</span>
       </div>
-      <button class="kill-big" id="mBtnKill">MASTER HARDWARE KILL (PIN 8 LOW &amp; PIN 9 0V)</button>
-      <div style="font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:10px">DIRECT PIN 9 FAN BENCH OVERRIDE:</div>
+      <button class="kill-big" id="mBtnKill">X: EMERGENCY STOP / LOCKOUT (PIN 10 RELAY LOW)</button>
+      <div style="font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:10px">DIRECT PIN 9 FAN BENCH OVERRIDE (S / M / F):</div>
       <div class="btn-grid3">
-        <button class="m-btn red" data-fan="0">FAN 0%</button>
-        <button class="m-btn" data-fan="50">FAN 50%</button>
-        <button class="m-btn cy" data-fan="100">FAN 100%</button>
+        <button class="m-btn red" data-fan="0">S: FAN 0%</button>
+        <button class="m-btn" data-fan="50">M: FAN 50%</button>
+        <button class="m-btn cy" data-fan="100">F: FAN 100%</button>
       </div>
-      <div style="font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:10px">DIRECT PIN 8 12V PTC HEATER RELAY:</div>
+      <div style="font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:10px">DIRECT PIN 10 12V PTC HEATER RELAY (H / 5):</div>
       <div class="btn-grid2">
         <button class="m-btn grn" id="mBtnHeatOff">RELAY OFF (0V SAFE)</button>
         <button class="m-btn amb" id="mBtnHeatOn">RELAY ON (12V PTC)</button>
