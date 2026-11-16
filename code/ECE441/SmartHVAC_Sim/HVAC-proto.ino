@@ -507,3 +507,105 @@ void printSensorData() {
 
   Serial.println("================================");
 }
+
+// =======================================
+// DIAGNOSTICS
+// =======================================
+
+void printDiagnostics() {
+  Serial.println();
+  Serial.println("===== BME688 DIAGNOSTICS =====");
+
+  Serial.print("Sensor detected: ");
+  Serial.println(sensorFound ? "YES" : "NO");
+
+  Serial.print("Sensor address: 0x");
+  Serial.println(sensorAddress, HEX);
+
+  Serial.print("Sensor data valid: ");
+  Serial.println(sensorValid ? "YES" : "NO");
+
+  Serial.print("Last error: ");
+  Serial.println(lastError);
+
+  Serial.print("Temperature C: ");
+  Serial.println(temperatureC);
+
+  Serial.print("Humidity %: ");
+  Serial.println(humidity);
+
+  Serial.print("Pressure hPa: ");
+  Serial.println(pressureHPA);
+
+  Serial.print("Gas resistance kOhms: ");
+  Serial.println(gasKOhms);
+
+  Serial.print("Heater: ");
+  Serial.println(heaterOn ? "ON" : "OFF");
+
+  Serial.print("Cooldown: ");
+  Serial.println(
+    cooldownActive ? "ACTIVE" : "OFF"
+  );
+
+  Serial.print("Lockout: ");
+  Serial.println(
+    safetyLockout ? "ACTIVE" : "CLEAR"
+  );
+
+  Serial.print("Lockout reason: ");
+  Serial.println(lockoutReason);
+
+  Serial.println("==============================");
+}
+
+// =======================================
+// FIVE-SECOND HEATER TEST
+// =======================================
+
+void startHeaterTest() {
+  if (safetyLockout ||
+      !sensorValid ||
+      cooldownActive ||
+      heaterOn) {
+
+    Serial.println("HEATER TEST DENIED");
+
+    if (safetyLockout) {
+      Serial.print("Reason: ");
+      Serial.println(lockoutReason);
+    }
+
+    return;
+  }
+
+  // Recheck sensor before heater starts
+  readSensor();
+
+  if (safetyLockout || !sensorValid) {
+    Serial.println("Unsafe sensor condition");
+    return;
+  }
+
+  setFan(255);
+
+  heaterStart = millis();
+  relayOn();
+
+  Serial.println();
+  Serial.println("HEATER ON");
+  Serial.println("5-second heating test started.");
+  Serial.println("Fan at 100%.");
+}
+
+// =======================================
+// RESET SAFETY
+// =======================================
+
+void resetSafety() {
+  relayOff();
+
+  Serial.println("Attempting safety reset...");
+
+  if (cooldownActive) {
+    Serial.println("Reset denied: cooldown active");
