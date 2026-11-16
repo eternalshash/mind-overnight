@@ -2102,7 +2102,7 @@ function serialWatchdogStep(dtR) {
     if ($('sFanOvr')) $('sFanOvr').value = 0;
     updateKillDrawerUI('WDT CUTOFF', 'crit');
     if (S.usbConnected) {
-      sendUsbSerialCommand('KILL');
+      sendUsbSerialCommand('X');
     }
     pushSimControlToRPi();
   }
@@ -2137,7 +2137,7 @@ function apparentTemp(T, RH, vDuct) {
 function controller(dtS, dtR) {
   const c = S.ctl, inj = S.inj;
 
-  // 7.1 Redundant temperature sensor cross-check (TS-A BME280 vs TS-B SHT31)
+  // 7.1 Redundant temperature sensor cross-check (TS-A BME688 vs TS-B SHT31)
   const dA = Math.abs(S.sensA - S.sensB);
   if (c.sensorAOk) {
     if (dA > 1.5) { c.sensorMis += dtR; if (c.sensorMis > 2.0) { c.sensorAOk = false; c.sensorMis = 0; log('warn', `TS-A/TS-B disagree by ${fF(dA)} F. TS-A voted out, switching loop to TS-B.`); } }
@@ -2283,7 +2283,7 @@ function plant(dtS) {
   const airM3s = flow * 0.25;
   S.SAT = airM3s > 0.01 ? clamp(S.T + (Qh - Qc) / (1206 * airM3s), 6, 60) : S.T;
 
-  // electrical power & bench multimeter model (Arduino Uno R4 + Pin 9 IRLZ44N MOSFET + Pin 8 12V PTC Relay + LM2596 Buck)
+  // electrical power & bench multimeter model (Arduino Uno R4 + Pin 9 IRLZ44N MOSFET + Pin 10 12V PTC Relay + LM2596 Buck)
   const fanPwm = Math.round(clamp((inj.blower ? 0 : S.fanAct) / 100 * 255, 0, 255));
   const duty = clamp(fanPwm / 255, 0, 1);
   const iFanPeak = 5.00 / (14.286 + 0.028); // 0.3493 A through GDSTIME 5015 + IRLZ44N R_DS(on)
@@ -2291,7 +2291,7 @@ function plant(dtS) {
   const vFanEff = +(duty * (5.00 - iFanPeak * 0.028)).toFixed(2);
   const vGs = +(5.00 * duty).toFixed(2);
   const htrDuty = clamp(c.heat / 100, 0, 1);
-  const iHeaterA = htrDuty * (12.00 / 2.880); // 4.167 A when 12V 50W PTC Relay (Pin 8) active
+  const iHeaterA = htrDuty * (12.00 / 2.880); // 4.167 A when 12V 50W PTC Relay (Pin 10) active
   const i5vTotal = 0.045 + iFanA;
   const iTotalA = i5vTotal + iHeaterA;
   const p5vRaw = 5.00 * i5vTotal;
