@@ -35,3 +35,11 @@ path = "src/rustday2.rs"
 [[bin]]
 name = "practiceTuples"
 path = "src/practiceTuples.rs"
+
+[[bin]]
+name = "rustprac5"
+path = "src/rustprac5.rs"
+
+[[bin]]
+name = "practiceRust6"
+path = "src/practiceRust6.rs"
