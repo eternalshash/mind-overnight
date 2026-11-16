@@ -51,6 +51,29 @@ class SerialEdgeBridge:
         self._lock = threading.Lock()
         self._stop_event = threading.Event()
 
+        # Stateful accumulator for Andy's HVAC-proto.ino V5 multi-line serial blocks
+        self._v5: Dict[str, Any] = {
+            "device_id": "ARDUINO-R4-V5-BME688",
+            "chip_id": "0x61",
+            "temp_c": 24.0,
+            "humidity": 48.0,
+            "pressure_hpa": 1013.25,
+            "dew_point_f": 54.3,
+            "altitude_ft": 412.0,
+            "gas_kohms": 142.5,
+            "gas_baseline_kohms": 140.0,
+            "gas_rel_pct": 101.8,
+            "gas_trend": "Near baseline",
+            "heater_relay": 0,
+            "fan_pwm": 0,
+            "fan_speed_pct": 0.0,
+            "cooldown_active": 0,
+            "safety_lockout": 0,
+            "lockout_reason": "None",
+            "bme_ok": 1,
+            "_has_temp": False,
+        }
+
     def start(self) -> None:
         t = threading.Thread(target=self._run_loop, daemon=True)
         t.start()
