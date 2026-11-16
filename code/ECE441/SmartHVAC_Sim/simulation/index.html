@@ -3158,9 +3158,9 @@ function updateCards() {
   } else if (view === 'thermal') {
     const isLiveUsb = S.usbConnected && S.bme.hasLive;
     const sensLabel = isLiveUsb
-      ? `LIVE A4/A5 BME280 (${S.T.toFixed(2)}°C | 0x${S.bme.adcRaw20b.toString(16).toUpperCase()})`
-      : `SENSOR: ${c.sensorAOk ? 'TS-A (BME280 A4/A5)' : 'TS-B (TS-A VOTED OUT)'}`;
-    h += card('ROOM (A4/A5 BME280)', fF(c.Tctl), 'F', sensLabel, d['E-202'] ? 'warn' : isLiveUsb ? 'ok' : '');
+      ? `LIVE A4/A5 BME688 (${S.T.toFixed(2)}°C | Gas ${S.bme.gasKOhms.toFixed(1)} kΩ)`
+      : `SENSOR: ${c.sensorAOk ? 'TS-A (BME688 A4/A5)' : 'TS-B (TS-A VOTED OUT)'}`;
+    h += card('ROOM (A4/A5 BME688)', fF(c.Tctl), 'F', sensLabel, d['E-202'] ? 'warn' : isLiveUsb ? 'ok' : '');
     h += card('EFFECTIVE SETPOINT', fF(c.sp), 'F', `ERROR ${fD(c.Tctl - c.sp)} F | PID ${f0(c.u)}%`);
     h += card('FEELS LIKE', fF(c.AT), 'F', `STEADMAN | RH ${f1(S.RH)}%`, c.heatEmerg ? 'crit' : '');
     h += card('OUTDOOR', fF(S.Tout), 'F', S.inj.window ? 'WINDOW OPEN' : 'ENVELOPE SEALED');
@@ -3170,7 +3170,7 @@ function updateCards() {
     h += card('BLOWER', f0(S.fanAct), '%', `CMD ${f0(c.fanCmd)}% | ${f0(S.rpm)} RPM`, c.blowerFault ? 'crit' : '');
     h += card('FILTER HEALTH', f0(S.filterH * 100), '%', S.filterH < 0.4 ? 'REPLACE FILTER' : S.filterH < 0.7 ? 'LOADING' : 'CLEAN', S.filterH < 0.4 ? 'crit' : S.filterH < 0.7 ? 'warn' : '');
   } else {
-    h += card('VOC INDEX', f0(S.VOC), 'ppb', S.VOC > 350 ? 'POOR' : S.VOC > 220 ? 'MODERATE' : 'GOOD', S.VOC > 350 ? 'warn' : '');
+    h += card('VOC / BME688 GAS', f0(S.VOC), 'ppb', `MOX ${S.bme.gasKOhms.toFixed(1)} kΩ (${S.bme.gasRelPct.toFixed(0)}%) | ${S.bme.gasTrend}`, S.VOC > 350 ? 'warn' : '');
     h += card('CO2', f0(S.CO2), 'ppm', S.CO2 > 1100 ? 'STALE' : S.CO2 > 800 ? 'MODERATE' : 'FRESH', S.CO2 > 1100 ? 'warn' : '');
     h += card('PM2.5 INDOOR', f1(S.PM), 'ug/m3', `OUTDOOR ${S.inj.wifi ? 'N/A (OFFLINE)' : f0(S.PMout)}`, S.PM > 25 ? 'crit' : S.PM > 12 ? 'warn' : '');
     h += card('OA DAMPER', f0(S.damperAct), '%', c.smokeLock ? 'LOCKED CLOSED (SMOKE)' : c.purge ? 'PURGE OPEN' : 'MINIMUM', c.smokeLock ? 'crit' : '');
@@ -3193,7 +3193,7 @@ function updateCards() {
     const live = S.usbConnected && S.bme.hasLive;
     $('bmeAdcBar').className = 'adc-bar' + (live ? ' live' : '');
     if ($('bmeSrcTag')) {
-      $('bmeSrcTag').textContent = live ? '🟢 LIVE ARDUINO BME280 (PINS A4 SDA / A5 SCL):' : 'BME280 (PINS A4 SDA / A5 SCL) SIGNAL PIPELINE:';
+      $('bmeSrcTag').textContent = live ? `🟢 LIVE ARDUINO BME688 (PINS A4 SDA / A5 SCL | CHIP ID ${S.bme.chipId}):` : `BME688 (PINS A4 SDA / A5 SCL | CHIP ID ${S.bme.chipId}) SIGNAL PIPELINE:`;
       $('bmeSrcTag').style.color = live ? 'var(--green)' : 'var(--cyan)';
     }
     if ($('bmeAdcFlow')) {
