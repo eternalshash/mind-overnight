@@ -1484,7 +1484,7 @@ setInterval(() => {
     $('mKillBadge').textContent = 'WDT CUTOFF'; $('mKillBadge').className = 'pill crit';
     sendUsbCmd('X');
     updateIoTPreview(null);
-    showToast('ALARM E-204: Serial Watchdog Timeout (>2.5s)! Pin 8 & Pin 9 gated OFF.', 'crit');
+    showToast('ALARM E-204: Serial Watchdog Timeout (>3.5s)! Pin 10 Relay gated OFF.', 'crit');
   }
 
   // Plant & PID step when not locked to USB
@@ -1555,10 +1555,10 @@ setInterval(() => {
 
   $('mAdcStrip').className = 'adc-strip' + (M.usbConnected && M.bmeLive ? ' live' : '');
   $('mAdcTitle').textContent = M.usbConnected && M.bmeLive
-    ? 'LIVE ARDUINO A4 (SDA) / A5 (SCL) BME280:'
-    : 'A4 (SDA) / A5 (SCL) BME280 SIGNAL PIPELINE:';
+    ? `LIVE ARDUINO A4 (SDA) / A5 (SCL) BME688 (${M.i2cAddr}, Chip ${M.chipId}):`
+    : 'A4 (SDA) / A5 (SCL) BME688 SIGNAL PIPELINE:';
   $('mAdcFlow').innerHTML =
-    `Analog <b>${M.vSenseMv.toFixed(1)} mV</b> &rarr; 20-bit ADC <b>0x${M.adcRaw.toString(16).toUpperCase()}</b> &rarr; I2C <b>0x76</b> &rarr; <span class="grn"><b>${fF(M.T)}&deg;F (${M.T.toFixed(2)}&deg;C)</b></span>`;
+    `Analog <b>${M.vSenseMv.toFixed(1)} mV</b> &rarr; I2C <b>${M.i2cAddr} (${M.chipId})</b> &rarr; <span class="grn"><b>${fF(M.T)}&deg;F (${M.T.toFixed(2)}&deg;C) | Gas ${M.gasKOhms.toFixed(1)} k&Omega; (${M.gasRelPct.toFixed(0)}%)</b></span>`;
 
   updateMobileNestUI();
 
@@ -1569,7 +1569,7 @@ setInterval(() => {
   $('mWdtBadge').textContent = M.wdt.tripped ? `TRIPPED (${M.wdt.elapsed.toFixed(1)}s)` : `HB #${M.wdt.seq} (${M.wdt.elapsed.toFixed(1)}s)`;
   $('mWdtBadge').className = 'pill ' + (M.wdt.tripped ? 'crit' : M.wdt.testing ? 'warn' : 'ok');
   $('mWdtMsg').innerHTML = M.wdt.tripped
-    ? '<span style="color:#fca5a5"><b>E-204 WATCHDOG LATCHED:</b> No heartbeat &gt;2.5s! Pin 8 PTC Relay &amp; Pin 9 Fan forced to 0V. Tap RESET WDT.</span>'
+    ? '<span style="color:#fca5a5"><b>E-204 WATCHDOG LATCHED:</b> No telemetry &gt;3.5s! Pin 10 PTC Relay forced to 0V. Tap RESET WDT.</span>'
     : M.wdt.testing
       ? '<span style="color:#fcd34d">Simulating dropped serial link... fail-safe triggers at 2.5s</span>'
       : '1 Hz heartbeat active &bull; Fail-safe hardware cutoff armed at 2.5s';
