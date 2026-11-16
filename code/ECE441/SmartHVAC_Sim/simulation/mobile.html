@@ -1379,7 +1379,7 @@ function updateIoTPreview(f) {
   }
   const r1 = M.wdt.tripped ? 'Serial comms watchdog timeout' : (f ? `${f.code}: ${f.nm}` : 'Fault status nominal (awaiting fault trigger)');
   const r2 = `Room: ${roomF.toFixed(1)}°F | Feels Like: ${feelsF.toFixed(1)}°F | Outside: ${outF.toFixed(1)}°F`;
-  const r3 = M.wdt.tripped ? 'System Action: Fail-safe engaged, Pin 8 PTC relay & Pin 9 fan gated OFF' : (f ? f.act : 'System Action: Closed-loop PID regulating zone climate');
+  const r3 = M.wdt.tripped ? 'System Action: Fail-safe engaged, Pin 10 PTC relay gated OFF & Pin 9 fan fail-safe' : (f ? f.act : 'System Action: Closed-loop PID regulating zone climate');
   M.lastAlert = { fault_type: f ? f.id : 'blower', code: M.wdt.tripped ? 'E-204' : (f ? f.code : 'E-404'), row1: r1, row2: r2, row3: r3, room_temp_f: roomF, feels_like_f: feelsF, outside_temp_f: outF };
   $('mIotPrev').innerHTML = `<div class="r1">${r1}</div><div class="r2">${r2}</div><div class="r3">${r3}</div>`;
 }
@@ -1388,7 +1388,7 @@ $('mBtnClearFaults').addEventListener('click', () => {
   M.inj = {};
   buildFaultCards();
   updateIoTPreview(null);
-  if (M.usbConnected) sendUsbCmd('AUTO');
+  if (M.usbConnected) sendUsbCmd('R');
   showToast('All injected faults cleared.', 'ok');
 });
 
@@ -1435,8 +1435,8 @@ $('btnMobUsb').addEventListener('click', async () => {
     await usbPort.open({ baudRate: 115200 });
     M.usbConnected = true;
     $('btnMobUsb').textContent = 'USB ON';
-    $('connSub').textContent = 'LIVE ARDUINO USB (115200 BAUD)';
-    showToast('Connected to Arduino Uno R4 (A4/A5 BME280 live)!', 'ok');
+    $('connSub').textContent = 'LIVE ARDUINO V5 BME688 (115200 BAUD)';
+    showToast('Connected to Arduino Uno R4 V5 (A4/A5 BME688 live)!', 'ok');
     const dec = new TextDecoderStream();
     usbPort.readable.pipeTo(dec.writable).catch(() => {});
     usbReader = dec.readable.getReader();
@@ -1447,17 +1447,7 @@ $('btnMobUsb').addEventListener('click', async () => {
         usbBuf += value;
         const lines = usbBuf.split(/\r?\n/);
         usbBuf = lines.pop() || '';
-        lines.forEach(line => {
-          if (!line.trim().startsWith('{')) return;
-          try {
-            const d = JSON.parse(line.trim());
-            if (!M.wdt.testing) { M.wdt.elapsed = 0; M.wdt.seq = d.hb_seq || (M.wdt.seq + 1); M.wdt.tripped = false; }
-            if (typeof d.temp_c === 'number') { M.bmeLive = true; M.T = d.temp_c; M.adcRaw = d.adc_raw_20b || Math.round((d.temp_c + 40) * 8388.6); M.vSenseMv = d.v_sense_mv || +((M.adcRaw / 1048575) * 3300).toFixed(1); }
-            if (typeof d.humidity === 'number') M.RH = d.humidity;
-            if (typeof d.fan_pwm === 'number') M.fanPct = (d.fan_pwm / 255) * 100;
-            if (typeof d.heater_relay === 'number') M.heat = d.heater_relay ? 100 : 0;
-          } catch (e) {}
-        });
+        lines.forEach(handleMobUsbLine);
       }
     }
   } catch (e) {
