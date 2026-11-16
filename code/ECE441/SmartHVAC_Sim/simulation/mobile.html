@@ -1251,10 +1251,10 @@ function syncControlsFromUI(pushRemote = true) {
 
   if (pushRemote) {
     if (M.usbConnected) {
-      if (M.modeOvr === 'OFF') sendUsbCmd('KILL');
-      else if (M.modeOvr === 'HEAT') sendUsbCmd('HEAT ON');
-      else if (M.fanOvr >= 0) sendUsbCmd(`FAN ${M.fanOvr}`);
-      else sendUsbCmd('AUTO');
+      if (M.modeOvr === 'OFF') { sendUsbCmd('H'); sendUsbCmd('S'); }
+      else if (M.modeOvr === 'HEAT') sendUsbCmd('5');
+      else if (M.modeOvr === 'COOL') { sendUsbCmd('H'); sendUsbCmd('F'); }
+      else if (M.fanOvr >= 0) sendUsbCmd(M.fanOvr === 0 ? 'S' : M.fanOvr <= 65 ? 'M' : 'F');
     }
     broadcastControl();
   }
@@ -1273,8 +1273,8 @@ $('mBtnKill').addEventListener('click', async () => {
   $('mKillBadge').textContent = 'KILL LATCHED'; $('mKillBadge').className = 'pill crit';
   syncControlsFromUI(true);
   updateMobileNestUI();
-  await sendUsbCmd('KILL');
-  showToast('EMERGENCY HARDWARE KILL: Pin 8 Relay LOW (0V) & Pin 9 Fan 0V!', 'crit');
+  await sendUsbCmd('X');
+  showToast('EMERGENCY HARDWARE STOP (X): Pin 10 Relay LOW (0V) & Safety Lockout!', 'crit');
 });
 
 document.querySelectorAll('[data-fan]').forEach(b => {
@@ -1286,7 +1286,7 @@ document.querySelectorAll('[data-fan]').forEach(b => {
     $('mKillBadge').textContent = `FAN ${pct}%`; $('mKillBadge').className = 'pill warn';
     syncControlsFromUI(true);
     updateMobileNestUI();
-    await sendUsbCmd(`FAN ${pct}`);
+    await sendUsbCmd(pct === 0 ? 'S' : pct <= 65 ? 'M' : 'F');
     showToast(`Pin 9 MOSFET Fan set to ${pct}% (PWM ${Math.round(pct * 255 / 100)})`, '');
   });
 });
