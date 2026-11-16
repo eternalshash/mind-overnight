@@ -2949,10 +2949,42 @@ async function benchSetHeaterRelay(turnOn) {
   plant(0.05);
   updateCards();
   updatePanel();
-  log(turnOn ? 'warn' : 'ok', `[BENCH TEST] Direct Pin 8 12V PTC Heater Relay forced ${turnOn ? 'ON (HIGH)' : 'OFF (LOW)'}.`);
+  log(turnOn ? 'warn' : 'ok', `[BENCH TEST] Direct Pin 10 12V PTC Heater Relay ${turnOn ? '5-second pulse started (5 -> HIGH + Fan 100%)' : 'stopped (H -> LOW)'}.`);
+  if (turnOn && !S.usbConnected) {
+    benchHeatPulseTimer = setTimeout(() => {
+      S.ctl.heat = 0;
+      S.bme.heaterOn = false;
+      S.bme.cooldownActive = true;
+      S.modeOverride = 'AUTO';
+      if ($('sModeOvr')) $('sModeOvr').value = 'AUTO';
+      S.fanOverride = 100;
+      if ($('sFanOvr')) $('sFanOvr').value = 100;
+      readSliders();
+      updateKillDrawerUI('30s COOLDOWN', 'warn');
+      log('info', '[BENCH TEST] 5-second heater test complete -> Pin 10 Relay OFF, 30-second fan cooldown @ 100% started.');
+      updateCards();
+      updatePanel();
+      benchCooldownTimer = setTimeout(() => {
+        S.bme.cooldownActive = false;
+        S.fanOverride = -1;
+        if ($('sFanOvr')) $('sFanOvr').value = -1;
+        readSliders();
+        updateKillDrawerUI('STANDBY', '');
+        log('ok', '[BENCH TEST] 30-second post-heat fan cooldown completed.');
+        updateCards();
+        updatePanel();
+      }, 30000);
+    }, 5000);
+  }
 }
 
 async function benchRestoreAutoPid() {
+  if (benchHeatPulseTimer) { clearTimeout(benchHeatPulseTimer); benchHeatPulseTimer = null; }
+  if (benchCooldownTimer) { clearTimeout(benchCooldownTimer); benchCooldownTimer = null; }
+  S.bme.heaterOn = false;
+  S.bme.cooldownActive = false;
+  S.bme.safetyLockout = false;
+  S.bme.lockoutReason = 'None';
   S.manualPurge = false;
   S.modeOverride = 'AUTO';
   S.fanOverride = -1;
@@ -2961,7 +2993,7 @@ async function benchRestoreAutoPid() {
   readSliders();
   updateKillDrawerUI('STANDBY', '');
   if (S.usbConnected) {
-    await sendUsbSerialCommand('AUTO');
+    await sendUsbSerialCommand('R');
   }
   pushSimControlToRPi();
   controller(0.1, 0.1);
