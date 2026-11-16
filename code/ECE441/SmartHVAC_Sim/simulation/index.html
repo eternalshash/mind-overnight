@@ -3241,12 +3241,12 @@ function updatePanel() {
     }
     if ($('wdtDetail')) {
       $('wdtDetail').innerHTML = w.tripped
-        ? `<span class="red"><b>ALARM E-204:</b> Heartbeat lost &gt;2.5s! Pin 8 PTC Relay &amp; Pin 9 Fan latched OFF (0V). Click RESET to clear.</span>`
+        ? `<span class="red"><b>ALARM E-204:</b> Serial telemetry lost &gt;${w.timeoutS.toFixed(1)}s! Pin 10 PTC Relay latched OFF (0V). Click RESET to clear.</span>`
         : w.testBlocking
-          ? `<span class="amb">Simulating frozen/unplugged USB serial cable... tripping fail-safe at 2.5s</span>`
+          ? `<span class="amb">Simulating frozen/unplugged USB serial cable... tripping fail-safe at ${w.timeoutS.toFixed(1)}s</span>`
           : S.usbConnected
-            ? `<span class="grn">Live TinyUSB (COM7) 1 Hz heartbeat active (seq #${w.lastHbSeq}) &bull; Hardware fail-safe armed</span>`
-            : `<span>Standalone sim heartbeat (1 Hz) &bull; Connect USB Arduino (COM7) for live serial watchdog</span>`;
+            ? `<span class="grn">Live Arduino Uno R4 V5 (BME688 2s stream, pkt #${w.lastHbSeq}) &bull; Pin 10 5s limit + 30s cooldown armed</span>`
+            : `<span>Standalone sim heartbeat &bull; Connect USB Arduino V5 for live BME688 serial watchdog</span>`;
     }
   }
   // header
@@ -3270,7 +3270,7 @@ function updatePanel() {
   // bars
   $('bars').innerHTML =
     bar('COMPRESSOR', c.comp, `${f0(c.comp)}%${c.compCap < 100 || c.clogLevel === 2 ? ' CAP' : ''}`, c.blowerFault ? '#ef4444' : '#60a5fa') +
-    bar('PTC HEATER', c.heat, alive ? `${f0(c.heat)}%` : 'GATED', '#f87171') +
+    bar('PIN 10 HEATER', c.heat, alive ? `${f0(c.heat)}%` : 'GATED', '#f87171') +
     bar('BLOWER CMD', c.fanCmd, `${f0(c.fanCmd)}%${c.boost > 0.5 ? ' +' + f0(c.boost) : ''}`, '#a78bfa') +
     bar('BLOWER TACH', S.fanAct, `${f0(S.rpm)} RPM`, c.blowerFault ? '#ef4444' : '#c4b5fd') +
     bar('OA DAMPER', S.damperAct, c.smokeLock ? 'LOCKED' : `${f0(S.damperAct)}%`, c.smokeLock ? '#ef4444' : '#38bdf8');
