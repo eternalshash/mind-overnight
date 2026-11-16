@@ -508,10 +508,10 @@ nav.bnav button.on{color:var(--accent);background:rgba(92,225,230,.08);font-weig
       </div>
       <div style="font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:10px">DIRECT PIN 10 12V PTC HEATER RELAY (H / 5):</div>
       <div class="btn-grid2">
-        <button class="m-btn grn" id="mBtnHeatOff">RELAY OFF (0V SAFE)</button>
-        <button class="m-btn amb" id="mBtnHeatOn">RELAY ON (12V PTC)</button>
+        <button class="m-btn grn" id="mBtnHeatOff">H: STOP HEATER (0V)</button>
+        <button class="m-btn amb" id="mBtnHeatOn">5: 5s HEATER TEST (12V)</button>
       </div>
-      <button class="m-btn grn" id="mBtnRestoreAuto" style="width:100%;margin-top:10px">&#8634; RESTORE CLOSED-LOOP AUTO PID</button>
+      <button class="m-btn grn" id="mBtnRestoreAuto" style="width:100%;margin-top:10px">&#8634; R: RESET SAFETY LOCKOUT / RESTORE AUTO PID</button>
     </div>
 
     <div class="mcard">
@@ -521,7 +521,7 @@ nav.bnav button.on{color:var(--accent);background:rgba(92,225,230,.08);font-weig
       </div>
       <div class="wdt-bar"><i id="mWdtBar"></i></div>
       <div id="mWdtMsg" style="font-size:11px;font-family:var(--mono);color:var(--text-sec);line-height:1.45">
-        1 Hz heartbeat active &bull; Fail-safe cutoff armed at 2.5s timeout
+        2s BME688 telemetry active &bull; Fail-safe cutoff armed at 3.5s timeout
       </div>
       <div class="btn-grid2" style="margin-top:10px">
         <button class="m-btn amb" id="mBtnTestWdt">TEST WDT TRIP</button>
@@ -532,7 +532,7 @@ nav.bnav button.on{color:var(--accent);background:rgba(92,225,230,.08);font-weig
         <div style="color:var(--text-sec);margin-top:3px">
           &bull; <b>Purpose:</b> Prevents 12V PTC heater thermal runaway if MCU freezes or serial cable drops.<br>
           &bull; <b>Digital Twin:</b> Dual-MCU hot-standby <code>MCU-B</code> takes over PID in 1.6s.<br>
-          &bull; <b>Lab Bench (COM7 TinyUSB):</b> Monitors 1 Hz <code>hb_seq</code> JSON packets (trips <code>E-204</code> &amp; sends <code>KILL</code> at &gt;2.5s) + physical <code>10k&Omega;</code> pull-downs on Pin 9 &amp; Pin 8 keep hardware at <code>0V</code> during reset.
+          &bull; <b>Lab Bench (Arduino Uno R4 V5 / BME688):</b> Enforces 5-second max heater pulse + 30s fan cooldown on Pin 10, monitors 2s BME688 serial stream (trips <code>E-204</code> &amp; sends <code>X</code> at &gt;3.5s) + physical <code>10k&Omega;</code> pull-downs on Pin 9 &amp; Pin 10 keep hardware at <code>0V</code> during reset.
         </div>
       </div>
     </div>
