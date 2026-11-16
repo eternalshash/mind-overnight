@@ -511,7 +511,7 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px;cursor:pointer
           <div>
             <div class="env-head">
               <span class="env-title">Zone Climate &amp; Sensors</span>
-              <span class="badge ok" id="qSensorBadge">TS-A BME280</span>
+              <span class="badge ok" id="qSensorBadge">TS-A BME688</span>
             </div>
             <div class="env-rows" style="margin-top:8px">
               <div class="env-row"><span class="k">Indoor Room</span><span class="v" id="qRoomTemp">75.2<small>&deg;F</small></span></div>
@@ -626,12 +626,12 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px;cursor:pointer
         </div>
         <div class="cards" id="cards"></div>
         <div class="dmm-strip" id="dmmHelpStrip">
-          <span><b>DIGITAL TWIN vs. LAB BENCH DMM:</b> Live Ohm's Law &amp; MOSFET switching derivations (Pin 9 IRLZ44N + Pin 8 PTC Relay)</span>
+          <span><b>DIGITAL TWIN vs. LAB BENCH DMM:</b> Live Ohm's Law &amp; MOSFET switching derivations (Pin 9 IRLZ44N + Pin 10 PTC Relay)</span>
           <button class="btn" id="btnOpenDmmModal" style="width:auto;margin:0;padding:3px 9px;border-color:var(--cyan);color:var(--accent);font-weight:600;font-size:9.5px">Equations &amp; Lab Probe Guide</button>
         </div>
         <div class="adc-bar" id="bmeAdcBar">
-          <span><b id="bmeSrcTag" style="color:var(--cyan)">BME280 (A4 SDA / A5 SCL): SIMULATED</b></span>
-          <span id="bmeAdcFlow">Analog Bridge <b class="stage">1666 mV</b><span class="arr">&rarr;</span>20-bit &Sigma;&Delta; ADC <b class="stage">0x81333</b><span class="arr">&rarr;</span>I2C <b class="stage">0x76 (A4/A5)</b><span class="arr">&rarr;</span>Digital <b class="grn">75.2&deg;F (24.00&deg;C)</b></span>
+          <span><b id="bmeSrcTag" style="color:var(--cyan)">BME688 (A4 SDA / A5 SCL): SIMULATED</b></span>
+          <span id="bmeAdcFlow">Analog Sense <b class="stage">1689.6 mV</b><span class="arr">&rarr;</span>BME688 I2C <b class="stage">0x76 (Chip 0x61)</b><span class="arr">&rarr;</span>Digital <b class="grn">75.2&deg;F (24.00&deg;C) | 48.0% RH</b><span class="arr">&rarr;</span>MOX Gas <b class="stage">142.5 k&Omega; (101.8%)</b></span>
         </div>
         <div class="chartbox"><canvas id="chart"></canvas></div>
       </div>
@@ -646,7 +646,7 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px;cursor:pointer
             <select id="sModeOvr" class="iot-in" style="margin-top:3px;padding:4px 6px;font-size:10px">
               <option value="AUTO" selected>AUTO (PID SPLIT-RANGE)</option>
               <option value="COOL">FORCE COOLING (100% COMP + FAN)</option>
-              <option value="HEAT">FORCE HEATING (100% 12V PTC RELAY + FAN)</option>
+              <option value="HEAT">FORCE HEATING (PIN 10 12V PTC RELAY + FAN)</option>
               <option value="ECO">ECO MODE (+2.0&deg;F DEADBAND)</option>
               <option value="OFF">SYSTEM OFF</option>
             </select>
@@ -658,23 +658,27 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px;cursor:pointer
           <div class="sl"><div class="h"><span>SIMULATION SPEED</span><b id="lSpd">x40</b></div><input type="range" id="sSpd" min="5" max="120" step="5" value="40"></div>
           <details class="bench-drawer" id="benchDrawer" open>
             <summary>
-              <span>&#9656; EMERGENCY HARDWARE CUTOFF / BENCH TEST DRAWER</span>
+              <span>&#9656; EMERGENCY HARDWARE CUTOFF / ARDUINO V5 BENCH DRAWER</span>
               <span id="killStateBadge" class="badge">STANDBY</span>
             </summary>
             <div class="bench-body">
-              <button class="kill-btn" id="btnMasterKill">MASTER HARDWARE KILL (ALL OFF: PIN 8 LOW &amp; PIN 9 0V)</button>
-              <div style="font-size:8.5px;color:var(--muted);margin-top:6px;letter-spacing:.5px">DIRECT PIN 9 MOSFET FAN BENCH TEST:</div>
+              <button class="kill-btn" id="btnMasterKill">X: EMERGENCY STOP / LOCKOUT (PIN 10 RELAY LOW)</button>
+              <div style="font-size:8.5px;color:var(--muted);margin-top:6px;letter-spacing:.5px">DIRECT PIN 9 MOSFET FAN BENCH TEST (S / M / F):</div>
               <div class="bench-row">
-                <button class="btn" id="btnBenchFan0" style="margin:0;padding:5px 4px;font-size:9px;border-color:var(--red);color:#fca5a5">FAN OFF (0%)</button>
-                <button class="btn" id="btnBenchFan50" style="margin:0;padding:5px 4px;font-size:9px">FAN 50% (128)</button>
-                <button class="btn" id="btnBenchFan100" style="margin:0;padding:5px 4px;font-size:9px;border-color:var(--cyan);color:var(--accent)">FAN 100% (255)</button>
+                <button class="btn" id="btnBenchFan0" style="margin:0;padding:5px 4px;font-size:9px;border-color:var(--red);color:#fca5a5">S: FAN OFF (0%)</button>
+                <button class="btn" id="btnBenchFan50" style="margin:0;padding:5px 4px;font-size:9px">M: FAN 50% (128)</button>
+                <button class="btn" id="btnBenchFan100" style="margin:0;padding:5px 4px;font-size:9px;border-color:var(--cyan);color:var(--accent)">F: FAN 100% (255)</button>
               </div>
-              <div style="font-size:8.5px;color:var(--muted);margin-top:6px;letter-spacing:.5px">DIRECT PIN 8 12V PTC HEATER RELAY TEST:</div>
+              <div style="font-size:8.5px;color:var(--muted);margin-top:6px;letter-spacing:.5px">DIRECT PIN 10 12V PTC HEATER RELAY TEST (H / 5):</div>
               <div class="bench-row2">
-                <button class="btn" id="btnBenchHeatOff" style="margin:0;padding:5px 4px;font-size:9px;border-color:var(--green);color:#6ee7b7">RELAY OFF (0V SAFE)</button>
-                <button class="btn" id="btnBenchHeatOn" style="margin:0;padding:5px 4px;font-size:9px;border-color:var(--amber);color:#fcd34d">RELAY ON (12V PTC)</button>
+                <button class="btn" id="btnBenchHeatOff" style="margin:0;padding:5px 4px;font-size:9px;border-color:var(--green);color:#6ee7b7">H: STOP HEATER (0V)</button>
+                <button class="btn" id="btnBenchHeatOn" style="margin:0;padding:5px 4px;font-size:9px;border-color:var(--amber);color:#fcd34d">5: 5s HEATER TEST (12V)</button>
               </div>
-              <button class="btn" id="btnBenchAuto" style="margin-top:6px;border-color:var(--green);color:var(--green);font-size:9.5px">&#8634; RESTORE CLOSED-LOOP AUTO PID</button>
+              <div class="bench-row2" style="margin-top:5px">
+                <button class="btn" id="btnBenchDiag" style="margin:0;padding:5px 4px;font-size:9px;border-color:var(--cyan);color:var(--accent)">D: BME688 DIAGNOSTICS</button>
+                <button class="btn" id="btnBenchGasReset" style="margin:0;padding:5px 4px;font-size:9px;border-color:var(--purple);color:#c4b5fd">B: RESET GAS BASELINE</button>
+              </div>
+              <button class="btn" id="btnBenchAuto" style="margin-top:6px;border-color:var(--green);color:var(--green);font-size:9.5px">&#8634; R: RESET SAFETY LOCKOUT / RESTORE AUTO PID</button>
             </div>
           </details>
           <div class="grp-h" style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">
@@ -726,28 +730,28 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px;cursor:pointer
         </div>
 
         <div class="col">
-          <div class="pane-h"><span class="pane-t">Arduino Uno R4 / ESP32 Controller Response</span><span id="modeBadge" class="badge">IDLE</span></div>
+          <div class="pane-h"><span class="pane-t">Arduino Uno R4 V5 / ESP32 Controller Response</span><span id="modeBadge" class="badge">IDLE</span></div>
           <div class="mcu">
-            <div class="mbox ok" id="mA"><div class="n">MCU-A / ARDUINO UNO R4 (PIN 9/8/A4/A5)</div><div class="st" id="mAs">RUN - IN CONTROL</div><div class="hb" id="mAh">Heartbeat OK</div></div>
+            <div class="mbox ok" id="mA"><div class="n">MCU-A / ARDUINO UNO R4 (PIN 9/10/A4/A5)</div><div class="st" id="mAs">RUN - IN CONTROL</div><div class="hb" id="mAh">Heartbeat OK</div></div>
             <div class="mbox stby" id="mB"><div class="n">MCU-B / REDUNDANT WATCHDOG</div><div class="st" id="mBs">HOT STANDBY</div><div class="hb" id="mBh">Mirroring PID state</div></div>
           </div>
           <div class="wdt-box" id="wdtPanel">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
-              <span style="font-size:9.5px;color:#fff;letter-spacing:.3px"><b>SERIAL COMMS WATCHDOG</b> (1Hz USB / 2.5s TRIP)</span>
+              <span style="font-size:9.5px;color:#fff;letter-spacing:.3px"><b>SERIAL COMMS WATCHDOG</b> (2s BME688 / 3.5s TRIP)</span>
               <span id="wdtBadge" class="badge ok">HB OK (0.2s)</span>
             </div>
             <div class="wdt-prog"><i id="wdtBar"></i></div>
-            <div id="wdtDetail" style="font-size:9px;color:var(--muted)">Monitoring 1 Hz TinyUSB (COM7) heartbeat packets &bull; Fail-safe cutoff armed</div>
+            <div id="wdtDetail" style="font-size:9px;color:var(--muted)">Monitoring 2s BME688 USB telemetry stream &bull; Fail-safe cutoff armed</div>
             <div style="display:flex;gap:5px;margin-top:5px">
-              <button class="btn" id="btnTestWdt" style="flex:1;margin:0;padding:4px 6px;font-size:9px;border-color:var(--amber);color:#fcd34d">TEST WATCHDOG TRIP (2.5s)</button>
+              <button class="btn" id="btnTestWdt" style="flex:1;margin:0;padding:4px 6px;font-size:9px;border-color:var(--amber);color:#fcd34d">TEST WATCHDOG TRIP (3.5s)</button>
               <button class="btn" id="btnResetWdt" style="flex:0 0 auto;width:auto;margin:0;padding:4px 8px;font-size:9px;border-color:var(--green);color:var(--green)">&#8634; RESET</button>
             </div>
             <details class="wdt-info">
               <summary>&#9432; HOW WATCHDOG WORKS: PURPOSE &amp; SIM vs. REAL LAB BENCH &#9662;</summary>
               <div style="margin-top:4px">
                 &bull; <b>Core Safety Goal:</b> Prevents hazardous 12V PTC heater thermal runaway ("latched-ON" state) if firmware hangs, USB serial disconnects, or logic power browns out.<br>
-                &bull; <b>In Digital Twin Sim:</b> Models a redundant dual-MCU supervisor where hot-standby <b>MCU-B</b> detects missed 1 Hz heartbeats (&gt;1.6s) from <b>MCU-A</b> and executes bumpless PID takeover.<br>
-                &bull; <b>In Physical Lab Bench (Arduino Uno R4 / COM7):</b> Combines (1) <b>Serial Heartbeat Watchdog</b> monitoring 1 Hz <code>hb_seq</code> USB packets (trips <code>E-204</code> alarm &amp; commands <code>KILL</code> at &gt;2.5s silence) + (2) <b>10k&Omega; Hardware Pull-Down Resistors</b> on Pin 9 MOSFET Gate &amp; Pin 8 Relay so power loss defaults physically to <code>0V (OFF)</code>.
+                &bull; <b>In Digital Twin Sim:</b> Models a redundant dual-MCU supervisor where hot-standby <b>MCU-B</b> detects missed heartbeats (&gt;1.6s) from <b>MCU-A</b> and executes bumpless PID takeover.<br>
+                &bull; <b>In Physical Lab Bench (Arduino Uno R4 V5 / BME688):</b> Combines (1) <b>5-Second Max Heater Timer + 30s Cooldown</b> on Pin 10 Relay, (2) <b>Serial Watchdog</b> monitoring 2s BME688 packets (trips <code>E-204</code> &amp; sends <code>X</code> emergency stop at &gt;3.5s silence), and (3) <b>10k&Omega; Pull-Down Resistors</b> on Pin 9 MOSFET Gate &amp; Pin 10 Relay so power loss defaults physically to <code>0V (OFF)</code>.
               </div>
             </details>
           </div>
@@ -794,7 +798,7 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px;cursor:pointer
       <button class="btn" id="btnCloseDmmModal" style="width:auto;margin:0;padding:4px 10px;border-color:var(--red);color:#fca5a5;font-weight:bold">&#10005; CLOSE (VIEW GRAPH)</button>
     </div>
     <div style="font-size:9.5px;color:var(--muted);margin-bottom:8px">
-      Live values below update every 200 ms from the active circuit state (<b class="cy">Arduino Uno R4 + Pin 9 IRLZ44N N-MOSFET + 5V GDSTIME Blower + Pin 8 12V 50W PTC Relay + LM2596 Buck</b>):
+      Live values below update every 200 ms from the active circuit state (<b class="cy">Arduino Uno R4 + Pin 9 IRLZ44N N-MOSFET + 5V GDSTIME Blower + Pin 10 12V 50W PTC Relay + BME688</b>):
     </div>
     <div class="dmm-grid" id="dmmLiveEqGrid"></div>
     <div class="grp-h" style="margin:8px 0 5px;color:var(--accent)">SIMULATED MULTIMETER vs. PHYSICAL HANDHELD LAB MULTIMETER (WHERE TO PROBE ON BREADBOARD)</div>
@@ -873,7 +877,7 @@ const FAULT_DEFS = [
     { id: 'smoke', nm: 'Outdoor wildfire smoke',       ds: 'Outdoor PM2.5 climbs to 160 ug/m3' } ] },
   { grp: 'MCU FAIL-SAFE AND HARDWARE REDUNDANCY', items: [
     { id: 'mcu',    nm: 'Primary ESP32 crash',         ds: 'Core panic / brownout on MCU-A' },
-    { id: 'sensor', nm: 'Primary temp sensor failure', ds: 'BME280 (TS-A) output stuck at 63.0 F' },
+    { id: 'sensor', nm: 'Primary temp sensor failure', ds: 'BME688 (TS-A) output stuck at 63.0 F' },
     { id: 'wifi',   nm: 'Wi-Fi / cloud outage',        ds: 'MQTT broker unreachable' } ] },
   { grp: 'AIR DUCT DYNAMICS AND FILTER', items: [
     { id: 'clog',   nm: 'Progressive filter clogging', ds: 'Filter media loads with dust over time' },
@@ -917,8 +921,11 @@ const S = {
   iotAuto: false, iotSent: 0, iotOnline: false, iotDispatched: {}, iotQueue: [],
   rpiSync: true, rpiOnline: false, rpiPkts: 0, rpiLastCmdSeq: -1, rpiBuffer: [],
   usbConnected: false,
-  bme: { hasLive: false, tempC: 24.0, rh: 48.0, pressHpa: 1013.25, bmeOk: true, adcRaw20b: 536870, vSenseMv: 1689.6 },
-  wdt: { elapsedS: 0.2, timeoutS: 2.5, lastHbSeq: 1, tripped: false, testBlocking: false, _lastSimSec: 0 },
+  bme: { hasLive: false, tempC: 24.0, rh: 48.0, pressHpa: 1013.25, bmeOk: true, adcRaw20b: 536870, vSenseMv: 1689.6,
+         chipId: '0x61', i2cAddr: '0x76', gasKOhms: 142.5, gasBaseline: 140.0, gasRelPct: 101.8, gasTrend: 'Near baseline',
+         gasReady: true, gasSamples: '20/20', dewPointF: 54.3, altitudeFt: 412, heaterOn: false, cooldownActive: false,
+         safetyLockout: false, lockoutReason: 'None' },
+  wdt: { elapsedS: 0.2, timeoutS: 3.5, lastHbSeq: 1, tripped: false, testBlocking: false, _lastSimSec: 0 },
   commLog: [], commStats: { count: 0, minMs: 9999, maxMs: 0, avgMs: 0, lastMs: 0, totalMs: 0 }
 };
 
@@ -1007,7 +1014,7 @@ function buildIoTAlertPayload(idOrCode) {
     code = 'E-204';
     row1 = 'Serial comms watchdog timeout';
     row2 = `Room: ${roomF.toFixed(1)}°F | Last HB Seq: #${S.wdt.lastHbSeq} | Silence: ${S.wdt.elapsedS.toFixed(1)}s`;
-    row3 = 'System Action: Fail-safe engaged, Pin 8 PTC relay and Pin 9 fan gated OFF';
+    row3 = 'System Action: Fail-safe engaged, Pin 10 PTC relay gated OFF and Pin 9 fan fail-safe';
   } else if (fId === 'clog' || idOrCode === 'E-301') {
     code = 'E-301';
     row1 = 'Air filter severely restricted';
@@ -1537,15 +1544,39 @@ function updateUsbButtonsUI() {
   }
 }
 
+function normalizeArduinoV5Cmd(cmdStr) {
+  const raw = String(cmdStr || '').trim().toUpperCase();
+  if (!raw || raw.startsWith('SET ')) return null;
+  if (raw === '5' || raw === 'HEAT ON') return { wire: '5', desc: '5 (Heater ON for 5s on Pin 10 + Fan 100%)' };
+  if (raw === 'H' || raw === 'HEAT OFF') return { wire: 'H', desc: 'H (Stop Heater on Pin 10)' };
+  if (raw === 'F' || raw === 'FAN 100') return { wire: 'F', desc: 'F (Fan ON 100% PWM 255 on Pin 9)' };
+  if (raw === 'M' || raw === 'FAN 50') return { wire: 'M', desc: 'M (Fan ON 50% PWM 128 on Pin 9)' };
+  if (raw === 'S' || raw === 'FAN 0') return { wire: 'S', desc: 'S (Fan OFF PWM 0 on Pin 9)' };
+  if (raw === 'X' || raw === 'KILL') return { wire: 'X', desc: 'X (Emergency software stop / Lockout)' };
+  if (raw === 'R' || raw === 'AUTO' || raw === 'RESET') return { wire: 'R', desc: 'R (Reset safety lockout / retry BME688)' };
+  if (raw === 'D' || raw === 'DIAG') return { wire: 'D', desc: 'D (BME688 & HVAC Diagnostics)' };
+  if (raw === 'B' || raw === 'GAS RESET') return { wire: 'B', desc: 'B (Reset BME688 gas baseline)' };
+  if (raw === '?') return { wire: '?', desc: '? (Show HVAC Command Menu)' };
+  if (raw.startsWith('FAN ')) {
+    const pct = parseFloat(raw.slice(4));
+    if (pct <= 0) return { wire: 'S', desc: 'S (Fan OFF PWM 0 on Pin 9)' };
+    if (pct <= 65) return { wire: 'M', desc: 'M (Fan ON 50% PWM 128 on Pin 9)' };
+    return { wire: 'F', desc: 'F (Fan ON 100% PWM 255 on Pin 9)' };
+  }
+  return { wire: raw.charAt(0), desc: raw };
+}
+
 async function sendUsbSerialCommand(cmdStr) {
   if (!S.usbConnected || !usbPort || !usbPort.writable) return false;
+  const norm = normalizeArduinoV5Cmd(cmdStr);
+  if (!norm) return true;
   try {
     const writer = usbPort.writable.getWriter();
-    const data = new TextEncoder().encode(cmdStr.trim() + '\n');
+    const data = new TextEncoder().encode(norm.wire + '\n');
     await writer.write(data);
     writer.releaseLock();
-    recordCommMetric('WEB->USB', 'Serial(115200)', 2.1, 200, `TX: ${cmdStr.trim()}`);
-    log('ok', `[USB->ARDUINO] Sent command: ${cmdStr.trim()}`);
+    recordCommMetric('WEB->USB', 'Serial(115200)', 2.1, 200, `TX: ${norm.wire}`);
+    log('ok', `[USB->ARDUINO V5] Sent command '${norm.wire}': ${norm.desc}`);
     return true;
   } catch (err) {
     log('warn', `[USB] Failed to write command: ${err && err.message ? err.message : err}`);
@@ -1555,21 +1586,19 @@ async function sendUsbSerialCommand(cmdStr) {
 
 async function syncUsbControlFromUI() {
   if (!S.usbConnected) return;
-  await sendUsbSerialCommand(`SET ${S.setpoint.toFixed(1)}`);
   if (S.modeOverride === 'HEAT') {
-    await sendUsbSerialCommand('HEAT ON');
-    await sendUsbSerialCommand(`FAN ${S.fanOverride >= 0 ? S.fanOverride : 100}`);
+    await sendUsbSerialCommand('5');
   } else if (S.modeOverride === 'COOL') {
-    await sendUsbSerialCommand('HEAT OFF');
-    await sendUsbSerialCommand(`FAN ${S.fanOverride >= 0 ? S.fanOverride : 100}`);
+    await sendUsbSerialCommand('H');
+    await sendUsbSerialCommand(S.fanOverride === 0 ? 'S' : S.fanOverride > 0 && S.fanOverride <= 65 ? 'M' : 'F');
   } else if (S.modeOverride === 'OFF') {
-    await sendUsbSerialCommand('HEAT OFF');
-    await sendUsbSerialCommand('FAN 0');
+    await sendUsbSerialCommand('H');
+    await sendUsbSerialCommand('S');
   } else {
     if (S.fanOverride >= 0) {
-      await sendUsbSerialCommand(`FAN ${S.fanOverride}`);
-    } else {
-      await sendUsbSerialCommand('AUTO');
+      await sendUsbSerialCommand(S.fanOverride === 0 ? 'S' : S.fanOverride <= 65 ? 'M' : 'F');
+    } else if (S.bme.safetyLockout) {
+      await sendUsbSerialCommand('R');
     }
   }
 }
@@ -1579,46 +1608,253 @@ async function syncUsbOnFault(id, on) {
   if (!on) {
     const remaining = Object.values(S.inj).filter(Boolean).length;
     if (remaining === 0) {
-      await sendUsbSerialCommand('AUTO');
-      toast('ok', 'USB ARDUINO RESTORED', 'Fault Cleared -> Closed-Loop PID Restored', 'Sent: AUTO to Arduino Uno R4 over USB', 'Pin 9 PWM & Pin 8 Relay back on BME280 PID');
+      await sendUsbSerialCommand('R');
+      toast('ok', 'USB ARDUINO RESTORED', 'Fault Cleared -> Safety Reset & Auto Restored', 'Sent: R (Reset Safety / Retry BME688) over USB', 'Pin 9 PWM & Pin 10 Relay back to nominal');
     }
     return;
   }
   if (id === 'blower') {
-    await sendUsbSerialCommand('HEAT OFF');
-    await sendUsbSerialCommand('FAN 0');
-    toast('crit', 'USB ARDUINO HARDWARE INTERLOCK', 'Blower Fault -> Forced Relay OFF & Fan 0%', 'Sent: HEAT OFF | FAN 0 to physical Arduino', 'Prevents PTC heater thermal runaway');
+    await sendUsbSerialCommand('X');
+    toast('crit', 'USB ARDUINO HARDWARE INTERLOCK', 'Blower Fault -> Emergency Stop & Lockout (Pin 10 LOW)', 'Sent: X to physical Arduino Uno R4', 'Prevents 12V PTC heater thermal runaway');
   } else if (id === 'clog') {
-    await sendUsbSerialCommand('FAN 100');
-    toast('warn', 'USB ARDUINO BOOST', 'Filter Clog -> Boosting Physical Fan to 100%', 'Sent: FAN 100 (PWM 255) to Pin 9 MOSFET', 'Compensating for static pressure drop');
+    await sendUsbSerialCommand('F');
+    toast('warn', 'USB ARDUINO BOOST', 'Filter Clog -> Boosting Physical Fan to 100%', 'Sent: F (Fan ON 100%, PWM 255) to Pin 9 MOSFET', 'Compensating for static pressure drop');
   } else if (id === 'voc') {
-    await sendUsbSerialCommand('FAN 100');
-    toast('warn', 'USB ARDUINO PURGE', 'High VOC/CO2 -> Max Ventilation Purge (100% Fan)', 'Sent: FAN 100 to physical Arduino', 'Flushing zone air');
+    await sendUsbSerialCommand('F');
+    toast('warn', 'USB ARDUINO PURGE', 'High VOC/CO2 -> Max Ventilation Purge (100% Fan)', 'Sent: F (Fan ON 100%) to physical Arduino', 'Flushing zone air');
   } else if (id === 'smoke') {
-    await sendUsbSerialCommand('HEAT OFF');
-    await sendUsbSerialCommand('FAN 40');
-    toast('crit', 'USB ARDUINO SMOKE LOCKOUT', 'Wildfire Smoke -> Heater OFF, Recirc Fan 40%', 'Sent: HEAT OFF | FAN 40 to physical Arduino', 'MERV-13 recirculation mode');
+    await sendUsbSerialCommand('H');
+    await sendUsbSerialCommand('M');
+    toast('crit', 'USB ARDUINO SMOKE LOCKOUT', 'Wildfire Smoke -> Heater OFF, Recirc Fan 50%', 'Sent: H | M to physical Arduino', 'MERV-13 recirculation mode');
   } else if (id === 'heatwave' || id === 'surge') {
-    await sendUsbSerialCommand('HEAT OFF');
-    await sendUsbSerialCommand('FAN 100');
-    toast('crit', 'USB ARDUINO EMERGENCY COOLING', 'Thermal Spike -> Heater OFF, Fan 100% Max Cooling', 'Sent: HEAT OFF | FAN 100 to physical Arduino', 'Mitigating indoor heat stress');
+    await sendUsbSerialCommand('H');
+    await sendUsbSerialCommand('F');
+    toast('crit', 'USB ARDUINO EMERGENCY COOLING', 'Thermal Spike -> Heater OFF, Fan 100% Max Cooling', 'Sent: H | F to physical Arduino', 'Mitigating indoor heat stress');
   } else if (id === 'window') {
-    await sendUsbSerialCommand('HEAT OFF');
-    await sendUsbSerialCommand('FAN 0');
-    toast('warn', 'USB ARDUINO ENVELOPE PAUSE', 'Window Open -> Paused Heater & Fan (0%)', 'Sent: HEAT OFF | FAN 0 to physical Arduino', 'Preventing conditioning outdoors');
+    await sendUsbSerialCommand('H');
+    await sendUsbSerialCommand('S');
+    toast('warn', 'USB ARDUINO ENVELOPE PAUSE', 'Window Open -> Paused Heater & Fan (0%)', 'Sent: H | S to physical Arduino', 'Preventing conditioning outdoors');
   } else if (id === 'mcu') {
-    await sendUsbSerialCommand('HEAT OFF');
-    toast('crit', 'USB ARDUINO FAIL-SAFE', 'Primary MCU Fault -> Gated Heater Relay OFF', 'Sent: HEAT OFF to physical Arduino', 'Hardware pull-down safety state');
+    await sendUsbSerialCommand('X');
+    toast('crit', 'USB ARDUINO FAIL-SAFE', 'Primary MCU Fault -> Emergency Stop (Pin 10 LOW)', 'Sent: X to physical Arduino', 'Hardware safety lockout engaged');
   }
 }
 
 function handleArduinoUsbLine(line) {
   const trimmed = line.trim();
   if (!trimmed) return;
+
+  // Any live serial line from the Arduino resets the serial comms watchdog
+  S.rpiOnline = true;
+  if (!S.wdt.testBlocking) {
+    S.wdt.elapsedS = 0;
+    if (S.wdt.tripped) {
+      S.wdt.tripped = false;
+      log('ok', `[WATCHDOG] Live USB serial stream restored (pkt #${S.wdt.lastHbSeq}). E-204 cleared.`);
+    }
+  }
+
+  // 1. Parse multi-line text output from Andy's HVAC-proto.ino (SMART HVAC DEMO V5 — BME688 ONLY)
   if (!trimmed.startsWith('{')) {
-    log('sim', `[ARDUINO-USB] ${trimmed}`);
+    let matchedTelemetry = false;
+    let m;
+
+    if ((m = trimmed.match(/Chip ID 0x([0-9A-Fa-f]+)/i))) {
+      S.bme.chipId = '0x' + m[1].toUpperCase();
+      if (S.bme.chipId === '0x61') S.bme.bmeOk = true;
+    }
+    if ((m = trimmed.match(/(?:Sensor ready at|Sensor address:|Address)\s*0x([0-9A-Fa-f]+)/i))) {
+      S.bme.i2cAddr = '0x' + m[1].toUpperCase();
+    }
+    if (/BME688 INITIALIZED|Sensor detected:\s*YES/i.test(trimmed)) {
+      S.bme.bmeOk = true;
+    } else if (/BME688 not detected|BME688 missing|BME688 reading failed|Sensor detected:\s*NO/i.test(trimmed)) {
+      S.bme.bmeOk = false;
+    }
+
+    if ((m = trimmed.match(/^Temperature:\s*([-\d.]+)\s*F\s*\/\s*([-\d.]+)\s*C/i))) {
+      const tc = parseFloat(m[2]);
+      if (!isNaN(tc)) {
+        S.bme.hasLive = true;
+        S.bme.bmeOk = true;
+        S.bme.tempC = tc;
+        S.T = tc;
+        if (!S.inj.sensor) S.sensA = tc;
+        S.sensB = tc;
+        S.ctl.Tctl = tc;
+        const rawAdc = Math.round(clamp((tc + 40) * 8388.6, 0, 1048575));
+        S.bme.adcRaw20b = rawAdc;
+        S.bme.vSenseMv = +((rawAdc / 1048575) * 3300).toFixed(1);
+        S.rpiPkts++;
+        S.wdt.lastHbSeq = S.rpiPkts;
+        matchedTelemetry = true;
+      }
+    } else if ((m = trimmed.match(/^Temperature C:\s*([-\d.]+)/i))) {
+      const tc = parseFloat(m[1]);
+      if (!isNaN(tc)) {
+        S.bme.hasLive = true;
+        S.bme.tempC = tc;
+        S.T = tc;
+        if (!S.inj.sensor) S.sensA = tc;
+        S.sensB = tc;
+        S.ctl.Tctl = tc;
+        matchedTelemetry = true;
+      }
+    } else if ((m = trimmed.match(/^Humidity(?:\s*%|\s*:)\s*([-\d.]+)/i))) {
+      const rh = parseFloat(m[1]);
+      if (!isNaN(rh)) {
+        S.bme.rh = rh;
+        S.RH = rh;
+        matchedTelemetry = true;
+      }
+    } else if ((m = trimmed.match(/^Pressure(?:\s*hPa|\s*:)\s*([-\d.]+)/i))) {
+      const p = parseFloat(m[1]);
+      if (!isNaN(p)) {
+        S.bme.pressHpa = p;
+        matchedTelemetry = true;
+      }
+    } else if ((m = trimmed.match(/^Dew point:\s*([-\d.]+)\s*F/i))) {
+      const dp = parseFloat(m[1]);
+      if (!isNaN(dp)) S.bme.dewPointF = dp;
+      matchedTelemetry = true;
+    } else if ((m = trimmed.match(/^Approx\.\s*altitude:\s*([-\d.]+)\s*ft/i))) {
+      const alt = parseFloat(m[1]);
+      if (!isNaN(alt)) S.bme.altitudeFt = alt;
+      matchedTelemetry = true;
+    } else if ((m = trimmed.match(/^Gas resistance(?:\s*kOhms)?:\s*([-\d.]+)/i))) {
+      const g = parseFloat(m[1]);
+      if (!isNaN(g) && g > 0) {
+        S.bme.gasKOhms = g;
+        matchedTelemetry = true;
+      }
+    } else if ((m = trimmed.match(/^Reference samples:\s*(\d+\/\d+)/i))) {
+      S.bme.gasSamples = m[1];
+      S.bme.gasReady = false;
+      matchedTelemetry = true;
+    } else if ((m = trimmed.match(/^Baseline:\s*([-\d.]+)\s*kOhms/i))) {
+      const b = parseFloat(m[1]);
+      if (!isNaN(b) && b > 0) {
+        S.bme.gasBaseline = b;
+        S.bme.gasReady = true;
+      }
+      matchedTelemetry = true;
+    } else if ((m = trimmed.match(/^Relative resistance:\s*([-\d.]+)%/i))) {
+      const rel = parseFloat(m[1]);
+      if (!isNaN(rel)) {
+        S.bme.gasRelPct = rel;
+        S.bme.gasReady = true;
+      }
+      matchedTelemetry = true;
+    } else if ((m = trimmed.match(/^Trend:\s*(.+)/i))) {
+      S.bme.gasTrend = m[1].trim();
+      matchedTelemetry = true;
+    } else if ((m = trimmed.match(/^Heater:\s*(ON|OFF)/i))) {
+      const isOn = m[1].toUpperCase() === 'ON';
+      S.bme.heaterOn = isOn;
+      S.ctl.heat = isOn ? 100 : 0;
+      matchedTelemetry = true;
+    } else if (/^HEATER ON$/i.test(trimmed)) {
+      S.bme.heaterOn = true;
+      S.ctl.heat = 100;
+      updateKillDrawerUI('5s HEATER ON', 'warn');
+      log('warn', '[ARDUINO V5] HEATER ON (Pin 10 HIGH) — 5-second heating test started @ 100% fan.');
+      matchedTelemetry = true;
+    } else if (/^HEATER OFF$/i.test(trimmed)) {
+      S.bme.heaterOn = false;
+      S.ctl.heat = 0;
+      log('info', '[ARDUINO V5] HEATER OFF (Pin 10 LOW).');
+      matchedTelemetry = true;
+    } else if (/30-second fan cooldown started/i.test(trimmed)) {
+      S.bme.cooldownActive = true;
+      S.fanAct = 100;
+      S.ctl.fanCmd = 100;
+      S.elec.fan_pwm = 255;
+      S.rpm = 2800;
+      updateKillDrawerUI('30s COOLDOWN', 'warn');
+      log('info', '[ARDUINO V5] 30-second post-heat fan cooldown started (Pin 9 @ 100%).');
+      matchedTelemetry = true;
+    } else if (/Cooldown completed/i.test(trimmed)) {
+      S.bme.cooldownActive = false;
+      if (!S.bme.safetyLockout) {
+        S.fanAct = 0;
+        S.ctl.fanCmd = 0;
+        S.elec.fan_pwm = 0;
+        S.rpm = 0;
+        updateKillDrawerUI('STANDBY', '');
+      }
+      log('ok', '[ARDUINO V5] 30-second fan cooldown completed.');
+      matchedTelemetry = true;
+    } else if ((m = trimmed.match(/^Fan PWM:\s*([-\d.]+)%/i))) {
+      const pct = clamp(parseFloat(m[1]), 0, 100);
+      if (!isNaN(pct)) {
+        S.fanAct = pct;
+        S.ctl.fanCmd = pct;
+        S.elec.fan_pwm = Math.round((pct / 100) * 255);
+        S.rpm = Math.round(pct * 28);
+        matchedTelemetry = true;
+      }
+    } else if (/^Fan ON 100%$/i.test(trimmed)) {
+      S.fanAct = 100; S.ctl.fanCmd = 100; S.elec.fan_pwm = 255; S.rpm = 2800;
+      updateKillDrawerUI('FAN 100%', 'ok');
+      log('ok', '[ARDUINO V5] Fan ON 100% (Pin 9 PWM 255).');
+      matchedTelemetry = true;
+    } else if (/^Fan ON 50%$/i.test(trimmed)) {
+      S.fanAct = 50; S.ctl.fanCmd = 50; S.elec.fan_pwm = 128; S.rpm = 1400;
+      updateKillDrawerUI('FAN 50%', 'ok');
+      log('ok', '[ARDUINO V5] Fan ON 50% (Pin 9 PWM 128).');
+      matchedTelemetry = true;
+    } else if (/^Fan OFF$/i.test(trimmed)) {
+      S.fanAct = 0; S.ctl.fanCmd = 0; S.elec.fan_pwm = 0; S.rpm = 0;
+      updateKillDrawerUI('FAN OFF (0%)', 'warn');
+      log('warn', '[ARDUINO V5] Fan OFF (Pin 9 PWM 0).');
+      matchedTelemetry = true;
+    } else if ((m = trimmed.match(/^Cooldown:\s*(ACTIVE|OFF)/i))) {
+      S.bme.cooldownActive = m[1].toUpperCase() === 'ACTIVE';
+      matchedTelemetry = true;
+    } else if ((m = trimmed.match(/^(?:Safety lockout|Lockout):\s*(ACTIVE|CLEAR)/i))) {
+      S.bme.safetyLockout = m[1].toUpperCase() === 'ACTIVE';
+      if (S.bme.safetyLockout) updateKillDrawerUI('SAFETY LOCKOUT', 'crit');
+      matchedTelemetry = true;
+    } else if (/SAFETY LOCKOUT/i.test(trimmed)) {
+      S.bme.safetyLockout = true;
+      S.bme.heaterOn = false;
+      S.ctl.heat = 0;
+      S.fanAct = 100;
+      S.elec.fan_pwm = 255;
+      updateKillDrawerUI('SAFETY LOCKOUT', 'crit');
+      log('crit', '[ARDUINO V5] SAFETY LOCKOUT ENGAGED — Pin 10 Relay forced LOW, Fan 100%!');
+      matchedTelemetry = true;
+    } else if ((m = trimmed.match(/^(?:Lockout reason|Reason):\s*(.+)/i))) {
+      S.bme.lockoutReason = m[1].trim();
+      matchedTelemetry = true;
+    } else if (/SAFETY RESET SUCCESSFUL/i.test(trimmed)) {
+      S.bme.safetyLockout = false;
+      S.bme.lockoutReason = 'None';
+      updateKillDrawerUI('STANDBY', '');
+      log('ok', '[ARDUINO V5] SAFETY RESET SUCCESSFUL — BME688 verified & lockout cleared.');
+      matchedTelemetry = true;
+    }
+
+    if (matchedTelemetry) {
+      if ($('rpiSyncCount')) {
+        $('rpiSyncCount').textContent = `${S.rpiPkts} PKTS`;
+        $('rpiSyncCount').className = 'badge ok';
+      }
+      if ($('rpiStatusLine')) {
+        const gasTxt = S.bme.gasKOhms ? ` | Gas: ${S.bme.gasKOhms.toFixed(1)} kΩ (${S.bme.gasRelPct.toFixed(0)}%)` : '';
+        const stateTxt = S.bme.safetyLockout ? `LOCKOUT (${S.bme.lockoutReason})` : S.bme.cooldownActive ? '30s COOLDOWN' : S.bme.heaterOn ? '5s HEATER ON' : 'NOMINAL';
+        $('rpiStatusLine').textContent = `USB V5 BME688 (${S.bme.i2cAddr}) | ${fF(S.T)}°F (${S.T.toFixed(2)}°C) | ${S.RH.toFixed(1)}% RH${gasTxt} | Fan: ${Math.round(S.fanAct)}% | Pin 10 Relay: ${S.bme.heaterOn ? 'ON' : 'OFF'} | ${stateTxt}`;
+        $('rpiStatusLine').style.color = S.bme.safetyLockout ? '#fca5a5' : '#6ee7b7';
+      }
+      recordCommMetric('USB->WEB', 'Serial(115200)', 1.5, 200, `BME688 RX #${S.rpiPkts}`);
+      updateCards();
+      updatePanel();
+    } else if (!/^={4,}$/.test(trimmed) && !/^!{4,}$/.test(trimmed) && !/^\[BME688\]|^\[GAS SENSOR\]|^\[HVAC SYSTEM\]|^SMART HVAC DEMO V5/i.test(trimmed)) {
+      log('sim', `[ARDUINO-USB] ${trimmed}`);
+    }
     return;
   }
+
   try {
     const d = JSON.parse(trimmed);
     S.rpiOnline = true;
@@ -1653,6 +1889,12 @@ function handleArduinoUsbLine(line) {
     if (typeof d.pressure_hpa === 'number' && !isNaN(d.pressure_hpa)) {
       S.bme.pressHpa = d.pressure_hpa;
     }
+    if (typeof d.gas_kohms === 'number' && !isNaN(d.gas_kohms)) {
+      S.bme.gasKOhms = d.gas_kohms;
+    }
+    if (typeof d.gas_rel_pct === 'number' && !isNaN(d.gas_rel_pct)) {
+      S.bme.gasRelPct = d.gas_rel_pct;
+    }
     if (typeof d.bme_ok === 'number') {
       S.bme.bmeOk = d.bme_ok === 1;
     }
@@ -1668,6 +1910,13 @@ function handleArduinoUsbLine(line) {
     }
     if (typeof d.heater_relay === 'number') {
       S.ctl.heat = d.heater_relay ? 100 : 0;
+      S.bme.heaterOn = !!d.heater_relay;
+    }
+    if (typeof d.cooldown_active === 'boolean' || typeof d.cooldown_active === 'number') {
+      S.bme.cooldownActive = !!d.cooldown_active;
+    }
+    if (typeof d.safety_lockout === 'boolean' || typeof d.safety_lockout === 'number') {
+      S.bme.safetyLockout = !!d.safety_lockout;
     }
     if (typeof d.air_velocity_ms === 'number') S.vel = d.air_velocity_ms;
     if (typeof d.v_supply_12v === 'number') S.elec.v_supply_12v = d.v_supply_12v;
@@ -1693,7 +1942,7 @@ function handleArduinoUsbLine(line) {
 
     recordCommMetric('USB->WEB', 'Serial(115200)', 1.5, 200, `Arduino RX #${S.rpiPkts}`);
     if ($('rpiStatusLine')) {
-      $('rpiStatusLine').textContent = `USB LIVE (115200 baud) | Temp: ${fF(S.T)}°F (${S.T.toFixed(1)}°C) | RH: ${S.RH.toFixed(0)}% | Fan PWM: ${S.elec.fan_pwm}/255 | Relay: ${d.heater_relay ? 'ON' : 'OFF'}`;
+      $('rpiStatusLine').textContent = `USB LIVE (115200 baud) | Temp: ${fF(S.T)}°F (${S.T.toFixed(1)}°C) | RH: ${S.RH.toFixed(0)}% | Gas: ${S.bme.gasKOhms.toFixed(1)} kΩ | Fan PWM: ${S.elec.fan_pwm}/255 | Pin 10 Relay: ${d.heater_relay ? 'ON' : 'OFF'}`;
       $('rpiStatusLine').style.color = '#6ee7b7';
     }
     updateCards();
@@ -1738,11 +1987,11 @@ async function connectUsbArduino() {
     updateUsbButtonsUI();
     updatePanel();
     if ($('rpiStatusLine')) {
-      $('rpiStatusLine').textContent = '🟢 Connected to Arduino over USB (115200 baud)! Streaming live telemetry & fault commands...';
+      $('rpiStatusLine').textContent = '🟢 Connected to Arduino Uno R4 V5 (115200 baud)! Streaming live BME688 telemetry & commands (5/H/F/M/S/X/R/D/B)...';
       $('rpiStatusLine').style.color = '#6ee7b7';
     }
-    log('ok', '[USB] Connected directly to Arduino Uno R4 at 115200 baud via Web Serial!');
-    toast('ok', 'USB ARDUINO CONNECTED', 'Direct Web Serial Link Active (115200 Baud)', 'Live BME280 telemetry & fault actuator overrides enabled', 'Toggle any fault or slider to control the physical bench!');
+    log('ok', '[USB] Connected directly to Arduino Uno R4 V5 (BME688, Pin 9 Fan, Pin 10 Relay) at 115200 baud via Web Serial!');
+    toast('ok', 'USB ARDUINO V5 CONNECTED', 'Direct Web Serial Link Active (115200 Baud)', 'Live BME688 telemetry (Temp/RH/Press/Gas) & Pin 9/10 controls enabled', 'Use Bench Drawer or Turntable to send 5/H/F/M/S/X/R commands!');
 
     const decoder = new TextDecoderStream();
     usbPort.readable.pipeTo(decoder.writable).catch(() => {});
@@ -1756,7 +2005,7 @@ async function connectUsbArduino() {
           S.bme.hasLive = false;
           S.wdt.testBlocking = true;
           updateUsbButtonsUI();
-          log('crit', '[USB] Serial stream closed unexpectedly! Serial watchdog counting toward 2.5s fail-safe...');
+          log('crit', '[USB] Serial stream closed unexpectedly! Serial watchdog counting toward 3.5s fail-safe...');
         }
         break;
       }
@@ -1853,7 +2102,7 @@ function serialWatchdogStep(dtR) {
     if ($('sFanOvr')) $('sFanOvr').value = 0;
     updateKillDrawerUI('WDT CUTOFF', 'crit');
     if (S.usbConnected) {
-      sendUsbSerialCommand('KILL');
+      sendUsbSerialCommand('X');
     }
     pushSimControlToRPi();
   }
@@ -1888,7 +2137,7 @@ function apparentTemp(T, RH, vDuct) {
 function controller(dtS, dtR) {
   const c = S.ctl, inj = S.inj;
 
-  // 7.1 Redundant temperature sensor cross-check (TS-A BME280 vs TS-B SHT31)
+  // 7.1 Redundant temperature sensor cross-check (TS-A BME688 vs TS-B SHT31)
   const dA = Math.abs(S.sensA - S.sensB);
   if (c.sensorAOk) {
     if (dA > 1.5) { c.sensorMis += dtR; if (c.sensorMis > 2.0) { c.sensorAOk = false; c.sensorMis = 0; log('warn', `TS-A/TS-B disagree by ${fF(dA)} F. TS-A voted out, switching loop to TS-B.`); } }
@@ -2034,7 +2283,7 @@ function plant(dtS) {
   const airM3s = flow * 0.25;
   S.SAT = airM3s > 0.01 ? clamp(S.T + (Qh - Qc) / (1206 * airM3s), 6, 60) : S.T;
 
-  // electrical power & bench multimeter model (Arduino Uno R4 + Pin 9 IRLZ44N MOSFET + Pin 8 12V PTC Relay + LM2596 Buck)
+  // electrical power & bench multimeter model (Arduino Uno R4 + Pin 9 IRLZ44N MOSFET + Pin 10 12V PTC Relay + LM2596 Buck)
   const fanPwm = Math.round(clamp((inj.blower ? 0 : S.fanAct) / 100 * 255, 0, 255));
   const duty = clamp(fanPwm / 255, 0, 1);
   const iFanPeak = 5.00 / (14.286 + 0.028); // 0.3493 A through GDSTIME 5015 + IRLZ44N R_DS(on)
@@ -2042,7 +2291,7 @@ function plant(dtS) {
   const vFanEff = +(duty * (5.00 - iFanPeak * 0.028)).toFixed(2);
   const vGs = +(5.00 * duty).toFixed(2);
   const htrDuty = clamp(c.heat / 100, 0, 1);
-  const iHeaterA = htrDuty * (12.00 / 2.880); // 4.167 A when 12V 50W PTC Relay (Pin 8) active
+  const iHeaterA = htrDuty * (12.00 / 2.880); // 4.167 A when 12V 50W PTC Relay (Pin 10) active
   const i5vTotal = 0.045 + iFanA;
   const iTotalA = i5vTotal + iHeaterA;
   const p5vRaw = 5.00 * i5vTotal;
@@ -2070,7 +2319,7 @@ function plant(dtS) {
   S.pw.total = S.pw.comp + S.pw.heat + S.pw.fan + S.pw.plugs + S.pw.ctrl;
   S.kWh += S.pw.total * dtS / 3.6e6;
 
-  // thermal balance & humidity (locked to physical A4/A5 BME280 when Arduino USB is connected)
+  // thermal balance & humidity (locked to physical A4/A5 BME688 when Arduino USB is connected)
   const achInf = inj.window ? 6 : 0.4, achOA = S.damperAct / 100 * 4;
   if (S.usbConnected && S.bme.hasLive) {
     S.T = S.bme.tempC;
@@ -2110,8 +2359,8 @@ function diagnose(alive) {
   if (inj.wifi) d['E-203'] = { sev: 'info', title: 'CLOUD LINK LOST', target: 'thermostat', short: `${c.buffered} BUFFERED`,
     msg: 'MQTT broker unreachable. Remote dashboard offline.', act: `Edge autonomy: local PID unaffected. ${c.buffered} telemetry samples buffered.` };
   if (S.wdt && S.wdt.tripped) d['E-204'] = { sev: 'crit', title: 'SERIAL WATCHDOG TIMEOUT', target: 'thermostat', short: 'FAIL-SAFE OFF',
-    msg: `No Arduino USB heartbeat for ${S.wdt.elapsedS.toFixed(1)} s (> ${S.wdt.timeoutS.toFixed(1)} s limit, last seq #${S.wdt.lastHbSeq}).`,
-    act: 'Fail-safe cutoff engaged: Pin 8 PTC Relay -> LOW (0V) & Pin 9 Fan MOSFET -> 0V (0%).' };
+    msg: `No Arduino USB telemetry for ${S.wdt.elapsedS.toFixed(1)} s (> ${S.wdt.timeoutS.toFixed(1)} s limit, last seq #${S.wdt.lastHbSeq}).`,
+    act: 'Fail-safe cutoff engaged: Pin 10 PTC Relay -> LOW (0V) & Pin 9 Fan MOSFET -> fail-safe.' };
   if (c.purge) d['E-101'] = { sev: 'warn', title: 'POOR INDOOR AIR QUALITY', target: 'iaq', short: `VOC ${f0(S.VOC)} CO2 ${f0(S.CO2)}`,
     msg: `VOC ${f0(S.VOC)} ppb, CO2 ${f0(S.CO2)} ppm.`,
     act: c.smokeLock ? 'Purge INHIBITED by smoke lockout. Recirculating only.' : 'Ventilation purge: OA damper 100%, blower 85%.' };
@@ -2242,7 +2491,7 @@ function buildChart() {
   } else if (view === 'thermal') {
     data = { labels: H.lab, datasets: [
       ds('Room (true)', H.T, '#ffffff', { borderWidth: 2 }),
-      ds('TS-A (BME280)', H.TA, '#f59e0b', { borderDash: [3, 3] }),
+      ds('TS-A (BME688)', H.TA, '#f59e0b', { borderDash: [3, 3] }),
       ds('TS-B (SHT31)', H.TB, '#38bdf8', { borderDash: [1, 2] }),
       ds('Setpoint', H.SP, '#10b981', { borderDash: [6, 4], tension: 0 }),
       ds('Feels like', H.AT, '#c084fc'),
@@ -2282,7 +2531,7 @@ function renderDmmModal() {
     `<div class="dmm-eq"><div class="et">2. 5V Rail &amp; GDSTIME Blower Current (I_fan, I_5V)</div>` +
     `<div class="ef">I_fan = D &times; [5.00V / (14.286&Omega; + 0.028&Omega;)] = ${duty.toFixed(3)} &times; 349.3 mA<br>I_5V = I_MCU (45.0 mA) + I_fan (${(e.i_fan_a * 1000).toFixed(1)} mA)</div>` +
     `<div class="ev">I_fan = ${(e.i_fan_a * 1000).toFixed(1)} mA &nbsp;|&nbsp; I_5V,total = ${(e.i_5v_total * 1000).toFixed(1)} mA (${f2(e.p_5v_w)} W)</div></div>` +
-    `<div class="dmm-eq"><div class="et">3. Pin 8 12V PTC Heater &amp; Primary 12V Bus Current</div>` +
+    `<div class="dmm-eq"><div class="et">3. Pin 10 12V PTC Heater &amp; Primary 12V Bus Current</div>` +
     `<div class="ef">I_htr = D_htr(${(htrDuty * 100).toFixed(0)}%) &times; (12.00V / 2.88&Omega;)<br>I_12V,bus = I_htr + [P_5V (${f2(e.p_5v_w)}W) / (12.00V &times; 0.88 buck)]</div>` +
     `<div class="ev">I_heater = ${f2(e.i_heater_a)} A &nbsp;|&nbsp; I_12V,bus = ${f2(e.i_12v_bus_a)} A (${f2(e.p_bench_w)} W bench)</div></div>` +
     `<div class="dmm-eq"><div class="et">4. Equivalent Dynamic Circuit Resistances (&Omega;)</div>` +
@@ -2628,7 +2877,16 @@ function updateKillDrawerUI(stateText, cls) {
   }
 }
 
+let benchHeatPulseTimer = null;
+let benchCooldownTimer = null;
+
 async function triggerMasterHardwareKill() {
+  if (benchHeatPulseTimer) { clearTimeout(benchHeatPulseTimer); benchHeatPulseTimer = null; }
+  if (benchCooldownTimer) { clearTimeout(benchCooldownTimer); benchCooldownTimer = null; }
+  S.bme.heaterOn = false;
+  S.bme.cooldownActive = false;
+  S.bme.safetyLockout = true;
+  S.bme.lockoutReason = 'Manual emergency stop';
   S.modeOverride = 'OFF';
   S.fanOverride = 0;
   S.ctl.heat = 0;
@@ -2642,16 +2900,14 @@ async function triggerMasterHardwareKill() {
   readSliders();
   updateKillDrawerUI('KILL LATCHED', 'crit');
   if (S.usbConnected) {
-    await sendUsbSerialCommand('KILL');
-    await sendUsbSerialCommand('HEAT OFF');
-    await sendUsbSerialCommand('FAN 0');
+    await sendUsbSerialCommand('X');
   }
   pushSimControlToRPi();
   plant(0.05);
   updateCards();
   updatePanel();
-  log('crit', '[BENCH KILL] Emergency Hardware Cutoff engaged: Pin 8 PTC Relay -> LOW (0V), Pin 9 MOSFET Gate -> 0V (PWM 0).');
-  toast('crit', 'EMERGENCY HARDWARE CUTOFF', 'Master Kill Switch Latched (ALL OFF)', 'Pin 8 PTC Relay = LOW (0V) | Pin 9 Fan MOSFET = 0V (0% PWM)', 'Click "Restore Closed-Loop Auto PID" to resume');
+  log('crit', '[BENCH KILL] Emergency Hardware Stop (X) engaged: Pin 10 PTC Relay -> LOW (0V), Safety Lockout ACTIVE.');
+  toast('crit', 'EMERGENCY HARDWARE STOP (X)', 'Safety Lockout Latched (Pin 10 LOW)', 'Pin 10 PTC Relay = LOW (0V) | Safety Lockout Active', 'Click "R: Reset Safety Lockout / Restore Auto PID" to resume');
 }
 
 async function benchSetFanSpeed(pct) {
@@ -2664,7 +2920,7 @@ async function benchSetFanSpeed(pct) {
   readSliders();
   updateKillDrawerUI(`FAN ${S.fanOverride}%`, S.fanOverride === 0 ? 'warn' : 'ok');
   if (S.usbConnected) {
-    await sendUsbSerialCommand(`FAN ${S.fanOverride}`);
+    await sendUsbSerialCommand(S.fanOverride === 0 ? 'S' : S.fanOverride <= 65 ? 'M' : 'F');
   }
   pushSimControlToRPi();
   plant(0.05);
@@ -2674,22 +2930,61 @@ async function benchSetFanSpeed(pct) {
 }
 
 async function benchSetHeaterRelay(turnOn) {
+  if (benchHeatPulseTimer) { clearTimeout(benchHeatPulseTimer); benchHeatPulseTimer = null; }
+  if (benchCooldownTimer) { clearTimeout(benchCooldownTimer); benchCooldownTimer = null; }
   S.modeOverride = turnOn ? 'HEAT' : 'AUTO';
   if ($('sModeOvr')) $('sModeOvr').value = S.modeOverride;
   S.ctl.heat = turnOn ? 100 : 0;
+  S.bme.heaterOn = !!turnOn;
+  if (turnOn) {
+    S.fanOverride = 100;
+    if ($('sFanOvr')) $('sFanOvr').value = 100;
+  }
   readSliders();
-  updateKillDrawerUI(turnOn ? 'PTC RELAY ON' : 'RELAY SAFE OFF', turnOn ? 'warn' : 'ok');
+  updateKillDrawerUI(turnOn ? '5s HEATER ON' : 'RELAY SAFE OFF', turnOn ? 'warn' : 'ok');
   if (S.usbConnected) {
-    await sendUsbSerialCommand(turnOn ? 'HEAT ON' : 'HEAT OFF');
+    await sendUsbSerialCommand(turnOn ? '5' : 'H');
   }
   pushSimControlToRPi();
   plant(0.05);
   updateCards();
   updatePanel();
-  log(turnOn ? 'warn' : 'ok', `[BENCH TEST] Direct Pin 8 12V PTC Heater Relay forced ${turnOn ? 'ON (HIGH)' : 'OFF (LOW)'}.`);
+  log(turnOn ? 'warn' : 'ok', `[BENCH TEST] Direct Pin 10 12V PTC Heater Relay ${turnOn ? '5-second pulse started (5 -> HIGH + Fan 100%)' : 'stopped (H -> LOW)'}.`);
+  if (turnOn && !S.usbConnected) {
+    benchHeatPulseTimer = setTimeout(() => {
+      S.ctl.heat = 0;
+      S.bme.heaterOn = false;
+      S.bme.cooldownActive = true;
+      S.modeOverride = 'AUTO';
+      if ($('sModeOvr')) $('sModeOvr').value = 'AUTO';
+      S.fanOverride = 100;
+      if ($('sFanOvr')) $('sFanOvr').value = 100;
+      readSliders();
+      updateKillDrawerUI('30s COOLDOWN', 'warn');
+      log('info', '[BENCH TEST] 5-second heater test complete -> Pin 10 Relay OFF, 30-second fan cooldown @ 100% started.');
+      updateCards();
+      updatePanel();
+      benchCooldownTimer = setTimeout(() => {
+        S.bme.cooldownActive = false;
+        S.fanOverride = -1;
+        if ($('sFanOvr')) $('sFanOvr').value = -1;
+        readSliders();
+        updateKillDrawerUI('STANDBY', '');
+        log('ok', '[BENCH TEST] 30-second post-heat fan cooldown completed.');
+        updateCards();
+        updatePanel();
+      }, 30000);
+    }, 5000);
+  }
 }
 
 async function benchRestoreAutoPid() {
+  if (benchHeatPulseTimer) { clearTimeout(benchHeatPulseTimer); benchHeatPulseTimer = null; }
+  if (benchCooldownTimer) { clearTimeout(benchCooldownTimer); benchCooldownTimer = null; }
+  S.bme.heaterOn = false;
+  S.bme.cooldownActive = false;
+  S.bme.safetyLockout = false;
+  S.bme.lockoutReason = 'None';
   S.manualPurge = false;
   S.modeOverride = 'AUTO';
   S.fanOverride = -1;
@@ -2698,15 +2993,38 @@ async function benchRestoreAutoPid() {
   readSliders();
   updateKillDrawerUI('STANDBY', '');
   if (S.usbConnected) {
-    await sendUsbSerialCommand('AUTO');
+    await sendUsbSerialCommand('R');
   }
   pushSimControlToRPi();
   controller(0.1, 0.1);
   plant(0.1);
   updateCards();
   updatePanel();
-  log('ok', '[BENCH TEST] Restored closed-loop automatic PID regulation.');
-  toast('ok', 'AUTO PID RESTORED', 'Bench Overrides Cleared', 'Pin 9 Fan & Pin 8 PTC Relay returned to closed-loop BME280 PID control', '');
+  log('ok', '[BENCH TEST] Safety lockout reset (R) & closed-loop automatic PID regulation restored.');
+  toast('ok', 'SAFETY RESET & AUTO PID (R)', 'Lockout & Bench Overrides Cleared', 'Pin 9 Fan & Pin 10 PTC Relay returned to closed-loop BME688 control', '');
+}
+
+async function benchRequestDiagnostics() {
+  if (S.usbConnected) {
+    await sendUsbSerialCommand('D');
+    toast('info', 'BME688 DIAGNOSTICS (D)', 'Requested Hardware Diagnostics Dump', 'Sent: D to Arduino Uno R4 V5 over USB', 'Inspect Firmware Event Log for full report');
+  } else {
+    log('info', `[BME688 DIAG] Sensor: YES (${S.bme.i2cAddr}, Chip ${S.bme.chipId}) | Temp: ${S.T.toFixed(2)}°C | RH: ${S.RH.toFixed(1)}% | Press: ${S.bme.pressHpa.toFixed(2)} hPa | Gas: ${S.bme.gasKOhms.toFixed(2)} kΩ (${S.bme.gasRelPct.toFixed(1)}%) | Pin 10 Heater: ${S.ctl.heat > 0 ? 'ON' : 'OFF'} | Cooldown: ${S.bme.cooldownActive ? 'ACTIVE' : 'OFF'} | Lockout: ${S.bme.safetyLockout ? 'ACTIVE' : 'CLEAR'}`);
+    toast('ok', 'BME688 DIAGNOSTICS (D)', `Sensor ${S.bme.i2cAddr} (Chip ${S.bme.chipId}) Valid`, `Temp ${fF(S.T)}°F | RH ${S.RH.toFixed(1)}% | Gas ${S.bme.gasKOhms.toFixed(1)} kΩ (${S.bme.gasRelPct.toFixed(0)}%)`, `Pin 10 Heater: ${S.ctl.heat > 0 ? 'ON' : 'OFF'} | Lockout: ${S.bme.safetyLockout ? 'ACTIVE' : 'CLEAR'}`);
+  }
+}
+
+async function benchResetGasBaseline() {
+  S.bme.gasBaseline = S.bme.gasKOhms || 140.0;
+  S.bme.gasRelPct = 100.0;
+  S.bme.gasTrend = 'Near baseline';
+  if (S.usbConnected) {
+    await sendUsbSerialCommand('B');
+  }
+  log('ok', '[BME688 GAS] Reset MOX gas resistance baseline (B) — collecting 20 reference samples.');
+  toast('ok', 'GAS BASELINE RESET (B)', 'BME688 MOX Reference Reset', 'Recalibrating 20-sample gas resistance baseline (320°C / 150ms heater)', '');
+  updateCards();
+  updatePanel();
 }
 
 if ($('btnMasterKill')) $('btnMasterKill').addEventListener('click', triggerMasterHardwareKill);
@@ -2716,6 +3034,8 @@ if ($('btnBenchFan100')) $('btnBenchFan100').addEventListener('click', () => ben
 if ($('btnBenchHeatOff')) $('btnBenchHeatOff').addEventListener('click', () => benchSetHeaterRelay(false));
 if ($('btnBenchHeatOn')) $('btnBenchHeatOn').addEventListener('click', () => benchSetHeaterRelay(true));
 if ($('btnBenchAuto')) $('btnBenchAuto').addEventListener('click', benchRestoreAutoPid);
+if ($('btnBenchDiag')) $('btnBenchDiag').addEventListener('click', benchRequestDiagnostics);
+if ($('btnBenchGasReset')) $('btnBenchGasReset').addEventListener('click', benchResetGasBaseline);
 
 function startWatchdogTripTest() {
   S.wdt.tripped = false;
@@ -2723,8 +3043,8 @@ function startWatchdogTripTest() {
   S.wdt.elapsedS = 0;
   delete S.diag['E-204'];
   delete S.iotDispatched['E-204'];
-  log('warn', '[WATCHDOG TEST] Blocking 1 Hz serial heartbeat packets — counting up to 2.5s fail-safe cutoff...');
-  toast('warn', 'WATCHDOG TEST STARTED', 'Simulating Lost Arduino Heartbeat', 'Blocking 1 Hz packets... E-204 fail-safe trips at 2.5s', '');
+  log('warn', '[WATCHDOG TEST] Blocking 2s BME688 serial telemetry packets — counting up to 3.5s fail-safe cutoff...');
+  toast('warn', 'WATCHDOG TEST STARTED', 'Simulating Lost Arduino Serial Link', 'Blocking packets... E-204 fail-safe trips at 3.5s', '');
   updatePanel();
 }
 
@@ -2742,12 +3062,12 @@ function resetSerialWatchdog() {
     if ($('sFanOvr')) $('sFanOvr').value = -1;
     readSliders();
     updateKillDrawerUI('STANDBY', '');
-    if (S.usbConnected) sendUsbSerialCommand('AUTO');
+    if (S.usbConnected) sendUsbSerialCommand('R');
     pushSimControlToRPi();
   }
   if (wasActive) {
     log('ok', '[WATCHDOG] Serial comms watchdog reset. Closed-loop AUTO PID control resumed.');
-    toast('ok', 'WATCHDOG RESET', 'Heartbeat Supervision Armed', 'E-204 cleared — Pin 8 & Pin 9 returned to AUTO PID', '');
+    toast('ok', 'WATCHDOG RESET', 'Heartbeat Supervision Armed', 'E-204 cleared — Pin 10 & Pin 9 returned to AUTO PID', '');
   }
   updateCards();
   updatePanel();
@@ -2765,6 +3085,7 @@ $('clearAll').addEventListener('click', () => {
   S.fanAct = 22; S.damperAct = 0; S.rpm = 616; S.ctl.mode = 'IDLE';
   S.mcu.a = 'RUN'; S.mcu.b = 'STANDBY'; S.mcu.active = 'A';
   S.wdt.tripped = false; S.wdt.testBlocking = false; S.wdt.elapsedS = 0.2;
+  S.bme.safetyLockout = false; S.bme.cooldownActive = false; S.bme.heaterOn = false;
   updateKillDrawerUI('STANDBY', '');
   S.diag = {};
   $('sSp').value = 73; $('sOut').value = 82; $('sLim').value = 1500;
@@ -2828,7 +3149,7 @@ function updateCards() {
     h += card('PIN 9 GATE & FAN V', f2(e.v_fan_eff), 'V', `V_GS ${f2(e.v_mosfet_gs)}V | PWM ${e.fan_pwm}/255 | ${c.mode}`, modeCrit);
     h += card('BENCH CURRENT (I)', f0(e.i_5v_total * 1000), 'mA', `FAN ${f0(e.i_fan_a * 1000)}mA | 12V BUS ${f2(e.i_12v_bus_a)}A`);
     h += card('5V RAIL & FAN R', f2(e.r_5v_rail_ohm), 'Ω', `R_FAN ${e.r_fan_ohm < 0 ? 'OPEN (∞)' : f2(e.r_fan_ohm) + ' Ω'} | R_DS 0.028 Ω`);
-    h += card('TOTAL CIRCUIT R (12V)', f2(e.r_total_circuit_ohm), 'Ω', `MODE: ${c.mode} | HTR ${f2(e.i_heater_a)} A`, modeCrit);
+    h += card('TOTAL CIRCUIT R (12V)', f2(e.r_total_circuit_ohm), 'Ω', `MODE: ${c.mode} | PIN 10 HTR ${f2(e.i_heater_a)} A`, modeCrit);
   } else if (view === 'forecast') {
     h += card('NEXT 6 H ENERGY', f2(F.kWh), 'kWh', 'DIURNAL + ENVELOPE + PLUG MODEL');
     h += card('NEXT 6 H COST', '$' + f2(F.kWh * P.price), '', `AVG ${f0(F.kWh / 6 * 1000)} W`);
@@ -2837,9 +3158,9 @@ function updateCards() {
   } else if (view === 'thermal') {
     const isLiveUsb = S.usbConnected && S.bme.hasLive;
     const sensLabel = isLiveUsb
-      ? `LIVE A4/A5 BME280 (${S.T.toFixed(2)}°C | 0x${S.bme.adcRaw20b.toString(16).toUpperCase()})`
-      : `SENSOR: ${c.sensorAOk ? 'TS-A (BME280 A4/A5)' : 'TS-B (TS-A VOTED OUT)'}`;
-    h += card('ROOM (A4/A5 BME280)', fF(c.Tctl), 'F', sensLabel, d['E-202'] ? 'warn' : isLiveUsb ? 'ok' : '');
+      ? `LIVE A4/A5 BME688 (${S.T.toFixed(2)}°C | Gas ${S.bme.gasKOhms.toFixed(1)} kΩ)`
+      : `SENSOR: ${c.sensorAOk ? 'TS-A (BME688 A4/A5)' : 'TS-B (TS-A VOTED OUT)'}`;
+    h += card('ROOM (A4/A5 BME688)', fF(c.Tctl), 'F', sensLabel, d['E-202'] ? 'warn' : isLiveUsb ? 'ok' : '');
     h += card('EFFECTIVE SETPOINT', fF(c.sp), 'F', `ERROR ${fD(c.Tctl - c.sp)} F | PID ${f0(c.u)}%`);
     h += card('FEELS LIKE', fF(c.AT), 'F', `STEADMAN | RH ${f1(S.RH)}%`, c.heatEmerg ? 'crit' : '');
     h += card('OUTDOOR', fF(S.Tout), 'F', S.inj.window ? 'WINDOW OPEN' : 'ENVELOPE SEALED');
@@ -2849,7 +3170,7 @@ function updateCards() {
     h += card('BLOWER', f0(S.fanAct), '%', `CMD ${f0(c.fanCmd)}% | ${f0(S.rpm)} RPM`, c.blowerFault ? 'crit' : '');
     h += card('FILTER HEALTH', f0(S.filterH * 100), '%', S.filterH < 0.4 ? 'REPLACE FILTER' : S.filterH < 0.7 ? 'LOADING' : 'CLEAN', S.filterH < 0.4 ? 'crit' : S.filterH < 0.7 ? 'warn' : '');
   } else {
-    h += card('VOC INDEX', f0(S.VOC), 'ppb', S.VOC > 350 ? 'POOR' : S.VOC > 220 ? 'MODERATE' : 'GOOD', S.VOC > 350 ? 'warn' : '');
+    h += card('VOC / BME688 GAS', f0(S.VOC), 'ppb', `MOX ${S.bme.gasKOhms.toFixed(1)} kΩ (${S.bme.gasRelPct.toFixed(0)}%) | ${S.bme.gasTrend}`, S.VOC > 350 ? 'warn' : '');
     h += card('CO2', f0(S.CO2), 'ppm', S.CO2 > 1100 ? 'STALE' : S.CO2 > 800 ? 'MODERATE' : 'FRESH', S.CO2 > 1100 ? 'warn' : '');
     h += card('PM2.5 INDOOR', f1(S.PM), 'ug/m3', `OUTDOOR ${S.inj.wifi ? 'N/A (OFFLINE)' : f0(S.PMout)}`, S.PM > 25 ? 'crit' : S.PM > 12 ? 'warn' : '');
     h += card('OA DAMPER', f0(S.damperAct), '%', c.smokeLock ? 'LOCKED CLOSED (SMOKE)' : c.purge ? 'PURGE OPEN' : 'MINIMUM', c.smokeLock ? 'crit' : '');
@@ -2872,16 +3193,16 @@ function updateCards() {
     const live = S.usbConnected && S.bme.hasLive;
     $('bmeAdcBar').className = 'adc-bar' + (live ? ' live' : '');
     if ($('bmeSrcTag')) {
-      $('bmeSrcTag').textContent = live ? '🟢 LIVE ARDUINO BME280 (PINS A4 SDA / A5 SCL):' : 'BME280 (PINS A4 SDA / A5 SCL) SIGNAL PIPELINE:';
+      $('bmeSrcTag').textContent = live ? `🟢 LIVE ARDUINO BME688 (PINS A4 SDA / A5 SCL | CHIP ID ${S.bme.chipId}):` : `BME688 (PINS A4 SDA / A5 SCL | CHIP ID ${S.bme.chipId}) SIGNAL PIPELINE:`;
       $('bmeSrcTag').style.color = live ? 'var(--green)' : 'var(--cyan)';
     }
     if ($('bmeAdcFlow')) {
       const hexAdc = '0x' + S.bme.adcRaw20b.toString(16).toUpperCase().padStart(5, '0');
       $('bmeAdcFlow').innerHTML =
-        `Analog Sense <b class="stage">${S.bme.vSenseMv.toFixed(1)} mV</b><span class="arr">&rarr;</span>` +
-        `20-bit &Sigma;&Delta; ADC <b class="stage">${hexAdc} (${S.bme.adcRaw20b})</b><span class="arr">&rarr;</span>` +
-        `I2C <b class="stage">0x76 (A4/A5)</b><span class="arr">&rarr;</span>` +
-        `Digital <b class="grn">${fF(c.Tctl)}&deg;F (${c.Tctl.toFixed(2)}&deg;C) | ${f1(S.RH)}% RH</b>`;
+        `Analog Sense <b class="stage">${S.bme.vSenseMv.toFixed(1)} mV (${hexAdc})</b><span class="arr">&rarr;</span>` +
+        `I2C <b class="stage">${S.bme.i2cAddr} (Chip ${S.bme.chipId})</b><span class="arr">&rarr;</span>` +
+        `Digital <b class="grn">${fF(c.Tctl)}&deg;F (${c.Tctl.toFixed(2)}&deg;C) | ${f1(S.RH)}% RH | ${S.bme.pressHpa.toFixed(1)} hPa</b><span class="arr">&rarr;</span>` +
+        `MOX Gas <b class="stage">${S.bme.gasKOhms.toFixed(1)} k&Omega; (${S.bme.gasRelPct.toFixed(0)}%)</b>`;
     }
   }
 }
@@ -2902,13 +3223,13 @@ function updatePanel() {
   if ($('wdtPanel')) {
     const w = S.wdt;
     const pct = clamp((w.elapsedS / w.timeoutS) * 100, 0, 100);
-    const isWarn = !w.tripped && (w.testBlocking || w.elapsedS > 1.3);
+    const isWarn = !w.tripped && (w.testBlocking || w.elapsedS > 2.2);
     $('wdtPanel').className = 'wdt-box' + (w.tripped ? ' trip' : isWarn ? ' warn' : '');
     if ($('wdtBadge')) {
       $('wdtBadge').textContent = w.tripped
         ? `TRIPPED (${w.elapsedS.toFixed(1)}s)`
         : w.testBlocking
-          ? `BLOCKING HB (${w.elapsedS.toFixed(1)}s / 2.5s)`
+          ? `BLOCKING HB (${w.elapsedS.toFixed(1)}s / ${w.timeoutS.toFixed(1)}s)`
           : S.usbConnected
             ? `USB HB #${w.lastHbSeq} (${w.elapsedS.toFixed(1)}s)`
             : `SIM HB #${w.lastHbSeq} (${w.elapsedS.toFixed(1)}s)`;
@@ -2920,12 +3241,12 @@ function updatePanel() {
     }
     if ($('wdtDetail')) {
       $('wdtDetail').innerHTML = w.tripped
-        ? `<span class="red"><b>ALARM E-204:</b> Heartbeat lost &gt;2.5s! Pin 8 PTC Relay &amp; Pin 9 Fan latched OFF (0V). Click RESET to clear.</span>`
+        ? `<span class="red"><b>ALARM E-204:</b> Serial telemetry lost &gt;${w.timeoutS.toFixed(1)}s! Pin 10 PTC Relay latched OFF (0V). Click RESET to clear.</span>`
         : w.testBlocking
-          ? `<span class="amb">Simulating frozen/unplugged USB serial cable... tripping fail-safe at 2.5s</span>`
+          ? `<span class="amb">Simulating frozen/unplugged USB serial cable... tripping fail-safe at ${w.timeoutS.toFixed(1)}s</span>`
           : S.usbConnected
-            ? `<span class="grn">Live TinyUSB (COM7) 1 Hz heartbeat active (seq #${w.lastHbSeq}) &bull; Hardware fail-safe armed</span>`
-            : `<span>Standalone sim heartbeat (1 Hz) &bull; Connect USB Arduino (COM7) for live serial watchdog</span>`;
+            ? `<span class="grn">Live Arduino Uno R4 V5 (BME688 2s stream, pkt #${w.lastHbSeq}) &bull; Pin 10 5s limit + 30s cooldown armed</span>`
+            : `<span>Standalone sim heartbeat &bull; Connect USB Arduino V5 for live BME688 serial watchdog</span>`;
     }
   }
   // header
@@ -2949,13 +3270,13 @@ function updatePanel() {
   // bars
   $('bars').innerHTML =
     bar('COMPRESSOR', c.comp, `${f0(c.comp)}%${c.compCap < 100 || c.clogLevel === 2 ? ' CAP' : ''}`, c.blowerFault ? '#ef4444' : '#60a5fa') +
-    bar('PTC HEATER', c.heat, alive ? `${f0(c.heat)}%` : 'GATED', '#f87171') +
+    bar('PIN 10 HEATER', c.heat, alive ? `${f0(c.heat)}%` : 'GATED', '#f87171') +
     bar('BLOWER CMD', c.fanCmd, `${f0(c.fanCmd)}%${c.boost > 0.5 ? ' +' + f0(c.boost) : ''}`, '#a78bfa') +
     bar('BLOWER TACH', S.fanAct, `${f0(S.rpm)} RPM`, c.blowerFault ? '#ef4444' : '#c4b5fd') +
     bar('OA DAMPER', S.damperAct, c.smokeLock ? 'LOCKED' : `${f0(S.damperAct)}%`, c.smokeLock ? '#ef4444' : '#38bdf8');
   $('kv').innerHTML =
     `<span>HVAC Mode</span><span><b style="color:${/FORCE|ECO/.test(mode) ? '#fcd34d' : '#00e5ff'}">${mode}</b> (${S.modeOverride})</span>` +
-    `<span>Control sensor (A4/A5 I2C)</span><span>${c.sensorAOk ? 'TS-A (BME280)' : 'TS-B'} ${fF(c.Tctl)} F</span>` +
+    `<span>Control sensor (A4/A5 I2C)</span><span>${c.sensorAOk ? 'TS-A (BME688)' : 'TS-B'} ${fF(c.Tctl)} F | Gas ${f1(S.bme.gasKOhms)} k&Omega;</span>` +
     `<span>PID (P / I / FF)</span><span>${f1(c.P)} / ${f1(c.I)} / ${f1(c.ff)} %</span>` +
     `<span>Pin 9 IRLZ44N Gate</span><span>V_GS ${f2(S.elec.v_mosfet_gs)} V | PWM ${S.elec.fan_pwm}/255 (${S.fanOverride >= 0 ? 'MANUAL' : 'AUTO'})</span>` +
     `<span>Bench V / Current</span><span>V_fan ${f2(S.elec.v_fan_eff)} V | I_fan ${f0(S.elec.i_fan_a * 1000)} mA | I_5V ${f0(S.elec.i_5v_total * 1000)} mA</span>` +
@@ -3043,7 +3364,7 @@ const R = {
 const ctr = o => [X(o.x + o.w / 2), Y(o.y + o.h / 2)];
 const TGT = { thermostat: R.thermostat, iaq: R.iaq, damper: R.damper, ret: R.ret, ahu: R.ahu, window: R.window, tv: R.plugTv, desk: R.desk, bed: R.bed, tsb: R.tsb };
 const DEV = {
-  thermostat: { o: R.thermostat, name: 'CTRL-HUB Arduino Uno R4 (Pin 9 MOSFET / Pin 8 Relay / A4-A5 BME280)', info: () => `MCU-A ${S.mcu.a}, MCU-B ${S.mcu.b}. TS-A ${fF(S.sensA)} F ${S.ctl.sensorAOk ? '(in loop)' : '(voted out)'}. Pin 9 V_GS ${f2(S.elec.v_mosfet_gs)}V, R_tot ${f2(S.elec.r_total_circuit_ohm)} Ω.` },
+  thermostat: { o: R.thermostat, name: 'CTRL-HUB Arduino Uno R4 V5 (Pin 9 MOSFET / Pin 10 Relay / A4-A5 BME688)', info: () => `MCU-A ${S.mcu.a}, MCU-B ${S.mcu.b}. TS-A BME688 ${fF(S.sensA)} F ${S.ctl.sensorAOk ? '(in loop)' : '(voted out)'}, Gas ${f1(S.bme.gasKOhms)} kΩ (${f0(S.bme.gasRelPct)}%). Pin 9 V_GS ${f2(S.elec.v_mosfet_gs)}V, R_tot ${f2(S.elec.r_total_circuit_ohm)} Ω.` },
   iaq: { o: R.iaq, name: 'IAQ node (SGP30 VOC/CO2 + PM2.5)', info: () => `VOC ${f0(S.VOC)} ppb, CO2 ${f0(S.CO2)} ppm, PM2.5 ${f1(S.PM)} ug/m3.` },
   tsb: { o: R.tsb, name: 'TS-B redundant temp sensor (SHT31)', info: () => `${fF(S.sensB)} F. Used for cross-check voting against TS-A.` },
   supply: { o: R.supply, name: 'Ceiling supply diffuser', info: () => `Supply air ${fF(S.SAT)} F, duct velocity ${f2(S.vel)} m/s.` },
@@ -3653,7 +3974,7 @@ function updateThermostatView() {
   // Top-right environmental readouts
   if ($('qSensorBadge')) {
     const liveUsb = S.usbConnected && S.bme.hasLive;
-    $('qSensorBadge').textContent = liveUsb ? 'USB BME280 LIVE' : c.sensorAOk ? 'TS-A BME280' : 'TS-B REDUNDANT';
+    $('qSensorBadge').textContent = liveUsb ? `USB BME688 (${S.bme.gasKOhms.toFixed(0)}k\u03a9)` : c.sensorAOk ? 'TS-A BME688' : 'TS-B REDUNDANT';
     $('qSensorBadge').className = 'badge ' + (liveUsb ? 'ok' : c.sensorAOk ? 'ok' : 'warn');
   }
   if ($('qRoomTemp')) $('qRoomTemp').innerHTML = `${roomF.toFixed(1)}<small>&deg;F</small>`;
