@@ -1317,14 +1317,14 @@ $('mBtnRestoreAuto').addEventListener('click', async () => {
   $('mKillBadge').textContent = 'STANDBY'; $('mKillBadge').className = 'pill';
   syncControlsFromUI(true);
   updateMobileNestUI();
-  await sendUsbCmd('AUTO');
-  showToast('Closed-loop AUTO PID control restored.', 'ok');
+  await sendUsbCmd('R');
+  showToast('Safety reset (R) & closed-loop AUTO PID control restored.', 'ok');
 });
 
 // Watchdog
 $('mBtnTestWdt').addEventListener('click', () => {
   M.wdt.tripped = false; M.wdt.testing = true; M.wdt.elapsed = 0;
-  showToast('Blocking 1 Hz serial heartbeat — tripping E-204 at 2.5s...', '');
+  showToast('Blocking 2s BME688 serial telemetry — tripping E-204 at 3.5s...', '');
 });
 $('mBtnResetWdt').addEventListener('click', () => {
   M.wdt.tripped = false; M.wdt.testing = false; M.wdt.elapsed = 0;
@@ -1360,9 +1360,9 @@ function buildFaultCards() {
         $('mBtnSendIot').click();
       }
       if (M.usbConnected) {
-        if (f.id === 'blower') sendUsbCmd(M.inj.blower ? 'FAN 0' : 'AUTO');
-        else if (M.inj[f.id]) sendUsbCmd('FAN 100');
-        else sendUsbCmd('AUTO');
+        if (f.id === 'blower') sendUsbCmd(M.inj.blower ? 'X' : 'R');
+        else if (M.inj[f.id]) sendUsbCmd('F');
+        else sendUsbCmd('R');
       }
     });
     box.appendChild(el);
