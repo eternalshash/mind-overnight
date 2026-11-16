@@ -1,206 +1,248 @@
-/*
- * ============================================================================
- * ECE 441 Smart HVAC Control - Official Arduino IDE Sketch (.ino)
- * ============================================================================
- * Designed for: Andy Tran & Kaleb Cowgur (ECE 441 Lab Bench)
- * Target Board: Arduino Uno R4 (or Uno R3 / Nano)
- * Re check this ->
- * ----------------------------------------------------------------------------
- * 1. CONNECTION MODE: WIRED USB SERIAL (NOT WIRELESS)
- * ----------------------------------------------------------------------------
- * - Plug the Arduino directly into your computer or Raspberry Pi using a USB cable.
- * - Communication is 100% WIRED over USB Serial at 115200 BAUD (No Wi-Fi / BLE needed).
- * - Raspberry Pi Auto-Discovery: The Python edge server (serial_bridge.py)
- *   automatically listens on /dev/ttyACM* or /dev/cu.usbmodem*.
- * - Manual Control: Open Arduino IDE Serial Monitor (set baud rate to 115200, "Both NL & CR").
- *
- * ----------------------------------------------------------------------------
- * 2. COMPLETE PINOUT & WIRING GUIDE (Matches 10-26-29 Hardware Report)
- * ----------------------------------------------------------------------------
- *   [PIN 9]        -> Gate of IRLZ44N / IRLZ24N N-Channel Logic-Level MOSFET
- *                     (PWM blower fan speed modulation, 0-255).
- *   [PIN 8]        -> "IN" control pin of 12V PTC Heater Relay Module.
- *   [PIN A4]       -> Bosch BME280 SDA (I2C Data).
- *   [PIN A5]       -> Bosch BME280 SCL (I2C Clock).
- *   [PIN 5V]       -> Bosch BME280 VIN pin & +5V logic rail.
- *   [PIN GND #1]   -> Arduino GND tied to Common System Ground (ESP32 GND and
- *                     LM2596 buck converter negative rail for MOSFET gate reference).
- *   [PIN GND #2]   -> CRITICAL: Connect BME280 sensor GND DIRECTLY to a dedicated
- *                     Arduino GND header. DO NOT splice sensor GND into the high-current
- *                     fan ground return wire (avoids ground bounce & I2C sensor lockups).
- *
- * ----------------------------------------------------------------------------
- * 3. ARDUINO SERIAL MONITOR COMMAND CHEATSHEET (at 115200 Baud):
- * ----------------------------------------------------------------------------
- *   - KILL / OFF    : Emergency direct hardware cutoff (Relay Pin 8 LOW & Fan Pin 9 0V)
- *   - HEAT ON       : Forces PTC heater relay ON (override)
- *   - HEAT OFF      : Forces PTC heater relay OFF (override)
- *   - FAN <0-100>   : Sets fan speed in % (e.g. "FAN 50" -> 50% PWM)
- *   - PWM <0-255>   : Sets raw PWM duty cycle (e.g. "PWM 128")
- *   - SET <15-30>   : Updates PID target temperature in °C (e.g. "SET 22.5")
- *   - AUTO          : Restores closed-loop automatic PID temperature regulation
- * ============================================================================
- */
 
-#include <Arduino.h>
 #include <Wire.h>
-#include <math.h>
 #include <Adafruit_Sensor.h>
-#include <Adafruit_BME280.h>
+#include <Adafruit_BME680.h>
+#include <math.h>
+#include <ctype.h>
 
-#define DEVICE_ID               "ARDUINO-R4-HVAC-G2"
-#define SERIAL_BAUD_RATE        115200
+// =======================================
+// SMART HVAC DEMO V5
+// Arduino UNO R4 WiFi
+// BME688 ONLY
+// =======================================
 
-#define PIN_FAN_MOSFET          9
-#define PIN_HEATER_RELAY        8
-#define PIN_STATUS_LED          13
+// HARDWARE
+const uint8_t RELAY_PIN = 10;
+const uint8_t FAN_PIN = 9;
 
-#define BME280_I2C_ADDR_PRIMARY 0x76
-#define BME280_I2C_ADDR_ALT     0x77
+// Active-HIGH relay
+const uint8_t RELAY_ON = HIGH;
+const uint8_t RELAY_OFF = LOW;
 
-#define DEFAULT_SETPOINT_C      23.0f
-#define MIN_SETPOINT_C          15.0f
-#define MAX_SETPOINT_C          30.0f
-#define PID_KP                  45.0f
-#define PID_KI                  0.5f
-#define PID_KD                  10.0f
+// TIMING
+const unsigned long HEAT_TIME_MS = 5000;
+const unsigned long COOLDOWN_MS = 30000;
+const unsigned long SENSOR_INTERVAL_MS = 2000;
 
-#define CONTROL_LOOP_MS         200
-#define TELEMETRY_INTERVAL_MS   1000
-#define BME_RETRY_INTERVAL_MS   3000
-#define FAN_MIN_CIRCULATION_PWM 51
+// SAFETY LIMITS
+const float MAX_TEMP_C = 40.0;
+const float MIN_TEMP_C = -40.0;
 
-Adafruit_BME280 bme;
-bool bme_online = false;
-unsigned long last_retry_ms = 0;
-float last_temp_c = 20.5f;
-float last_rh_pct = 48.0f;
-float last_press_hpa = 1013.25f;
+// Atmospheric reference
+const float SEA_LEVEL_HPA = 1013.25;
 
-// Self-contained PID state (zero extra PID library installation needed in Arduino IDE!)
-float setpoint_c   = DEFAULT_SETPOINT_C;
-float pid_integral = 0.0f;
-float prev_error   = 0.0f;
-float pid_output   = 0.0f;
+// Gas resistance baseline
+const int GAS_BASELINE_SAMPLES = 20;
 
-int current_fan_pwm    = FAN_MIN_CIRCULATION_PWM;
-int manual_fan_pwm     = -1; // -1 = AUTO (PID controlled), 0..255 = Manual override
-int manual_heater_mode = -1; // -1 = AUTO (PID controlled), 0 = OFF, 1 = ON
-bool heater_relay_on   = false;
-long last_command_seq  = -1;
+// =======================================
+// BME688 SENSOR
+// =======================================
 
-unsigned long last_control_ms   = 0;
-unsigned long last_telemetry_ms = 0;
-unsigned long heartbeat_seq     = 0;
-char serial_rx_buf[192];
-uint8_t serial_rx_len = 0;
+Adafruit_BME680 bme688(&Wire);
 
-struct CircuitMetrics {
-    float v_supply_12v, v_rail_5v, v_mosfet_gs, v_fan_eff;
-    float i_mcu_a, i_fan_a, i_heater_a, i_total_load_a, i_12v_bus_a;
-    float p_total_w, r_fan_branch_ohm, r_5v_rail_ohm, r_total_circuit_ohm;
-};
+bool sensorFound = false;
+bool sensorValid = false;
 
-static float calculateApparentTemp(float T, float RH, float V) {
-    float e = (RH / 100.0f) * 6.105f * exp(17.27f * T / (237.7f + T));
-    return T + (0.33f * e) - (0.70f * V) - 4.00f;
+uint8_t sensorAddress = 0;
+
+// Sensor readings
+float temperatureC = NAN;
+float humidity = NAN;
+float pressureHPA = NAN;
+float gasKOhms = NAN;
+
+// Gas baseline
+float gasTotal = 0;
+float gasBaseline = 0;
+
+int gasCount = 0;
+bool gasReady = false;
+
+// =======================================
+// SYSTEM STATE
+// =======================================
+
+bool heaterOn = false;
+bool cooldownActive = false;
+bool safetyLockout = false;
+
+uint8_t fanPWM = 0;
+
+unsigned long heaterStart = 0;
+unsigned long cooldownStart = 0;
+unsigned long lastSensorRead = 0;
+
+const char* lockoutReason = "None";
+const char* lastError = "None";
+
+// =======================================
+// RELAY CONTROL
+// =======================================
+
+void relayOff() {
+  digitalWrite(RELAY_PIN, RELAY_OFF);
+  heaterOn = false;
 }
 
-static bool extractJsonFloat(const char* json, const char* key, float& outVal) {
-    char pattern[40];
-    snprintf(pattern, sizeof(pattern), "\"%s\"", key);
-    const char* pos = strstr(json, pattern);
-    if (!pos) return false;
-    pos = strchr(pos + strlen(pattern), ':');
-    if (!pos) return false;
-    pos++;
-    while (*pos == ' ' || *pos == '\t') pos++;
-    char* endPtr = nullptr;
-    float v = (float)strtod(pos, &endPtr);
-    if (endPtr == pos) return false;
-    outVal = v;
-    return true;
+void relayOn() {
+  digitalWrite(RELAY_PIN, RELAY_ON);
+  heaterOn = true;
 }
 
-static CircuitMetrics computeCircuitMetrics(bool heat_on, int fan_pwm) {
-    CircuitMetrics m;
-    float duty = constrain(fan_pwm, 0, 255) / 255.0f;
-    m.v_supply_12v = 12.00f;
-    m.v_rail_5v    = 5.00f;
-    m.v_mosfet_gs  = 5.00f * duty;
+// =======================================
+// FAN CONTROL
+// =======================================
 
-    const float R_FAN_WINDING = 14.286f;
-    const float R_MOSFET_ON   = 0.028f;
-    const float R_PTC_HEATER  = 2.880f;
-    const float BUCK_EFF      = 0.88f;
+void setFan(uint8_t pwm) {
+  fanPWM = pwm;
+  analogWrite(FAN_PIN, pwm);
+}
 
-    m.i_mcu_a = 0.045f;
-    if (fan_pwm > 0) {
-        float i_fan_peak = m.v_rail_5v / (R_FAN_WINDING + R_MOSFET_ON);
-        m.i_fan_a = duty * i_fan_peak;
-        m.v_fan_eff = duty * (m.v_rail_5v - (i_fan_peak * R_MOSFET_ON));
-        m.r_fan_branch_ohm = m.v_rail_5v / m.i_fan_a;
-    } else {
-        m.i_fan_a = 0.0f;
-        m.v_fan_eff = 0.0f;
-        m.r_fan_branch_ohm = -1.0f;
+// =======================================
+// HEATER SHUTDOWN
+// =======================================
+
+void stopHeater() {
+  bool wasHeating = heaterOn;
+
+  // Always command relay OFF
+  relayOff();
+
+  if (wasHeating) {
+    cooldownActive = true;
+    cooldownStart = millis();
+
+    setFan(255);
+
+    Serial.println();
+    Serial.println("HEATER OFF");
+    Serial.println("30-second fan cooldown started.");
+  }
+}
+
+// =======================================
+// SAFETY LOCKOUT
+// =======================================
+
+void emergencyStop(const char* reason) {
+  stopHeater();
+  relayOff();
+
+  lastError = reason;
+
+  if (!safetyLockout) {
+    lockoutReason = reason;
+
+    Serial.println();
+    Serial.println("!!!!!!!!!!!!!!!!!!!!!!!!");
+    Serial.println("     SAFETY LOCKOUT     ");
+    Serial.println("!!!!!!!!!!!!!!!!!!!!!!!!");
+
+    Serial.print("Reason: ");
+    Serial.println(reason);
+  }
+
+  safetyLockout = true;
+
+  // Continue airflow during lockout
+  setFan(255);
+}
+
+// =======================================
+// UNIT CONVERSIONS
+// =======================================
+
+float fahrenheit(float c) {
+  return c * 1.8 + 32.0;
+}
+
+float dewPointC(float temp, float rh) {
+  if (rh <= 0 || rh > 100) {
+    return NAN;
+  }
+
+  const float a = 17.62;
+  const float b = 243.12;
+
+  float gamma =
+    log(rh / 100.0) +
+    (a * temp) / (b + temp);
+
+  return (b * gamma) / (a - gamma);
+}
+
+float altitudeFeet(float pressure) {
+  return 145366.45 *
+    (1.0 - pow(pressure / SEA_LEVEL_HPA,
+               0.190284));
+}
+
+// =======================================
+// READ I2C CHIP ID
+// =======================================
+
+int readChipID(uint8_t address) {
+  Wire.beginTransmission(address);
+  Wire.write(0xD0);
+
+  if (Wire.endTransmission(false) != 0) {
+    return -1;
+  }
+
+  if (Wire.requestFrom(address, (uint8_t)1) != 1) {
+    return -1;
+  }
+
+  return Wire.read();
+}
+
+// =======================================
+// INITIALIZE BME688
+// =======================================
+
+void initializeSensor() {
+  // Ensure heater is OFF during initialization
+  relayOff();
+
+  sensorFound = false;
+  sensorValid = false;
+
+  Serial.println();
+  Serial.println("===== BME688 DETECTION =====");
+
+  const uint8_t addresses[] = {0x76, 0x77};
+
+  for (int i = 0; i < 2; i++) {
+    uint8_t addr = addresses[i];
+
+    int chipID = readChipID(addr);
+
+    Serial.print("Address 0x");
+    Serial.print(addr, HEX);
+    Serial.print(": ");
+
+    if (chipID < 0) {
+      Serial.println("NO RESPONSE");
+      continue;
     }
 
-    m.i_heater_a = heat_on ? (m.v_supply_12v / R_PTC_HEATER) : 0.0f;
-    float i_5v_total = m.i_mcu_a + m.i_fan_a;
-    m.i_total_load_a = i_5v_total + m.i_heater_a;
-    float p_5v = m.v_rail_5v * i_5v_total;
-    m.p_total_w = p_5v + (m.v_supply_12v * m.i_heater_a);
-    m.i_12v_bus_a = m.i_heater_a + (p_5v / (m.v_supply_12v * BUCK_EFF));
-    m.r_5v_rail_ohm = m.v_rail_5v / i_5v_total;
-    m.r_total_circuit_ohm = m.v_supply_12v / m.i_12v_bus_a;
-    return m;
-}
+    Serial.print("Chip ID 0x");
+    Serial.println(chipID, HEX);
 
-static void printMultimeterSummary(const CircuitMetrics &cm) {
-    Serial.print(F("[MULTIMETER] Fan="));
-    Serial.print((current_fan_pwm * 100.0f) / 255.0f, 0);
-    Serial.print(F("% (PWM="));
-    Serial.print(current_fan_pwm);
-    Serial.print(F(", V_GS="));
-    Serial.print(cm.v_mosfet_gs, 2);
-    Serial.print(F("V, V_fan="));
-    Serial.print(cm.v_fan_eff, 2);
-    Serial.print(F("V) | I_fan="));
-    Serial.print(cm.i_fan_a * 1000.0f, 0);
-    Serial.print(F("mA | I_heat="));
-    Serial.print(cm.i_heater_a, 2);
-    Serial.print(F("A | I_total="));
-    Serial.print(cm.i_total_load_a, 3);
-    Serial.print(F("A (12V_bus="));
-    Serial.print(cm.i_12v_bus_a, 3);
-    Serial.print(F("A) | P="));
-    Serial.print(cm.p_total_w, 2);
-    Serial.print(F("W | R_fan="));
-    if (cm.r_fan_branch_ohm > 0) {
-        Serial.print(cm.r_fan_branch_ohm, 2);
-        Serial.print(F(" Ohm"));
-    } else {
-        Serial.print(F("OPEN"));
+    if (chipID == 0x61) {
+      if (bme688.begin(addr)) {
+        sensorFound = true;
+        sensorAddress = addr;
+
+        Serial.println("BME688 INITIALIZED");
+        break;
+      }
+      else {
+        Serial.println("INITIALIZATION FAILED");
+      }
     }
-    Serial.print(F(" | R_5V="));
-    Serial.print(cm.r_5v_rail_ohm, 2);
-    Serial.print(F(" Ohm | R_total_circuit="));
-    Serial.print(cm.r_total_circuit_ohm, 2);
-    Serial.println(F(" Ohm"));
-}
-
-static void handleSerialCommand(const char* line) {
-    if (strncasecmp(line, "KILL", 4) == 0 || strcasecmp(line, "OFF") == 0) {
-        manual_heater_mode = 0;
-        heater_relay_on = false;
-        digitalWrite(PIN_HEATER_RELAY, LOW);
-        manual_fan_pwm = 0;
-        current_fan_pwm = 0;
-        analogWrite(PIN_FAN_MOSFET, 0);
-        Serial.println(F("{\"ack\":\"emergency_cutoff\",\"relay_pin_8\":0,\"fan_pin_9_pwm\":0}"));
-        printMultimeterSummary(computeCircuitMetrics(heater_relay_on, current_fan_pwm));
-        return;
+    else {
+      Serial.println("Not a BME688/BME680");
     }
     if (strncasecmp(line, "PING", 4) == 0) {
         Serial.print(F("{\"ack\":\"pong\",\"hb_seq\":"));
