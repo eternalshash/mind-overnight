@@ -304,3 +304,105 @@ void updateGasBaseline() {
     gasReady = true;
 
     Serial.println("Gas baseline established.");
+  }
+}
+
+// =======================================
+// GAS RESISTANCE INTERPRETATION
+// =======================================
+
+void printGasData() {
+  Serial.println();
+  Serial.println("[GAS SENSOR]");
+
+  if (!isfinite(gasKOhms) || gasKOhms <= 0) {
+    Serial.println("Gas reading unavailable");
+    return;
+  }
+
+  Serial.print("Gas resistance: ");
+  Serial.print(gasKOhms, 2);
+  Serial.println(" kOhms");
+
+  if (!gasReady) {
+    Serial.print("Reference samples: ");
+    Serial.print(gasCount);
+    Serial.print("/");
+    Serial.println(GAS_BASELINE_SAMPLES);
+    return;
+  }
+
+  float relative =
+    gasKOhms / gasBaseline * 100.0;
+
+  Serial.print("Baseline: ");
+  Serial.print(gasBaseline, 2);
+  Serial.println(" kOhms");
+
+  Serial.print("Relative resistance: ");
+  Serial.print(relative, 1);
+  Serial.println("%");
+
+  if (relative >= 110) {
+    Serial.println("Trend: Resistance increased");
+  }
+  else if (relative >= 90) {
+    Serial.println("Trend: Near baseline");
+  }
+  else if (relative >= 70) {
+    Serial.println("Trend: Resistance decreased");
+  }
+  else {
+    Serial.println("Trend: Large resistance decrease");
+  }
+
+  Serial.println(
+    "Relative trend only; not an IAQ or CO2 value."
+  );
+}
+
+// =======================================
+// VALIDATE SENSOR DATA
+// =======================================
+
+const char* validateSensor() {
+  if (!sensorFound) {
+    return "BME688 missing";
+  }
+
+  if (!isfinite(temperatureC) ||
+      temperatureC < MIN_TEMP_C ||
+      temperatureC > 85.0) {
+    return "Invalid BME688 temperature";
+  }
+
+  if (!isfinite(humidity) ||
+      humidity < 0 ||
+      humidity > 100) {
+    return "Invalid BME688 humidity";
+  }
+
+  if (!isfinite(pressureHPA) ||
+      pressureHPA < 300 ||
+      pressureHPA > 1100) {
+    return "Invalid BME688 pressure";
+  }
+
+  if (temperatureC >= MAX_TEMP_C) {
+    return "BME688 overtemperature";
+  }
+
+  return NULL;
+}
+
+// =======================================
+// READ BME688
+// =======================================
+
+void readSensor() {
+  if (!sensorFound) {
+    sensorValid = false;
+    emergencyStop("BME688 not initialized");
+    return;
+  }
+
