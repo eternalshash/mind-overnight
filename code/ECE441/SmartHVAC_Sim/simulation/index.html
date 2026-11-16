@@ -1987,11 +1987,11 @@ async function connectUsbArduino() {
     updateUsbButtonsUI();
     updatePanel();
     if ($('rpiStatusLine')) {
-      $('rpiStatusLine').textContent = '🟢 Connected to Arduino over USB (115200 baud)! Streaming live telemetry & fault commands...';
+      $('rpiStatusLine').textContent = '🟢 Connected to Arduino Uno R4 V5 (115200 baud)! Streaming live BME688 telemetry & commands (5/H/F/M/S/X/R/D/B)...';
       $('rpiStatusLine').style.color = '#6ee7b7';
     }
-    log('ok', '[USB] Connected directly to Arduino Uno R4 at 115200 baud via Web Serial!');
-    toast('ok', 'USB ARDUINO CONNECTED', 'Direct Web Serial Link Active (115200 Baud)', 'Live BME280 telemetry & fault actuator overrides enabled', 'Toggle any fault or slider to control the physical bench!');
+    log('ok', '[USB] Connected directly to Arduino Uno R4 V5 (BME688, Pin 9 Fan, Pin 10 Relay) at 115200 baud via Web Serial!');
+    toast('ok', 'USB ARDUINO V5 CONNECTED', 'Direct Web Serial Link Active (115200 Baud)', 'Live BME688 telemetry (Temp/RH/Press/Gas) & Pin 9/10 controls enabled', 'Use Bench Drawer or Turntable to send 5/H/F/M/S/X/R commands!');
 
     const decoder = new TextDecoderStream();
     usbPort.readable.pipeTo(decoder.writable).catch(() => {});
@@ -2005,7 +2005,7 @@ async function connectUsbArduino() {
           S.bme.hasLive = false;
           S.wdt.testBlocking = true;
           updateUsbButtonsUI();
-          log('crit', '[USB] Serial stream closed unexpectedly! Serial watchdog counting toward 2.5s fail-safe...');
+          log('crit', '[USB] Serial stream closed unexpectedly! Serial watchdog counting toward 3.5s fail-safe...');
         }
         break;
       }
