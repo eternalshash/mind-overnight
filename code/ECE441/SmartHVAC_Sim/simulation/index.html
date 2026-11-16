@@ -646,7 +646,7 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px;cursor:pointer
             <select id="sModeOvr" class="iot-in" style="margin-top:3px;padding:4px 6px;font-size:10px">
               <option value="AUTO" selected>AUTO (PID SPLIT-RANGE)</option>
               <option value="COOL">FORCE COOLING (100% COMP + FAN)</option>
-              <option value="HEAT">FORCE HEATING (100% 12V PTC RELAY + FAN)</option>
+              <option value="HEAT">FORCE HEATING (PIN 10 12V PTC RELAY + FAN)</option>
               <option value="ECO">ECO MODE (+2.0&deg;F DEADBAND)</option>
               <option value="OFF">SYSTEM OFF</option>
             </select>
@@ -658,16 +658,16 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px;cursor:pointer
           <div class="sl"><div class="h"><span>SIMULATION SPEED</span><b id="lSpd">x40</b></div><input type="range" id="sSpd" min="5" max="120" step="5" value="40"></div>
           <details class="bench-drawer" id="benchDrawer" open>
             <summary>
-              <span>&#9656; EMERGENCY HARDWARE CUTOFF / BENCH TEST DRAWER</span>
+              <span>&#9656; EMERGENCY HARDWARE CUTOFF / ARDUINO V5 BENCH DRAWER</span>
               <span id="killStateBadge" class="badge">STANDBY</span>
             </summary>
             <div class="bench-body">
-              <button class="kill-btn" id="btnMasterKill">MASTER HARDWARE KILL (ALL OFF: PIN 8 LOW &amp; PIN 9 0V)</button>
-              <div style="font-size:8.5px;color:var(--muted);margin-top:6px;letter-spacing:.5px">DIRECT PIN 9 MOSFET FAN BENCH TEST:</div>
+              <button class="kill-btn" id="btnMasterKill">X: EMERGENCY STOP / LOCKOUT (PIN 10 RELAY LOW)</button>
+              <div style="font-size:8.5px;color:var(--muted);margin-top:6px;letter-spacing:.5px">DIRECT PIN 9 MOSFET FAN BENCH TEST (S / M / F):</div>
               <div class="bench-row">
-                <button class="btn" id="btnBenchFan0" style="margin:0;padding:5px 4px;font-size:9px;border-color:var(--red);color:#fca5a5">FAN OFF (0%)</button>
-                <button class="btn" id="btnBenchFan50" style="margin:0;padding:5px 4px;font-size:9px">FAN 50% (128)</button>
-                <button class="btn" id="btnBenchFan100" style="margin:0;padding:5px 4px;font-size:9px;border-color:var(--cyan);color:var(--accent)">FAN 100% (255)</button>
+                <button class="btn" id="btnBenchFan0" style="margin:0;padding:5px 4px;font-size:9px;border-color:var(--red);color:#fca5a5">S: FAN OFF (0%)</button>
+                <button class="btn" id="btnBenchFan50" style="margin:0;padding:5px 4px;font-size:9px">M: FAN 50% (128)</button>
+                <button class="btn" id="btnBenchFan100" style="margin:0;padding:5px 4px;font-size:9px;border-color:var(--cyan);color:var(--accent)">F: FAN 100% (255)</button>
               </div>
               <div style="font-size:8.5px;color:var(--muted);margin-top:6px;letter-spacing:.5px">DIRECT PIN 8 12V PTC HEATER RELAY TEST:</div>
               <div class="bench-row2">
