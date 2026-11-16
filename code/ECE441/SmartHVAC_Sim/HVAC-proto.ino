@@ -609,3 +609,105 @@ void resetSafety() {
 
   if (cooldownActive) {
     Serial.println("Reset denied: cooldown active");
+    return;
+  }
+
+  setFan(255);
+
+  initializeSensor();
+
+  if (!sensorFound) {
+    Serial.println("Reset failed: sensor missing");
+    return;
+  }
+
+  readSensor();
+
+  if (!sensorValid) {
+    Serial.println("Reset failed: invalid data");
+    return;
+  }
+
+  safetyLockout = false;
+  lockoutReason = "None";
+
+  setFan(0);
+
+  Serial.println("SAFETY RESET SUCCESSFUL");
+}
+
+// =======================================
+// COMMAND MENU
+// =======================================
+
+void printMenu() {
+  Serial.println();
+  Serial.println("====== HVAC COMMANDS ======");
+  Serial.println("5 = Heater ON for 5 seconds");
+  Serial.println("H = Stop heater");
+  Serial.println("F = Fan ON 100%");
+  Serial.println("M = Fan ON 50%");
+  Serial.println("S = Fan OFF");
+  Serial.println("X = Emergency software stop");
+  Serial.println("R = Reset safety / retry sensor");
+  Serial.println("D = Diagnostics");
+  Serial.println("B = Reset gas baseline");
+  Serial.println("? = Show menu");
+  Serial.println("===========================");
+}
+
+// =======================================
+// SETUP
+// =======================================
+
+void setup() {
+  // Active-HIGH relay starts OFF
+  digitalWrite(RELAY_PIN, RELAY_OFF);
+  pinMode(RELAY_PIN, OUTPUT);
+
+  digitalWrite(FAN_PIN, LOW);
+  pinMode(FAN_PIN, OUTPUT);
+
+  relayOff();
+  setFan(0);
+
+  Serial.begin(115200);
+
+  Wire.begin();
+  Wire.setClock(100000);
+
+  Serial.println();
+  Serial.println("SMART HVAC DEMO V5");
+  Serial.println("BME688 ONLY");
+  Serial.println("Relay: ACTIVE-HIGH");
+  Serial.println("Heating limit: 5 seconds");
+
+  initializeSensor();
+
+  if (sensorFound) {
+    readSensor();
+  }
+
+  lastSensorRead = millis();
+
+  printMenu();
+}
+
+// =======================================
+// MAIN LOOP
+// =======================================
+
+void loop() {
+  unsigned long now = millis();
+
+  // Five-second maximum software timer
+  if (heaterOn &&
+      now - heaterStart >= HEAT_TIME_MS) {
+
+    stopHeater();
+    Serial.println("5-second test complete.");
+  }
+
+  // Always force relay OFF during lockout
+  if (safetyLockout) {
+    relayOff();
