@@ -13,13 +13,13 @@ import socket
 import sys
 import time
 
-# Physical constants matching include/bench_hal.h & Andy/Kaleb's 10-26-29 Bench Report
+# Physical constants matching include/config.h & Andy's SMART HVAC DEMO V5 (BME688 ONLY)
 V_SUPPLY_12V   = 12.00
 V_RAIL_5V      = 5.00
 R_FAN_WINDING  = 14.286  # GDSTIME 5015 5V Blower Fan (5.0V / 0.35A)
-R_MOSFET_ON    = 0.028   # IRLZ44N Logic-Level N-MOSFET R_DS(on) @ V_GS=5V
-R_PTC_HEATER   = 2.880   # 12V 50W PTC Heating Element (12V^2 / 50W)
-I_MCU_QUIESCENT = 0.045  # Arduino Uno R4 + BME280 baseline logic draw (45 mA)
+R_MOSFET_ON    = 0.028   # IRLZ44N Logic-Level N-MOSFET R_DS(on) @ V_GS=5V (Pin 9)
+R_PTC_HEATER   = 2.880   # 12V 50W PTC Heating Element via Active-HIGH Relay (Pin 10)
+I_MCU_QUIESCENT = 0.045  # Arduino Uno R4 + BME688 baseline logic draw (45 mA)
 BUCK_EFF       = 0.88    # LM2596 DC-DC Buck Converter efficiency
 
 
@@ -91,8 +91,8 @@ def try_live_wokwi_session(host="127.0.0.1", port=4000):
 
 def main():
     print("=" * 108)
-    print(" ECE 441 SMART HVAC BENCH - LIVE TELEMETRY, FAN SPEED & CIRCUIT RESISTANCE MULTIMETER")
-    print(" Hardware Target: Arduino Uno R4 + IRLZ44N MOSFET (Pin 9) + 12V PTC Relay (Pin 8) + BME280 (A4/A5)")
+    print(" ECE 441 SMART HVAC DEMO V5 - LIVE TELEMETRY, FAN SPEED & CIRCUIT RESISTANCE MULTIMETER")
+    print(" Hardware Target: Arduino Uno R4 + IRLZ44N MOSFET (Pin 9) + 12V PTC Relay (Pin 10) + BME688 (A4/A5)")
     print("=" * 108)
 
     sock = try_live_wokwi_session()
