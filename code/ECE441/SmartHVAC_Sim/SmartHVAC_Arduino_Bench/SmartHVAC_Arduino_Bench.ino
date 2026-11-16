@@ -244,250 +244,572 @@ void initializeSensor() {
     else {
       Serial.println("Not a BME688/BME680");
     }
-    if (strncasecmp(line, "PING", 4) == 0) {
-        Serial.print(F("{\"ack\":\"pong\",\"hb_seq\":"));
-        Serial.print(heartbeat_seq);
-        Serial.println(F("}"));
-        return;
-    }
-    if (strncasecmp(line, "AUTO", 4) == 0 || strstr(line, "\"auto\"")) {
-        manual_fan_pwm = -1;
-        manual_heater_mode = -1;
-        Serial.println(F("{\"ack\":\"mode_auto\",\"status\":\"Closed-loop PID restored\"}"));
-        return;
-    }
-    if (strncasecmp(line, "HEAT ON", 7) == 0) {
-        manual_heater_mode = 1;
-        heater_relay_on = true;
-        digitalWrite(PIN_HEATER_RELAY, HIGH);
-        Serial.println(F("{\"ack\":\"heater_forced_on\",\"relay_pin_8\":1}"));
-        printMultimeterSummary(computeCircuitMetrics(heater_relay_on, current_fan_pwm));
-        return;
-    }
-    if (strncasecmp(line, "HEAT OFF", 8) == 0) {
-        manual_heater_mode = 0;
-        heater_relay_on = false;
-        digitalWrite(PIN_HEATER_RELAY, LOW);
-        Serial.println(F("{\"ack\":\"heater_forced_off\",\"relay_pin_8\":0}"));
-        printMultimeterSummary(computeCircuitMetrics(heater_relay_on, current_fan_pwm));
-        return;
-    }
-    if (strncasecmp(line, "FAN ", 4) == 0) {
-        float pct = constrain((float)strtod(line + 4, nullptr), 0.0f, 100.0f);
-        manual_fan_pwm = (int)((pct / 100.0f) * 255.0f + 0.5f);
-        current_fan_pwm = manual_fan_pwm;
-        analogWrite(PIN_FAN_MOSFET, current_fan_pwm);
-        Serial.print(F("{\"ack\":\"manual_fan_speed\",\"fan_speed_pct\":"));
-        Serial.print(pct, 1);
-        Serial.print(F(",\"fan_pwm\":"));
-        Serial.print(manual_fan_pwm);
-        Serial.println(F("}"));
-        printMultimeterSummary(computeCircuitMetrics(heater_relay_on, current_fan_pwm));
-        return;
-    }
-    if (strncasecmp(line, "PWM ", 4) == 0) {
-        manual_fan_pwm = constrain((int)strtol(line + 4, nullptr, 10), 0, 255);
-        current_fan_pwm = manual_fan_pwm;
-        analogWrite(PIN_FAN_MOSFET, current_fan_pwm);
-        Serial.print(F("{\"ack\":\"manual_fan_pwm\",\"fan_pwm\":"));
-        Serial.print(manual_fan_pwm);
-        Serial.println(F("}"));
-        printMultimeterSummary(computeCircuitMetrics(heater_relay_on, current_fan_pwm));
-        return;
-    }
-    if (strncasecmp(line, "SET ", 4) == 0) {
-        float sp = (float)strtod(line + 4, nullptr);
-        if (sp >= MIN_SETPOINT_C && sp <= MAX_SETPOINT_C) {
-            setpoint_c = sp;
-            Serial.print(F("{\"ack\":\"setpoint_updated\",\"setpoint_c\":"));
-            Serial.print(setpoint_c, 2);
-            Serial.println(F("}"));
-        }
-        return;
-    }
+  }
 
-    // JSON command parsing (from Raspberry Pi Edge Server / SerialEdgeBridge)
-    float seqF = -1.0f;
-    if (extractJsonFloat(line, "command_seq", seqF)) {
-        long seq = (long)seqF;
-        if (seq <= last_command_seq && last_command_seq >= 0) return;
-        last_command_seq = seq;
-    }
+  if (sensorFound) {
+    bme688.setTemperatureOversampling(
+      BME680_OS_8X
+    );
 
-    float fanPct = -1.0f, fanPwmF = -1.0f;
-    if (extractJsonFloat(line, "fan_speed", fanPct)) {
-        if (fanPct < 0.0f) {
-            manual_fan_pwm = -1;
-        } else {
-            fanPct = constrain(fanPct, 0.0f, 100.0f);
-            manual_fan_pwm = (int)((fanPct / 100.0f) * 255.0f + 0.5f);
-            current_fan_pwm = manual_fan_pwm;
-            analogWrite(PIN_FAN_MOSFET, current_fan_pwm);
-        }
-    } else if (extractJsonFloat(line, "fan_pwm", fanPwmF)) {
-        if (fanPwmF < 0.0f) {
-            manual_fan_pwm = -1;
-        } else {
-            manual_fan_pwm = constrain((int)fanPwmF, 0, 255);
-            current_fan_pwm = manual_fan_pwm;
-            analogWrite(PIN_FAN_MOSFET, current_fan_pwm);
-        }
-    }
+    bme688.setHumidityOversampling(
+      BME680_OS_2X
+    );
 
-    float spC = 0.0f;
-    if (extractJsonFloat(line, "setpoint_c", spC) || extractJsonFloat(line, "setpoint", spC)) {
-        if (spC >= MIN_SETPOINT_C && spC <= MAX_SETPOINT_C) {
-            setpoint_c = spC;
-        }
-    }
+    bme688.setPressureOversampling(
+      BME680_OS_4X
+    );
+
+    bme688.setIIRFilterSize(
+      BME680_FILTER_SIZE_3
+    );
+
+    // Internal gas-sensing heater
+    // Does NOT control external PTC
+    bme688.setGasHeater(320, 150);
+
+    Serial.print("Sensor ready at 0x");
+    Serial.println(sensorAddress, HEX);
+  }
+  else {
+    emergencyStop("BME688 not detected");
+  }
+
+  Serial.println("============================");
 }
+
+// =======================================
+// RESET GAS BASELINE
+// =======================================
+
+void resetGasBaseline() {
+  gasTotal = 0;
+  gasBaseline = 0;
+  gasCount = 0;
+  gasReady = false;
+
+  Serial.println("Gas baseline reset.");
+}
+
+void updateGasBaseline() {
+  if (gasReady || !isfinite(gasKOhms) ||
+      gasKOhms <= 0) {
+    return;
+  }
+
+  gasTotal += gasKOhms;
+  gasCount++;
+
+  if (gasCount >= GAS_BASELINE_SAMPLES) {
+    gasBaseline = gasTotal / gasCount;
+    gasReady = true;
+
+    Serial.println("Gas baseline established.");
+  }
+}
+
+// =======================================
+// GAS RESISTANCE INTERPRETATION
+// =======================================
+
+void printGasData() {
+  Serial.println();
+  Serial.println("[GAS SENSOR]");
+
+  if (!isfinite(gasKOhms) || gasKOhms <= 0) {
+    Serial.println("Gas reading unavailable");
+    return;
+  }
+
+  Serial.print("Gas resistance: ");
+  Serial.print(gasKOhms, 2);
+  Serial.println(" kOhms");
+
+  if (!gasReady) {
+    Serial.print("Reference samples: ");
+    Serial.print(gasCount);
+    Serial.print("/");
+    Serial.println(GAS_BASELINE_SAMPLES);
+    return;
+  }
+
+  float relative =
+    gasKOhms / gasBaseline * 100.0;
+
+  Serial.print("Baseline: ");
+  Serial.print(gasBaseline, 2);
+  Serial.println(" kOhms");
+
+  Serial.print("Relative resistance: ");
+  Serial.print(relative, 1);
+  Serial.println("%");
+
+  if (relative >= 110) {
+    Serial.println("Trend: Resistance increased");
+  }
+  else if (relative >= 90) {
+    Serial.println("Trend: Near baseline");
+  }
+  else if (relative >= 70) {
+    Serial.println("Trend: Resistance decreased");
+  }
+  else {
+    Serial.println("Trend: Large resistance decrease");
+  }
+
+  Serial.println(
+    "Relative trend only; not an IAQ or CO2 value."
+  );
+}
+
+// =======================================
+// VALIDATE SENSOR DATA
+// =======================================
+
+const char* validateSensor() {
+  if (!sensorFound) {
+    return "BME688 missing";
+  }
+
+  if (!isfinite(temperatureC) ||
+      temperatureC < MIN_TEMP_C ||
+      temperatureC > 85.0) {
+    return "Invalid BME688 temperature";
+  }
+
+  if (!isfinite(humidity) ||
+      humidity < 0 ||
+      humidity > 100) {
+    return "Invalid BME688 humidity";
+  }
+
+  if (!isfinite(pressureHPA) ||
+      pressureHPA < 300 ||
+      pressureHPA > 1100) {
+    return "Invalid BME688 pressure";
+  }
+
+  if (temperatureC >= MAX_TEMP_C) {
+    return "BME688 overtemperature";
+  }
+
+  return NULL;
+}
+
+// =======================================
+// READ BME688
+// =======================================
+
+void readSensor() {
+  if (!sensorFound) {
+    sensorValid = false;
+    emergencyStop("BME688 not initialized");
+    return;
+  }
+
+  bool success = bme688.performReading();
+
+  if (!success) {
+    sensorValid = false;
+    emergencyStop("BME688 reading failed");
+    return;
+  }
+
+  temperatureC = bme688.temperature;
+  humidity = bme688.humidity;
+  pressureHPA = bme688.pressure / 100.0;
+  gasKOhms = bme688.gas_resistance / 1000.0;
+
+  const char* error = validateSensor();
+
+  if (error != NULL) {
+    sensorValid = false;
+    emergencyStop(error);
+    return;
+  }
+
+  sensorValid = true;
+  lastError = "None";
+
+  updateGasBaseline();
+  printSensorData();
+}
+
+// =======================================
+// PRINT SENSOR DATA
+// =======================================
+
+void printSensorData() {
+  Serial.println();
+  Serial.println("================================");
+  Serial.println("       SMART HVAC DEMO V5       ");
+  Serial.println("================================");
+
+  Serial.println("[BME688]");
+
+  Serial.print("Temperature: ");
+  Serial.print(fahrenheit(temperatureC), 2);
+  Serial.print(" F / ");
+  Serial.print(temperatureC, 2);
+  Serial.println(" C");
+
+  Serial.print("Humidity: ");
+  Serial.print(humidity, 1);
+  Serial.println(" % RH");
+
+  Serial.print("Pressure: ");
+  Serial.print(pressureHPA, 2);
+  Serial.println(" hPa");
+
+  Serial.print("Dew point: ");
+  Serial.print(
+    fahrenheit(dewPointC(temperatureC, humidity)), 2
+  );
+  Serial.println(" F");
+
+  Serial.print("Approx. altitude: ");
+  Serial.print(altitudeFeet(pressureHPA), 0);
+  Serial.println(" ft");
+
+  printGasData();
+
+  Serial.println();
+  Serial.println("[HVAC SYSTEM]");
+
+  Serial.print("Heater: ");
+  Serial.println(heaterOn ? "ON" : "OFF");
+
+  Serial.print("Fan PWM: ");
+  Serial.print(fanPWM * 100.0 / 255.0, 0);
+  Serial.println("%");
+
+  Serial.print("Cooldown: ");
+  Serial.println(
+    cooldownActive ? "ACTIVE" : "OFF"
+  );
+
+  Serial.print("Safety lockout: ");
+  Serial.println(
+    safetyLockout ? "ACTIVE" : "CLEAR"
+  );
+
+  if (safetyLockout) {
+    Serial.print("Lockout reason: ");
+    Serial.println(lockoutReason);
+  }
+
+  if (heaterOn) {
+    Serial.print("Heating elapsed: ");
+    Serial.print(
+      (millis() - heaterStart) / 1000.0, 1
+    );
+    Serial.println(" / 5 seconds");
+  }
+
+  Serial.println("================================");
+}
+
+// =======================================
+// DIAGNOSTICS
+// =======================================
+
+void printDiagnostics() {
+  Serial.println();
+  Serial.println("===== BME688 DIAGNOSTICS =====");
+
+  Serial.print("Sensor detected: ");
+  Serial.println(sensorFound ? "YES" : "NO");
+
+  Serial.print("Sensor address: 0x");
+  Serial.println(sensorAddress, HEX);
+
+  Serial.print("Sensor data valid: ");
+  Serial.println(sensorValid ? "YES" : "NO");
+
+  Serial.print("Last error: ");
+  Serial.println(lastError);
+
+  Serial.print("Temperature C: ");
+  Serial.println(temperatureC);
+
+  Serial.print("Humidity %: ");
+  Serial.println(humidity);
+
+  Serial.print("Pressure hPa: ");
+  Serial.println(pressureHPA);
+
+  Serial.print("Gas resistance kOhms: ");
+  Serial.println(gasKOhms);
+
+  Serial.print("Heater: ");
+  Serial.println(heaterOn ? "ON" : "OFF");
+
+  Serial.print("Cooldown: ");
+  Serial.println(
+    cooldownActive ? "ACTIVE" : "OFF"
+  );
+
+  Serial.print("Lockout: ");
+  Serial.println(
+    safetyLockout ? "ACTIVE" : "CLEAR"
+  );
+
+  Serial.print("Lockout reason: ");
+  Serial.println(lockoutReason);
+
+  Serial.println("==============================");
+}
+
+// =======================================
+// FIVE-SECOND HEATER TEST
+// =======================================
+
+void startHeaterTest() {
+  if (safetyLockout ||
+      !sensorValid ||
+      cooldownActive ||
+      heaterOn) {
+
+    Serial.println("HEATER TEST DENIED");
+
+    if (safetyLockout) {
+      Serial.print("Reason: ");
+      Serial.println(lockoutReason);
+    }
+
+    return;
+  }
+
+  // Recheck sensor before heater starts
+  readSensor();
+
+  if (safetyLockout || !sensorValid) {
+    Serial.println("Unsafe sensor condition");
+    return;
+  }
+
+  setFan(255);
+
+  heaterStart = millis();
+  relayOn();
+
+  Serial.println();
+  Serial.println("HEATER ON");
+  Serial.println("5-second heating test started.");
+  Serial.println("Fan at 100%.");
+}
+
+// =======================================
+// RESET SAFETY
+// =======================================
+
+void resetSafety() {
+  relayOff();
+
+  Serial.println("Attempting safety reset...");
+
+  if (cooldownActive) {
+    Serial.println("Reset denied: cooldown active");
+    return;
+  }
+
+  setFan(255);
+
+  initializeSensor();
+
+  if (!sensorFound) {
+    Serial.println("Reset failed: sensor missing");
+    return;
+  }
+
+  readSensor();
+
+  if (!sensorValid) {
+    Serial.println("Reset failed: invalid data");
+    return;
+  }
+
+  safetyLockout = false;
+  lockoutReason = "None";
+
+  setFan(0);
+
+  Serial.println("SAFETY RESET SUCCESSFUL");
+}
+
+// =======================================
+// COMMAND MENU
+// =======================================
+
+void printMenu() {
+  Serial.println();
+  Serial.println("====== HVAC COMMANDS ======");
+  Serial.println("5 = Heater ON for 5 seconds");
+  Serial.println("H = Stop heater");
+  Serial.println("F = Fan ON 100%");
+  Serial.println("M = Fan ON 50%");
+  Serial.println("S = Fan OFF");
+  Serial.println("X = Emergency software stop");
+  Serial.println("R = Reset safety / retry sensor");
+  Serial.println("D = Diagnostics");
+  Serial.println("B = Reset gas baseline");
+  Serial.println("? = Show menu");
+  Serial.println("===========================");
+}
+
+// =======================================
+// SETUP
+// =======================================
 
 void setup() {
-    Serial.begin(SERIAL_BAUD_RATE);
-    pinMode(PIN_FAN_MOSFET, OUTPUT);
-    pinMode(PIN_HEATER_RELAY, OUTPUT);
-    pinMode(PIN_STATUS_LED, OUTPUT);
+  // Active-HIGH relay starts OFF
+  digitalWrite(RELAY_PIN, RELAY_OFF);
+  pinMode(RELAY_PIN, OUTPUT);
 
-    analogWrite(PIN_FAN_MOSFET, current_fan_pwm);
-    digitalWrite(PIN_HEATER_RELAY, LOW);
-    digitalWrite(PIN_STATUS_LED, HIGH);
+  digitalWrite(FAN_PIN, LOW);
+  pinMode(FAN_PIN, OUTPUT);
 
-    Wire.begin();
-    bme_online = bme.begin(BME280_I2C_ADDR_PRIMARY);
-    if (!bme_online) bme_online = bme.begin(BME280_I2C_ADDR_ALT);
+  relayOff();
+  setFan(0);
 
-    Serial.println(F("================================================================================"));
-    Serial.println(F("ECE 441 SMART HVAC BENCH CONTROLLER (Arduino Uno R4 + IRLZ44N MOSFET + BME280)"));
-    Serial.println(F("Commands: FAN <0-100> | PWM <0-255> | SET <15-30> | HEAT ON | HEAT OFF | AUTO"));
-    Serial.println(F("================================================================================"));
+  Serial.begin(115200);
+
+  Wire.begin();
+  Wire.setClock(100000);
+
+  Serial.println();
+  Serial.println("SMART HVAC DEMO V5");
+  Serial.println("BME688 ONLY");
+  Serial.println("Relay: ACTIVE-HIGH");
+  Serial.println("Heating limit: 5 seconds");
+
+  initializeSensor();
+
+  if (sensorFound) {
+    readSensor();
+  }
+
+  lastSensorRead = millis();
+
+  printMenu();
 }
 
+// =======================================
+// MAIN LOOP
+// =======================================
+
 void loop() {
-    while (Serial.available() > 0) {
-        char c = (char)Serial.read();
-        if (c == '\n' || c == '\r') {
-            if (serial_rx_len > 0) {
-                serial_rx_buf[serial_rx_len] = '\0';
-                handleSerialCommand(serial_rx_buf);
-                serial_rx_len = 0;
-            }
-        } else if (serial_rx_len < sizeof(serial_rx_buf) - 1) {
-            serial_rx_buf[serial_rx_len++] = c;
-        }
+  unsigned long now = millis();
+
+  // Five-second maximum software timer
+  if (heaterOn &&
+      now - heaterStart >= HEAT_TIME_MS) {
+
+    stopHeater();
+    Serial.println("5-second test complete.");
+  }
+
+  // Always force relay OFF during lockout
+  if (safetyLockout) {
+    relayOff();
+  }
+
+  // Read sensor periodically
+  if (now - lastSensorRead >= SENSOR_INTERVAL_MS) {
+    lastSensorRead = now;
+
+    if (sensorFound) {
+      readSensor();
+    }
+  }
+
+  // Check heater timer again after reading
+  now = millis();
+
+  if (heaterOn &&
+      now - heaterStart >= HEAT_TIME_MS) {
+    stopHeater();
+  }
+
+  // Cooldown timer
+  if (cooldownActive &&
+      now - cooldownStart >= COOLDOWN_MS) {
+
+    cooldownActive = false;
+
+    if (!safetyLockout) {
+      setFan(0);
     }
 
-    unsigned long now = millis();
-    if (now - last_control_ms >= CONTROL_LOOP_MS) {
-        float dt = (now - last_control_ms) / 1000.0f;
-        last_control_ms = now;
+    Serial.println("Cooldown completed.");
+  }
 
-        if (!bme_online && (now - last_retry_ms >= BME_RETRY_INTERVAL_MS)) {
-            last_retry_ms = now;
-            bme_online = bme.begin(BME280_I2C_ADDR_PRIMARY) || bme.begin(BME280_I2C_ADDR_ALT);
+  // Serial commands
+  if (Serial.available()) {
+    char cmd = toupper(Serial.read());
+
+    switch (cmd) {
+
+      case '5':
+        startHeaterTest();
+        break;
+
+      case 'H':
+        stopHeater();
+        break;
+
+      case 'F':
+        setFan(255);
+        Serial.println("Fan ON 100%");
+        break;
+
+      case 'M':
+        if (!heaterOn &&
+            !cooldownActive &&
+            !safetyLockout) {
+
+          setFan(128);
+          Serial.println("Fan ON 50%");
         }
-        if (bme_online) {
-            float t = bme.readTemperature();
-            float h = bme.readHumidity();
-            float p = bme.readPressure() / 100.0f;
-            if (!isnan(t) && t > -35.0f && t < 80.0f) {
-                last_temp_c = t;
-                if (!isnan(h)) last_rh_pct = h;
-                if (!isnan(p)) last_press_hpa = p;
-            } else {
-                bme_online = false;
-            }
+        else {
+          Serial.println("Fan change denied");
         }
+        break;
 
-        float air_vel = (current_fan_pwm / 255.0f) * 7.0f;
-        float feels_like_c = calculateApparentTemp(last_temp_c, last_rh_pct, air_vel);
+      case 'S':
+        if (!heaterOn &&
+            !cooldownActive &&
+            !safetyLockout) {
 
-        float err = setpoint_c - feels_like_c;
-        pid_integral = constrain(pid_integral + (err * dt * PID_KI), 0.0f, 255.0f);
-        float deriv = (dt > 0.0f) ? ((err - prev_error) / dt) : 0.0f;
-        prev_error = err;
-        pid_output = constrain((PID_KP * err) + pid_integral + (PID_KD * deriv), 0.0f, 255.0f);
-
-        if (manual_heater_mode >= 0) {
-            heater_relay_on = (manual_heater_mode == 1);
-        } else {
-            heater_relay_on = (pid_output >= 64.0f);
+          setFan(0);
+          Serial.println("Fan OFF");
         }
-        digitalWrite(PIN_HEATER_RELAY, heater_relay_on ? HIGH : LOW);
-
-        if (manual_fan_pwm >= 0) {
-            current_fan_pwm = manual_fan_pwm;
-        } else {
-            float cooling_deficit = feels_like_c - setpoint_c;
-            if (cooling_deficit > 0.3f) {
-                current_fan_pwm = (int)constrain(cooling_deficit * 85.0f, (float)FAN_MIN_CIRCULATION_PWM, 255.0f);
-            } else {
-                current_fan_pwm = max((int)FAN_MIN_CIRCULATION_PWM, (int)(pid_output * 0.85f));
-            }
+        else {
+          Serial.println("Fan OFF denied");
         }
-        analogWrite(PIN_FAN_MOSFET, current_fan_pwm);
-        digitalWrite(PIN_STATUS_LED, bme_online ? HIGH : LOW);
+        break;
 
-        if (now - last_telemetry_ms >= TELEMETRY_INTERVAL_MS) {
-            last_telemetry_ms = now;
-            CircuitMetrics cm = computeCircuitMetrics(heater_relay_on, current_fan_pwm);
-            Serial.print(F("{\"device_id\":\"" DEVICE_ID "\",\"temp_c\":"));
-            Serial.print(last_temp_c, 2);
-            Serial.print(F(",\"humidity\":"));
-            Serial.print(last_rh_pct, 1);
-            Serial.print(F(",\"pressure_hpa\":"));
-            Serial.print(last_press_hpa, 1);
-            Serial.print(F(",\"feels_like_c\":"));
-            Serial.print(feels_like_c, 2);
-            Serial.print(F(",\"setpoint_c\":"));
-            Serial.print(setpoint_c, 2);
-            Serial.print(F(",\"fan_pwm\":"));
-            Serial.print(current_fan_pwm);
-            Serial.print(F(",\"fan_speed_pct\":"));
-            Serial.print((current_fan_pwm * 100.0f) / 255.0f, 1);
-            Serial.print(F(",\"fan_mode\":\""));
-            Serial.print(manual_fan_pwm >= 0 ? F("MANUAL") : F("AUTO"));
-            Serial.print(F("\",\"heater_relay\":"));
-            Serial.print(heater_relay_on ? 1 : 0);
-            Serial.print(F(",\"air_velocity_ms\":"));
-            Serial.print(air_vel, 2);
-            Serial.print(F(",\"v_supply_12v\":"));
-            Serial.print(cm.v_supply_12v, 2);
-            Serial.print(F(",\"v_rail_5v\":"));
-            Serial.print(cm.v_rail_5v, 2);
-            Serial.print(F(",\"v_mosfet_gs\":"));
-            Serial.print(cm.v_mosfet_gs, 2);
-            Serial.print(F(",\"v_fan_eff\":"));
-            Serial.print(cm.v_fan_eff, 2);
-            Serial.print(F(",\"i_fan_a\":"));
-            Serial.print(cm.i_fan_a, 3);
-            Serial.print(F(",\"i_heater_a\":"));
-            Serial.print(cm.i_heater_a, 3);
-            Serial.print(F(",\"i_total_a\":"));
-            Serial.print(cm.i_total_load_a, 3);
-            Serial.print(F(",\"i_12v_bus_a\":"));
-            Serial.print(cm.i_12v_bus_a, 3);
-            Serial.print(F(",\"power_w\":"));
-            Serial.print(cm.p_total_w, 2);
-            Serial.print(F(",\"r_fan_ohm\":"));
-            Serial.print(cm.r_fan_branch_ohm, 2);
-            Serial.print(F(",\"r_5v_rail_ohm\":"));
-            Serial.print(cm.r_5v_rail_ohm, 2);
-            Serial.print(F(",\"r_total_circuit_ohm\":"));
-            Serial.print(cm.r_total_circuit_ohm, 2);
-            Serial.print(F(",\"bme_ok\":"));
-            Serial.print(bme_online ? 1 : 0);
-            // BME280 internal 20-bit Sigma-Delta ADC register equivalent & A4/A5 I2C pipeline telemetry
-            long adc_raw_20b = constrain((long)((last_temp_c + 40.0f) * 8388.6f), 0L, 1048575L);
-            float v_sense_mv = (adc_raw_20b / 1048575.0f) * 3300.0f;
-            Serial.print(F(",\"adc_raw_20b\":"));
-            Serial.print(adc_raw_20b);
-            Serial.print(F(",\"v_sense_mv\":"));
-            Serial.print(v_sense_mv, 1);
-            Serial.print(F(",\"i2c_pins\":\"A4_SDA_A5_SCL\""));
-            Serial.print(F(",\"hb_seq\":"));
-            Serial.print(++heartbeat_seq);
-            Serial.println(F("}"));
-            printMultimeterSummary(cm);
-        }
+      case 'X':
+        emergencyStop("Manual emergency stop");
+        break;
+
+      case 'R':
+        resetSafety();
+        break;
+
+      case 'D':
+        printDiagnostics();
+        break;
+
+      case 'B':
+        resetGasBaseline();
+        break;
+
+      case '?':
+        printMenu();
+        break;
+
+      default:
+        break;
     }
+  }
 }
