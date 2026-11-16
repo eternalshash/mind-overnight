@@ -1571,8 +1571,8 @@ setInterval(() => {
   $('mWdtMsg').innerHTML = M.wdt.tripped
     ? '<span style="color:#fca5a5"><b>E-204 WATCHDOG LATCHED:</b> No telemetry &gt;3.5s! Pin 10 PTC Relay forced to 0V. Tap RESET WDT.</span>'
     : M.wdt.testing
-      ? '<span style="color:#fcd34d">Simulating dropped serial link... fail-safe triggers at 2.5s</span>'
-      : '1 Hz heartbeat active &bull; Fail-safe hardware cutoff armed at 2.5s';
+      ? '<span style="color:#fcd34d">Simulating dropped serial link... fail-safe triggers at 3.5s</span>'
+      : '2s BME688 telemetry active &bull; Fail-safe hardware cutoff armed at 3.5s';
 
   // Render Multimeter
   $('mPwmBadge').textContent = `PWM ${pwm}/255 (${Math.round(D * 100)}%)`;
@@ -1583,10 +1583,10 @@ setInterval(() => {
   $('mR5v').textContent = r5v.toFixed(1);
   $('mRfanSub').textContent = rFan < 0 ? 'R_fan OPEN (∞)' : `R_fan ${rFan.toFixed(1)} Ω`;
   $('mRtot').textContent = rTot.toFixed(1);
-  $('mHtrSub').textContent = `PTC Htr: ${iHtr.toFixed(2)} A`;
+  $('mHtrSub').textContent = `Pin 10 PTC: ${iHtr.toFixed(2)} A`;
 
   $('mEqBox').innerHTML =
-    `<div class="eq-card"><div class="et">Live Substituted Bench Equations</div>` +
+    `<div class="eq-card"><div class="et">Live Substituted Bench Equations (Pin 9 MOSFET + Pin 10 PTC)</div>` +
     `<div class="ef">D = ${pwm}/255 = ${(D * 100).toFixed(1)}% &bull; V_GS = 5.00V &times; ${D.toFixed(2)} = <b>${vGs.toFixed(2)} V</b></div>` +
     `<div class="ef">I_fan = ${D.toFixed(2)} &times; (5V / 14.314&Omega;) = <b>${(iFan * 1000).toFixed(1)} mA</b> &bull; I_5V = 45mA + I_fan = <b>${(i5v * 1000).toFixed(1)} mA</b></div>` +
     `<div class="ev">R_5V = 5V / ${i5v.toFixed(3)}A = ${r5v.toFixed(2)} &Omega; &nbsp;|&nbsp; R_tot(12V) = 12V / ${i12v.toFixed(3)}A = ${rTot.toFixed(2)} &Omega;</div></div>`;
