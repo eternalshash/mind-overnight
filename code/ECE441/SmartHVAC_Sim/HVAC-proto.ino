@@ -100,3 +100,105 @@ void setFan(uint8_t pwm) {
 
 // =======================================
 // HEATER SHUTDOWN
+// =======================================
+
+void stopHeater() {
+  bool wasHeating = heaterOn;
+
+  // Always command relay OFF
+  relayOff();
+
+  if (wasHeating) {
+    cooldownActive = true;
+    cooldownStart = millis();
+
+    setFan(255);
+
+    Serial.println();
+    Serial.println("HEATER OFF");
+    Serial.println("30-second fan cooldown started.");
+  }
+}
+
+// =======================================
+// SAFETY LOCKOUT
+// =======================================
+
+void emergencyStop(const char* reason) {
+  stopHeater();
+  relayOff();
+
+  lastError = reason;
+
+  if (!safetyLockout) {
+    lockoutReason = reason;
+
+    Serial.println();
+    Serial.println("!!!!!!!!!!!!!!!!!!!!!!!!");
+    Serial.println("     SAFETY LOCKOUT     ");
+    Serial.println("!!!!!!!!!!!!!!!!!!!!!!!!");
+
+    Serial.print("Reason: ");
+    Serial.println(reason);
+  }
+
+  safetyLockout = true;
+
+  // Continue airflow during lockout
+  setFan(255);
+}
+
+// =======================================
+// UNIT CONVERSIONS
+// =======================================
+
+float fahrenheit(float c) {
+  return c * 1.8 + 32.0;
+}
+
+float dewPointC(float temp, float rh) {
+  if (rh <= 0 || rh > 100) {
+    return NAN;
+  }
+
+  const float a = 17.62;
+  const float b = 243.12;
+
+  float gamma =
+    log(rh / 100.0) +
+    (a * temp) / (b + temp);
+
+  return (b * gamma) / (a - gamma);
+}
+
+float altitudeFeet(float pressure) {
+  return 145366.45 *
+    (1.0 - pow(pressure / SEA_LEVEL_HPA,
+               0.190284));
+}
+
+// =======================================
+// READ I2C CHIP ID
+// =======================================
+
+int readChipID(uint8_t address) {
+  Wire.beginTransmission(address);
+  Wire.write(0xD0);
+
+  if (Wire.endTransmission(false) != 0) {
+    return -1;
+  }
+
+  if (Wire.requestFrom(address, (uint8_t)1) != 1) {
+    return -1;
+  }
+
+  return Wire.read();
+}
+
+// =======================================
+// INITIALIZE BME688
+// =======================================
+
+void initializeSensor() {
+  // Ensure heater is OFF during initialization
