@@ -2935,10 +2935,15 @@ async function benchSetHeaterRelay(turnOn) {
   S.modeOverride = turnOn ? 'HEAT' : 'AUTO';
   if ($('sModeOvr')) $('sModeOvr').value = S.modeOverride;
   S.ctl.heat = turnOn ? 100 : 0;
+  S.bme.heaterOn = !!turnOn;
+  if (turnOn) {
+    S.fanOverride = 100;
+    if ($('sFanOvr')) $('sFanOvr').value = 100;
+  }
   readSliders();
-  updateKillDrawerUI(turnOn ? 'PTC RELAY ON' : 'RELAY SAFE OFF', turnOn ? 'warn' : 'ok');
+  updateKillDrawerUI(turnOn ? '5s HEATER ON' : 'RELAY SAFE OFF', turnOn ? 'warn' : 'ok');
   if (S.usbConnected) {
-    await sendUsbSerialCommand(turnOn ? 'HEAT ON' : 'HEAT OFF');
+    await sendUsbSerialCommand(turnOn ? '5' : 'H');
   }
   pushSimControlToRPi();
   plant(0.05);
