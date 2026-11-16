@@ -877,7 +877,7 @@ const FAULT_DEFS = [
     { id: 'smoke', nm: 'Outdoor wildfire smoke',       ds: 'Outdoor PM2.5 climbs to 160 ug/m3' } ] },
   { grp: 'MCU FAIL-SAFE AND HARDWARE REDUNDANCY', items: [
     { id: 'mcu',    nm: 'Primary ESP32 crash',         ds: 'Core panic / brownout on MCU-A' },
-    { id: 'sensor', nm: 'Primary temp sensor failure', ds: 'BME280 (TS-A) output stuck at 63.0 F' },
+    { id: 'sensor', nm: 'Primary temp sensor failure', ds: 'BME688 (TS-A) output stuck at 63.0 F' },
     { id: 'wifi',   nm: 'Wi-Fi / cloud outage',        ds: 'MQTT broker unreachable' } ] },
   { grp: 'AIR DUCT DYNAMICS AND FILTER', items: [
     { id: 'clog',   nm: 'Progressive filter clogging', ds: 'Filter media loads with dust over time' },
@@ -921,8 +921,11 @@ const S = {
   iotAuto: false, iotSent: 0, iotOnline: false, iotDispatched: {}, iotQueue: [],
   rpiSync: true, rpiOnline: false, rpiPkts: 0, rpiLastCmdSeq: -1, rpiBuffer: [],
   usbConnected: false,
-  bme: { hasLive: false, tempC: 24.0, rh: 48.0, pressHpa: 1013.25, bmeOk: true, adcRaw20b: 536870, vSenseMv: 1689.6 },
-  wdt: { elapsedS: 0.2, timeoutS: 2.5, lastHbSeq: 1, tripped: false, testBlocking: false, _lastSimSec: 0 },
+  bme: { hasLive: false, tempC: 24.0, rh: 48.0, pressHpa: 1013.25, bmeOk: true, adcRaw20b: 536870, vSenseMv: 1689.6,
+         chipId: '0x61', i2cAddr: '0x76', gasKOhms: 142.5, gasBaseline: 140.0, gasRelPct: 101.8, gasTrend: 'Near baseline',
+         gasReady: true, gasSamples: '20/20', dewPointF: 54.3, altitudeFt: 412, heaterOn: false, cooldownActive: false,
+         safetyLockout: false, lockoutReason: 'None' },
+  wdt: { elapsedS: 0.2, timeoutS: 3.5, lastHbSeq: 1, tripped: false, testBlocking: false, _lastSimSec: 0 },
   commLog: [], commStats: { count: 0, minMs: 9999, maxMs: 0, avgMs: 0, lastMs: 0, totalMs: 0 }
 };
 
@@ -1011,7 +1014,7 @@ function buildIoTAlertPayload(idOrCode) {
     code = 'E-204';
     row1 = 'Serial comms watchdog timeout';
     row2 = `Room: ${roomF.toFixed(1)}°F | Last HB Seq: #${S.wdt.lastHbSeq} | Silence: ${S.wdt.elapsedS.toFixed(1)}s`;
-    row3 = 'System Action: Fail-safe engaged, Pin 8 PTC relay and Pin 9 fan gated OFF';
+    row3 = 'System Action: Fail-safe engaged, Pin 10 PTC relay gated OFF and Pin 9 fan fail-safe';
   } else if (fId === 'clog' || idOrCode === 'E-301') {
     code = 'E-301';
     row1 = 'Air filter severely restricted';
