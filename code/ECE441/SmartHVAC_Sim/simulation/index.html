@@ -3062,12 +3062,12 @@ function resetSerialWatchdog() {
     if ($('sFanOvr')) $('sFanOvr').value = -1;
     readSliders();
     updateKillDrawerUI('STANDBY', '');
-    if (S.usbConnected) sendUsbSerialCommand('AUTO');
+    if (S.usbConnected) sendUsbSerialCommand('R');
     pushSimControlToRPi();
   }
   if (wasActive) {
     log('ok', '[WATCHDOG] Serial comms watchdog reset. Closed-loop AUTO PID control resumed.');
-    toast('ok', 'WATCHDOG RESET', 'Heartbeat Supervision Armed', 'E-204 cleared — Pin 8 & Pin 9 returned to AUTO PID', '');
+    toast('ok', 'WATCHDOG RESET', 'Heartbeat Supervision Armed', 'E-204 cleared — Pin 10 & Pin 9 returned to AUTO PID', '');
   }
   updateCards();
   updatePanel();
@@ -3085,6 +3085,7 @@ $('clearAll').addEventListener('click', () => {
   S.fanAct = 22; S.damperAct = 0; S.rpm = 616; S.ctl.mode = 'IDLE';
   S.mcu.a = 'RUN'; S.mcu.b = 'STANDBY'; S.mcu.active = 'A';
   S.wdt.tripped = false; S.wdt.testBlocking = false; S.wdt.elapsedS = 0.2;
+  S.bme.safetyLockout = false; S.bme.cooldownActive = false; S.bme.heaterOn = false;
   updateKillDrawerUI('STANDBY', '');
   S.diag = {};
   $('sSp').value = 73; $('sOut').value = 82; $('sLim').value = 1500;
@@ -3148,7 +3149,7 @@ function updateCards() {
     h += card('PIN 9 GATE & FAN V', f2(e.v_fan_eff), 'V', `V_GS ${f2(e.v_mosfet_gs)}V | PWM ${e.fan_pwm}/255 | ${c.mode}`, modeCrit);
     h += card('BENCH CURRENT (I)', f0(e.i_5v_total * 1000), 'mA', `FAN ${f0(e.i_fan_a * 1000)}mA | 12V BUS ${f2(e.i_12v_bus_a)}A`);
     h += card('5V RAIL & FAN R', f2(e.r_5v_rail_ohm), 'Ω', `R_FAN ${e.r_fan_ohm < 0 ? 'OPEN (∞)' : f2(e.r_fan_ohm) + ' Ω'} | R_DS 0.028 Ω`);
-    h += card('TOTAL CIRCUIT R (12V)', f2(e.r_total_circuit_ohm), 'Ω', `MODE: ${c.mode} | HTR ${f2(e.i_heater_a)} A`, modeCrit);
+    h += card('TOTAL CIRCUIT R (12V)', f2(e.r_total_circuit_ohm), 'Ω', `MODE: ${c.mode} | PIN 10 HTR ${f2(e.i_heater_a)} A`, modeCrit);
   } else if (view === 'forecast') {
     h += card('NEXT 6 H ENERGY', f2(F.kWh), 'kWh', 'DIURNAL + ENVELOPE + PLUG MODEL');
     h += card('NEXT 6 H COST', '$' + f2(F.kWh * P.price), '', `AVG ${f0(F.kWh / 6 * 1000)} W`);
