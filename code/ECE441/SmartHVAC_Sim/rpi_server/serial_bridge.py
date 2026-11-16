@@ -4,7 +4,8 @@ Plug-and-Play USB Serial & Wokwi RFC2217 Bridge for Raspberry Pi 5 Edge Server
 File: rpi_server/serial_bridge.py
 
 Automatically discovers and connects to:
-  1. Physical Arduino Uno R4 over USB Serial (/dev/ttyACM*, /dev/ttyUSB*, /dev/cu.usbmodem*)
+  1. Physical Arduino Uno R4 WiFi (SMART HVAC DEMO V5 — BME688 ONLY, Pin 9 Fan PWM, Pin 10 Relay)
+     over USB Serial (/dev/ttyACM*, /dev/ttyUSB*, /dev/cu.usbmodem*)
   2. Live VS Code Wokwi Simulator via TCP RFC2217 port (127.0.0.1:4000)
 
 Streams incoming JSON telemetry directly into HVACEdgeStore (SQLite) and
