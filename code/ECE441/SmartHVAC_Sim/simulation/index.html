@@ -3199,10 +3199,10 @@ function updateCards() {
     if ($('bmeAdcFlow')) {
       const hexAdc = '0x' + S.bme.adcRaw20b.toString(16).toUpperCase().padStart(5, '0');
       $('bmeAdcFlow').innerHTML =
-        `Analog Sense <b class="stage">${S.bme.vSenseMv.toFixed(1)} mV</b><span class="arr">&rarr;</span>` +
-        `20-bit &Sigma;&Delta; ADC <b class="stage">${hexAdc} (${S.bme.adcRaw20b})</b><span class="arr">&rarr;</span>` +
-        `I2C <b class="stage">0x76 (A4/A5)</b><span class="arr">&rarr;</span>` +
-        `Digital <b class="grn">${fF(c.Tctl)}&deg;F (${c.Tctl.toFixed(2)}&deg;C) | ${f1(S.RH)}% RH</b>`;
+        `Analog Sense <b class="stage">${S.bme.vSenseMv.toFixed(1)} mV (${hexAdc})</b><span class="arr">&rarr;</span>` +
+        `I2C <b class="stage">${S.bme.i2cAddr} (Chip ${S.bme.chipId})</b><span class="arr">&rarr;</span>` +
+        `Digital <b class="grn">${fF(c.Tctl)}&deg;F (${c.Tctl.toFixed(2)}&deg;C) | ${f1(S.RH)}% RH | ${S.bme.pressHpa.toFixed(1)} hPa</b><span class="arr">&rarr;</span>` +
+        `MOX Gas <b class="stage">${S.bme.gasKOhms.toFixed(1)} k&Omega; (${S.bme.gasRelPct.toFixed(0)}%)</b>`;
     }
   }
 }
@@ -3223,13 +3223,13 @@ function updatePanel() {
   if ($('wdtPanel')) {
     const w = S.wdt;
     const pct = clamp((w.elapsedS / w.timeoutS) * 100, 0, 100);
-    const isWarn = !w.tripped && (w.testBlocking || w.elapsedS > 1.3);
+    const isWarn = !w.tripped && (w.testBlocking || w.elapsedS > 2.2);
     $('wdtPanel').className = 'wdt-box' + (w.tripped ? ' trip' : isWarn ? ' warn' : '');
     if ($('wdtBadge')) {
       $('wdtBadge').textContent = w.tripped
         ? `TRIPPED (${w.elapsedS.toFixed(1)}s)`
         : w.testBlocking
-          ? `BLOCKING HB (${w.elapsedS.toFixed(1)}s / 2.5s)`
+          ? `BLOCKING HB (${w.elapsedS.toFixed(1)}s / ${w.timeoutS.toFixed(1)}s)`
           : S.usbConnected
             ? `USB HB #${w.lastHbSeq} (${w.elapsedS.toFixed(1)}s)`
             : `SIM HB #${w.lastHbSeq} (${w.elapsedS.toFixed(1)}s)`;
