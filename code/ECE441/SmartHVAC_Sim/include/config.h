@@ -17,24 +17,29 @@
 #define MQTT_TOPIC_SUB          "ece441/group2/hvac/setpoint"
 #define MQTT_TOPIC_ALERTS       "ece441/group2/hvac/alerts"
 
-// --- Hardware Actuator Pins (Arduino Uno / Uno R4) ---
+// --- Hardware Actuator Pins (Arduino Uno R4 WiFi — SMART HVAC DEMO V5) ---
 // Pin 9: Logic Pin connected to Gate (G) of IRLZ44N N-Channel MOSFET (PWM Fan Control)
 #define PIN_FAN_MOSFET          9
 #define PIN_FAN_PWM             PIN_FAN_MOSFET
+#define FAN_PIN                 9
 
-// Pin 8: Digital Trigger connected to IN of 12V PTC Heating Element Relay Module
-#define PIN_HEATER_RELAY        8
+// Pin 10: Active-HIGH Digital Trigger connected to IN of 12V PTC Heating Element Relay Module
+#define PIN_HEATER_RELAY        10
 #define PIN_HEATER_PWM          PIN_HEATER_RELAY
+#define RELAY_PIN               10
 
 // Pin 13: Onboard Status LED & Reference Indicator
 #define PIN_STATUS_LED          13
 
-// --- I2C Environmental Sensor Pins (Bosch BME280 / BME688) ---
-// A4: SDA | A5: SCL | 5V: VIN | GND: Dedicated Arduino GND (Isolated from Fan return)
+// --- I2C Environmental & MOX Gas Sensor Pins (Bosch BME688 ONLY) ---
+// A4: SDA | A5: SCL | 100 kHz I2C | Chip ID: 0x61 | Gas Heater: 320°C / 150ms
 #define PIN_I2C_SDA             A4
 #define PIN_I2C_SCL             A5
 #define PIN_BME_SDA             PIN_I2C_SDA
 #define PIN_BME_SCL             PIN_I2C_SCL
+#define BME688_I2C_ADDR_PRIMARY 0x76
+#define BME688_I2C_ADDR_ALT     0x77
+#define BME688_CHIP_ID          0x61
 #define BME280_I2C_ADDR_PRIMARY 0x76
 #define BME280_I2C_ADDR_ALT     0x77
 
