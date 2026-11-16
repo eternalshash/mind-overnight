@@ -20,7 +20,6 @@ import math
 import re
 import socket
 import threading
-import time
 from typing import Any, Dict, Optional
 
 from .storage import HVACEdgeStore
