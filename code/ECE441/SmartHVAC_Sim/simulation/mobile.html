@@ -1296,22 +1296,22 @@ $('mBtnHeatOff').addEventListener('click', async () => {
   $('mKillBadge').textContent = 'RELAY OFF'; $('mKillBadge').className = 'pill ok';
   syncControlsFromUI(true);
   updateMobileNestUI();
-  await sendUsbCmd('HEAT OFF');
-  showToast('Pin 8 12V PTC Heater Relay forced OFF (0V Safe)', 'ok');
+  await sendUsbCmd('H');
+  showToast('Pin 10 12V PTC Heater Relay stopped (H -> LOW 0V)', 'ok');
 });
 
 $('mBtnHeatOn').addEventListener('click', async () => {
   M.modeOvr = 'HEAT'; $('mModeSelect').value = 'HEAT'; M.heat = 100;
   $('mBtnKill').classList.remove('latched');
-  $('mKillBadge').textContent = 'PTC ON'; $('mKillBadge').className = 'pill warn';
+  $('mKillBadge').textContent = '5s PTC ON'; $('mKillBadge').className = 'pill warn';
   syncControlsFromUI(true);
   updateMobileNestUI();
-  await sendUsbCmd('HEAT ON');
-  showToast('Pin 8 12V PTC Heater Relay energized (HIGH)', '');
+  await sendUsbCmd('5');
+  showToast('Pin 10 12V PTC Heater 5-second test started (5 -> HIGH + Fan 100%)', '');
 });
 
 $('mBtnRestoreAuto').addEventListener('click', async () => {
-  M.modeOvr = 'AUTO'; M.fanOvr = -1;
+  M.modeOvr = 'AUTO'; M.fanOvr = -1; M.safetyLockout = false;
   $('mModeSelect').value = 'AUTO'; $('mFanSlider').value = -1;
   $('mBtnKill').classList.remove('latched');
   $('mKillBadge').textContent = 'STANDBY'; $('mKillBadge').className = 'pill';
