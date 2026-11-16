@@ -406,3 +406,104 @@ void readSensor() {
     return;
   }
 
+  bool success = bme688.performReading();
+
+  if (!success) {
+    sensorValid = false;
+    emergencyStop("BME688 reading failed");
+    return;
+  }
+
+  temperatureC = bme688.temperature;
+  humidity = bme688.humidity;
+  pressureHPA = bme688.pressure / 100.0;
+  gasKOhms = bme688.gas_resistance / 1000.0;
+
+  const char* error = validateSensor();
+
+  if (error != NULL) {
+    sensorValid = false;
+    emergencyStop(error);
+    return;
+  }
+
+  sensorValid = true;
+  lastError = "None";
+
+  updateGasBaseline();
+  printSensorData();
+}
+
+// =======================================
+// PRINT SENSOR DATA
+// =======================================
+
+void printSensorData() {
+  Serial.println();
+  Serial.println("================================");
+  Serial.println("       SMART HVAC DEMO V5       ");
+  Serial.println("================================");
+
+  Serial.println("[BME688]");
+
+  Serial.print("Temperature: ");
+  Serial.print(fahrenheit(temperatureC), 2);
+  Serial.print(" F / ");
+  Serial.print(temperatureC, 2);
+  Serial.println(" C");
+
+  Serial.print("Humidity: ");
+  Serial.print(humidity, 1);
+  Serial.println(" % RH");
+
+  Serial.print("Pressure: ");
+  Serial.print(pressureHPA, 2);
+  Serial.println(" hPa");
+
+  Serial.print("Dew point: ");
+  Serial.print(
+    fahrenheit(dewPointC(temperatureC, humidity)), 2
+  );
+  Serial.println(" F");
+
+  Serial.print("Approx. altitude: ");
+  Serial.print(altitudeFeet(pressureHPA), 0);
+  Serial.println(" ft");
+
+  printGasData();
+
+  Serial.println();
+  Serial.println("[HVAC SYSTEM]");
+
+  Serial.print("Heater: ");
+  Serial.println(heaterOn ? "ON" : "OFF");
+
+  Serial.print("Fan PWM: ");
+  Serial.print(fanPWM * 100.0 / 255.0, 0);
+  Serial.println("%");
+
+  Serial.print("Cooldown: ");
+  Serial.println(
+    cooldownActive ? "ACTIVE" : "OFF"
+  );
+
+  Serial.print("Safety lockout: ");
+  Serial.println(
+    safetyLockout ? "ACTIVE" : "CLEAR"
+  );
+
+  if (safetyLockout) {
+    Serial.print("Lockout reason: ");
+    Serial.println(lockoutReason);
+  }
+
+  if (heaterOn) {
+    Serial.print("Heating elapsed: ");
+    Serial.print(
+      (millis() - heaterStart) / 1000.0, 1
+    );
+    Serial.println(" / 5 seconds");
+  }
+
+  Serial.println("================================");
+}
