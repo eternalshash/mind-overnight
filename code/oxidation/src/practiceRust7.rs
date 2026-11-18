@@ -2,7 +2,6 @@
 #![allow(warnings)]
 
 use std::mem;
-
 // need to finish the last parts 
 fn is_high_roller(badge_flags : u8) -> bool {
     let DRINKS_COMP = 0b0000_0001;
