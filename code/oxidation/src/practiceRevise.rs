@@ -1,21 +1,5 @@
 #![allow(unused_variables, unused_assignments, dead_code)]
 
-/* =========================================================================
-   PRACTICE & REVISION: RUST FUNDAMENTALS
-   =========================================================================
-   Use this file to practice what you've learned:
-   - Scalar Primitives: bool, i32, u8, f64, char
-   - Type Annotations vs. Suffix Literals (e.g., 42u32, 3.14f32)
-   - Mutability: `let` (immutable) vs `let mut` (mutable)
-   - Bidirectional Type Inference
-   - Compound Types: Arrays `[T; length]` & Tuples `(...)`
-   - Structs: Classic, Tuple, and Unit
-
-   Run with:
-       cargo run --bin practiceRevise
-   Or compile directly with:
-       rustc src/practiceRevise.rs -o practiceRevise && ./practiceRevise
-   ========================================================================= */
 
 fn main() {
     println!("=== Practice & Revision ===");
