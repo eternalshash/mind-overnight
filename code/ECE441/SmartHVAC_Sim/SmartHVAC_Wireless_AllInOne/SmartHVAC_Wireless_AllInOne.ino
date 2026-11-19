@@ -1,11 +1,12 @@
 // =============================================================================
-// ECE 441: SMART HVAC CONTROL — ALL-IN-ONE WIRELESS BENCH FIRMWARE
+// ECE 441: SMART HVAC CONTROL — ALL-IN-ONE WIRELESS BENCH FIRMWARE (V5.2)
 // Single-file standalone sketch for Arduino UNO R4 WiFi (ESP32-S3 Co-Processor)
 // Includes:
 //   - Embedded IIT-IoT Wi-Fi & HiveMQ Cloud credentials (Zero extra files needed)
+//   - Direct TCP Port 1883 MQTT (Bypasses UNO R4 SSL cert issues; bridges to Web 8884)
+//   - Unique MAC-based ClientID & <256-byte telemetry buffer for ArduinoMqttClient
 //   - Full Fan PWM (Pin 9) & Active-HIGH Relay Heater (Pin 10) control
 //   - Bosch BME688 I2C telemetry & safety lockouts (5s heater limit, 30s cooldown)
-//   - Bi-directional HiveMQ Cloud MQTT & Digital Twin Simulation sync
 // =============================================================================
 
 #include <Wire.h>
@@ -22,10 +23,15 @@
 const char SECRET_SSID[]      = "IIT-IoT";
 const char SECRET_PASS[]      = "XtAOhMfEQ7yeLeIVOSgHdv7bjNOxtqH7A1XjyzCpTsXRr";
 
+// Note: Port 1883 (TCP) on Arduino bridges directly to Port 8884 (WSS) on HiveMQ Web Client
+// and avoids ESP32-S3 Root CA certificate rejections on public HiveMQ.
 const char SECRET_BROKER[]    = "broker.hivemq.com";
-const int  SECRET_PORT        = 8883; // TLS / SSL Port (Matches HiveMQ Web Client 8884 WSS)
+const int  SECRET_PORT        = 1883;
 const char SECRET_USER[]      = "";
 const char SECRET_MQTT_PASS[] = "";
+
+// Unique Client ID prevents public broker collisions
+const char MQTT_CLIENT_ID[]   = "ece441-group2-uno-r4-70041DD4F668";
 
 // MQTT Topics (Compatible with both HiveMQ Web Client & Digital Twin Sim)
 const char TOPIC_TELEMETRY[]     = "ece441/group2/hvac/telemetry";
@@ -64,7 +70,7 @@ bool sensorFound = false;
 bool sensorValid = false;
 uint8_t sensorAddress = 0;
 
-float temperatureC = 22.0; // Default fallback for bench fan testing if sensor unplugged
+float temperatureC = 22.0; // Fallback for bench fan testing if sensor unplugged
 float humidity     = 45.0;
 float pressureHPA  = 1013.25;
 float gasKOhms     = 100.0;
@@ -89,10 +95,11 @@ unsigned long lastMqttAttempt = 0;
 
 const char* lockoutReason = "None";
 const char* lastError     = "None";
+char lastCmdExecuted      = '-';
 
-// Wireless Clients
-WiFiSSLClient wifiSslClient;
-MqttClient    mqttClient(wifiSslClient);
+// Wireless Clients (Standard WiFiClient on Port 1883 for rock-solid UNO R4 connection)
+WiFiClient wifiClient;
+MqttClient mqttClient(wifiClient);
 
 // Forward Declarations
 void executeCommand(char cmd, const char* source = "SERIAL");
@@ -150,7 +157,7 @@ void emergencyStop(const char* reason) {
   }
 
   safetyLockout = true;
-  setFan(255); // Keep fan running at 100% during thermal/safety lockout
+  setFan(255);
   publishTelemetry();
 }
 
@@ -245,7 +252,7 @@ void initializeSensor() {
     Serial.print("Sensor ready at 0x");
     Serial.println(sensorAddress, HEX);
   } else {
-    Serial.println("WARNING: BME688 not detected on I2C. Fan testing still enabled; Heater locked for safety.");
+    Serial.println("WARNING: BME688 not detected on I2C. Fan & 5s Relay testing remain enabled.");
     lastError = "BME688 not detected";
   }
 
@@ -313,35 +320,11 @@ void readSensor() {
 // 7. TELEMETRY DISPLAY & DIAGNOSTICS
 // =======================================
 void printSensorData() {
-  // Single-line JSON output for USB Serial Bridge & Digital Twin Sim
   float fanPct = fanPWM * 100.0 / 255.0;
   float airVel = (fanPct / 100.0) * 3.4;
   float feelsC = apparentTempC(temperatureC, humidity, airVel);
   float powerW = calculateCircuitPower(fanPWM, heaterOn);
-  float relGas = gasReady ? (gasKOhms / gasBaseline * 100.0) : 100.0;
 
-  Serial.print("{\"device_id\":\"ARDUINO-UNO-R4-WIFI\",\"source\":\"arduino-v5-bme688\",");
-  Serial.print("\"temp_c\":"); Serial.print(temperatureC, 2); Serial.print(",");
-  Serial.print("\"temp_f\":"); Serial.print(fahrenheit(temperatureC), 2); Serial.print(",");
-  Serial.print("\"humidity\":"); Serial.print(humidity, 1); Serial.print(",");
-  Serial.print("\"pressure_hpa\":"); Serial.print(pressureHPA, 2); Serial.print(",");
-  Serial.print("\"gas_kohms\":"); Serial.print(gasKOhms, 2); Serial.print(",");
-  Serial.print("\"gas_rel_pct\":"); Serial.print(relGas, 1); Serial.print(",");
-  Serial.print("\"feels_like_c\":"); Serial.print(feelsC, 2); Serial.print(",");
-  Serial.print("\"air_velocity_ms\":"); Serial.print(airVel, 2); Serial.print(",");
-  Serial.print("\"heater_relay\":"); Serial.print(heaterOn ? 1 : 0); Serial.print(",");
-  Serial.print("\"heater_pwm\":"); Serial.print(heaterOn ? 255 : 0); Serial.print(",");
-  Serial.print("\"fan_pwm\":"); Serial.print(fanPWM); Serial.print(",");
-  Serial.print("\"fan_speed_pct\":"); Serial.print(fanPct, 1); Serial.print(",");
-  Serial.print("\"power_w\":"); Serial.print(powerW, 2); Serial.print(",");
-  Serial.print("\"setpoint_c\":"); Serial.print(targetSetpointC, 1); Serial.print(",");
-  Serial.print("\"mode\":\""); Serial.print(hvacMode); Serial.print("\",");
-  Serial.print("\"cooldown_active\":"); Serial.print(cooldownActive ? 1 : 0); Serial.print(",");
-  Serial.print("\"safety_lockout\":"); Serial.print(safetyLockout ? 1 : 0); Serial.print(",");
-  Serial.print("\"bme_ok\":"); Serial.print(sensorValid ? 1 : 0);
-  Serial.println("}");
-
-  // Human-readable block for Arduino Serial Monitor & serial_bridge.py V5 parser
   Serial.println("================================");
   Serial.println("       SMART HVAC DEMO V5       ");
   Serial.println("================================");
@@ -366,6 +349,9 @@ void printSensorData() {
   Serial.print("Fan PWM: ");
   Serial.print(fanPct, 0);
   Serial.println("%");
+  Serial.print("Power: ");
+  Serial.print(powerW, 2);
+  Serial.println(" W");
   Serial.print("Cooldown: ");
   Serial.println(cooldownActive ? "ACTIVE" : "OFF");
   Serial.print("Safety lockout: ");
@@ -395,6 +381,7 @@ void printWiFiStatus() {
   Serial.print("Gateway IP:  "); Serial.println(WiFi.gatewayIP());
   Serial.print("Signal RSSI: "); Serial.print(WiFi.RSSI()); Serial.println(" dBm");
   Serial.print("MQTT Broker: "); Serial.print(SECRET_BROKER); Serial.print(":"); Serial.println(SECRET_PORT);
+  Serial.print("MQTT Client: "); Serial.println(MQTT_CLIENT_ID);
   Serial.print("MQTT State:  "); Serial.println(mqttClient.connected() ? "CONNECTED" : "DISCONNECTED");
   Serial.println("===============================");
 }
@@ -424,7 +411,7 @@ void startHeaterTest() {
       Serial.print("Lockout Reason: ");
       Serial.println(lockoutReason);
     } else if (cooldownActive) {
-      Serial.println("Reason: 30-second cooldown is still active.");
+      Serial.println("Reason: 30-second cooldown is still active (send R to clear cooldown).");
     }
     return;
   }
@@ -436,7 +423,7 @@ void startHeaterTest() {
       return;
     }
   } else {
-    Serial.println("WARNING: BME688 not detected; running 5-second bench relay & fan test with hard timer!");
+    Serial.println("WARNING: BME688 not detected; running 5-second bench relay & fan test!");
   }
 
   setFan(255);
@@ -485,7 +472,7 @@ void printMenu() {
   Serial.println("S = Fan OFF     (Pin 9 PWM = 0)");
   Serial.println("W = Check Wi-Fi & MQTT connection status");
   Serial.println("X = Emergency software stop");
-  Serial.println("R = Reset safety lockout / retry sensor");
+  Serial.println("R = Reset safety lockout / clear cooldown");
   Serial.println("D = Full system diagnostics");
   Serial.println("B = Reset gas baseline");
   Serial.println("? = Show menu");
@@ -496,6 +483,7 @@ void executeCommand(char cmd, const char* source) {
   cmd = toupper(cmd);
   if (cmd == '\r' || cmd == '\n' || cmd == ' ') return;
 
+  lastCmdExecuted = cmd;
   Serial.print("[COMMAND via ");
   Serial.print(source);
   Serial.print("]: ");
@@ -527,17 +515,19 @@ void executeCommand(char cmd, const char* source) {
       break;
 
     case 'S':
-      if (!heaterOn && !cooldownActive) {
+      if (!heaterOn) {
+        cooldownActive = false;
         setFan(0);
         Serial.println("Fan OFF (Pin 9 PWM = 0)");
         publishTelemetry();
       } else {
-        Serial.println("Fan OFF denied: Heater or cooldown active");
+        Serial.println("Fan OFF denied while heater is ON");
       }
       break;
 
     case 'W':
       printWiFiStatus();
+      publishTelemetry();
       break;
 
     case 'X':
@@ -550,6 +540,7 @@ void executeCommand(char cmd, const char* source) {
 
     case 'D':
       printDiagnostics();
+      publishTelemetry();
       break;
 
     case 'B':
@@ -606,12 +597,13 @@ void connectWiFi(bool waitOnBoot = false) {
 void connectMQTT() {
   if (WiFi.status() != WL_CONNECTED || mqttClient.connected()) return;
 
-  Serial.print("[MQTT] Connecting to HiveMQ Broker (");
+  Serial.print("[MQTT] Connecting to HiveMQ (");
   Serial.print(SECRET_BROKER);
   Serial.print(":");
   Serial.print(SECRET_PORT);
   Serial.println(")...");
 
+  mqttClient.setId(MQTT_CLIENT_ID);
   if (strlen(SECRET_USER) > 0) {
     mqttClient.setUsernamePassword(SECRET_USER, SECRET_MQTT_PASS);
   }
@@ -623,16 +615,17 @@ void connectMQTT() {
     return;
   }
 
-  Serial.println("[MQTT] SUCCESS! Connected to HiveMQ Cloud!");
+  Serial.println("[MQTT] SUCCESS! Connected to HiveMQ Broker!");
   mqttClient.onMessage(onMqttMessageReceived);
   mqttClient.subscribe(TOPIC_COMMAND);
   mqttClient.subscribe(TOPIC_COMMAND_ALT);
   mqttClient.subscribe(TOPIC_SETPOINT);
 
-  Serial.print("[MQTT] Subscribed to: ");
-  Serial.print(TOPIC_COMMAND);
-  Serial.print(" & ");
-  Serial.println(TOPIC_COMMAND_ALT);
+  Serial.print("[MQTT] Listening for commands on: ");
+  Serial.println(TOPIC_COMMAND);
+
+  // Immediately publish initial state upon connection
+  publishTelemetry();
 }
 
 void onMqttMessageReceived(int messageSize) {
@@ -658,7 +651,7 @@ void onMqttMessageReceived(int messageSize) {
   }
 
   // 2. JSON command from Digital Twin Simulation or Web UI:
-  //    e.g. {"cmd":"F"}, {"command":"5"}, {"fan_pwm":200}, {"setpoint":23.5}, {"mode":"HEAT"}
+  //    e.g. {"cmd":"F"}, {"command":"5"}, {"fan_pwm":200}, {"setpoint":23.5}
   int cmdIdx = payload.indexOf("\"cmd\"");
   if (cmdIdx < 0) cmdIdx = payload.indexOf("\"command\"");
   if (cmdIdx >= 0) {
@@ -688,7 +681,7 @@ void onMqttMessageReceived(int messageSize) {
     }
   }
 
-  // Setpoint update from Sim Nest Turntable: {"setpoint": 24.0} or raw float on TOPIC_SETPOINT
+  // Setpoint update from Sim Nest Turntable: {"setpoint": 24.0}
   if (topic == TOPIC_SETPOINT || payload.indexOf("\"setpoint\"") >= 0) {
     float sp = payload.toFloat();
     int spIdx = payload.indexOf("\"setpoint\"");
@@ -713,40 +706,27 @@ void publishTelemetry() {
   float airVel = (fanPct / 100.0) * 3.4;
   float feelsC = apparentTempC(temperatureC, humidity, airVel);
   float powerW = calculateCircuitPower(fanPWM, heaterOn);
-  float relGas = gasReady ? (gasKOhms / gasBaseline * 100.0) : 100.0;
 
+  // Compact JSON payload (< 240 bytes) so it fits safely inside ArduinoMqttClient's 256-byte TX buffer
   String json = "{";
-  json += "\"device_id\":\"ARDUINO-UNO-R4-WIFI\",";
-  json += "\"source\":\"arduino-v5-bme688\",";
+  json += "\"device_id\":\"UNO-R4-WIFI\",";
   json += "\"temp_c\":" + String(temperatureC, 2) + ",";
   json += "\"temp_f\":" + String(fahrenheit(temperatureC), 2) + ",";
   json += "\"humidity\":" + String(humidity, 1) + ",";
-  json += "\"pressure_hpa\":" + String(pressureHPA, 2) + ",";
-  json += "\"gas_kohms\":" + String(gasKOhms, 2) + ",";
-  json += "\"gas_rel_pct\":" + String(relGas, 1) + ",";
+  json += "\"pressure_hpa\":" + String(pressureHPA, 1) + ",";
   json += "\"feels_like_c\":" + String(feelsC, 2) + ",";
-  json += "\"feels_like_f\":" + String(fahrenheit(feelsC), 2) + ",";
-  json += "\"air_velocity_ms\":" + String(airVel, 2) + ",";
+  json += "\"air_vel_ms\":" + String(airVel, 2) + ",";
   json += "\"heater_relay\":" + String(heaterOn ? 1 : 0) + ",";
-  json += "\"heater_pwm\":" + String(heaterOn ? 255 : 0) + ",";
   json += "\"fan_pwm\":" + String(fanPWM) + ",";
-  json += "\"fan_speed_pct\":" + String(fanPct, 1) + ",";
+  json += "\"fan_speed_pct\":" + String(fanPct, 0) + ",";
   json += "\"power_w\":" + String(powerW, 2) + ",";
-  json += "\"setpoint_c\":" + String(targetSetpointC, 1) + ",";
-  json += "\"mode\":\"" + hvacMode + "\",";
-  json += "\"cooldown_active\":" + String(cooldownActive ? 1 : 0) + ",";
-  json += "\"safety_lockout\":" + String(safetyLockout ? 1 : 0) + ",";
-  json += "\"lockout_reason\":\"" + String(lockoutReason) + "\",";
-  json += "\"bme_ok\":" + String(sensorValid ? 1 : 0) + ",";
-  json += "\"wifi_rssi\":" + String(WiFi.RSSI());
+  json += "\"cooldown\":" + String(cooldownActive ? 1 : 0) + ",";
+  json += "\"lockout\":" + String(safetyLockout ? 1 : 0) + ",";
+  json += "\"last_cmd\":\"" + String(lastCmdExecuted) + "\",";
+  json += "\"rssi\":" + String(WiFi.RSSI());
   json += "}";
 
-  // Publish to both group2 and standard topic so any client/sim receives it
-  mqttClient.beginMessage(TOPIC_TELEMETRY);
-  mqttClient.print(json);
-  mqttClient.endMessage();
-
-  mqttClient.beginMessage(TOPIC_TELEMETRY_ALT);
+  mqttClient.beginMessage(TOPIC_TELEMETRY, (unsigned long)json.length(), false, 0, false);
   mqttClient.print(json);
   mqttClient.endMessage();
 }
@@ -799,7 +779,7 @@ void setup() {
 
   Serial.println();
   Serial.println("========================================================");
-  Serial.println("   ECE 441 SMART HVAC: ALL-IN-ONE WIRELESS BENCH V5     ");
+  Serial.println("   ECE 441 SMART HVAC: ALL-IN-ONE WIRELESS BENCH V5.2   ");
   Serial.println("   Arduino UNO R4 WiFi | Fan (Pin 9) | Heater (Pin 10)  ");
   Serial.println("========================================================");
 
@@ -809,7 +789,7 @@ void setup() {
   }
   lastSensorRead = millis();
 
-  // Connect to IIT-IoT and HiveMQ Cloud
+  // Connect to IIT-IoT and HiveMQ Broker
   connectWiFi(true);
   if (WiFi.status() == WL_CONNECTED) {
     connectMQTT();
