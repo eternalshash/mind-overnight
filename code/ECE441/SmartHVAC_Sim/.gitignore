@@ -9,4 +9,9 @@ __pycache__/
 *.db-wal
 *.db-shm
 
+# Arduino Secrets
+arduino_secrets.h
+**/arduino_secrets.h
+
+
 

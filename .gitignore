@@ -23,6 +23,8 @@ ece449/project2/easynn_test
 *.key
 config_keys.py
 **/google-services.json
+arduino_secrets.h
+**/arduino_secrets.h
 
 # Build Artifacts & Gradle
 **/build/
