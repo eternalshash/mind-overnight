@@ -346,6 +346,7 @@ nav.bnav button.on{color:var(--accent);background:rgba(92,225,230,.08);font-weig
           <div class="mob-dial-center">
             <div id="mobStateCaption">COOLING TO</div>
             <div class="mob-sp-num"><span id="mSpDisp">73</span></div>
+            <div id="mobLiveSub" style="font-size:10px;font-weight:600;letter-spacing:.35px;color:rgba(255,255,255,0.82);margin-top:-2px;margin-bottom:2px;font-variant-numeric:tabular-nums">ROOM 75.2&deg;F &bull; FAN 0%</div>
             <div id="mobDialAnimIcon">
               <!-- Perspective Heating Animation (♨ Rising Thermal Waves) -->
               <svg id="mobHeatSvg" class="mob-state-svg" viewBox="0 0 88 42">
@@ -385,7 +386,7 @@ nav.bnav button.on{color:var(--accent);background:rgba(92,225,230,.08);font-weig
           <button type="button" class="step-btn" id="btnSpDown" aria-label="Decrease Setpoint">&minus;</button>
           <button type="button" class="step-btn" id="btnSpUp" aria-label="Increase Setpoint">+</button>
         </div>
-        <div class="dial-hint">Rotate Nest dial ring or tap &minus; / +</div>
+        <div class="dial-hint" id="mobDialHint">Drag Left = Cool (Fan &uarr;) &bull; Right = Heat (PTC + Fan &uarr;)</div>
       </div>
 
       <!-- COMPACT 4-METRIC STRIP -->
@@ -516,6 +517,20 @@ nav.bnav button.on{color:var(--accent);background:rgba(92,225,230,.08);font-weig
         <button class="m-btn" id="mBtnGasReset">B: RESET GAS BASELINE</button>
       </div>
       <button class="m-btn grn" id="mBtnRestoreAuto" style="width:100%;margin-top:10px">&#8634; R: RESET SAFETY LOCKOUT / RESTORE AUTO PID</button>
+      <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.08)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-size:10px;font-family:var(--mono);color:var(--cyan);font-weight:600">HIVEMQ WEBSOCKET CLIENT (<code>command</code>)</span>
+          <span class="pill" id="mMqttWsBadge">CONNECTING...</span>
+        </div>
+        <div style="display:flex;gap:6px">
+          <input class="m-in" id="mMqttDirectIn" type="text" placeholder='5, H, F, M, S, R, X or {"fan_pwm":180}' style="flex:1;font-family:var(--mono);font-size:11px">
+          <button class="m-btn cy" id="mBtnMqttDirectSend" style="width:auto;padding:8px 12px">PUBLISH</button>
+        </div>
+        <div style="margin-top:6px;font-family:var(--mono);font-size:10px;color:var(--text-sec);background:rgba(0,0,0,0.3);padding:6px 8px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);line-height:1.4">
+          <div>TX: <span id="mMqttLastTx" style="color:var(--amber)">None (Retain: OFF)</span></div>
+          <div>RX: <span id="mMqttLastRx" style="color:var(--green)">Awaiting broker.hivemq.com:8884...</span></div>
+        </div>
+      </div>
     </div>
 
     <div class="mcard">
@@ -697,6 +712,7 @@ const M = {
   inj: {}, faultTimers: {}, autoSolve: true, iotAuto: false, iotSent: 0, lastAlert: null,
   usbConnected: false, mqttConnected: false, mqttBenchLive: false, mqttLastRxMs: 0, mqttRssi: -46,
   arduinoHasEdgeLoop: false, dialDragging: false, lastUserSetpointMs: 0, lastLocalFaultMs: 0,
+  mqttInitialSyncDone: false, lastWirelessPwm: -1, lastWirelessHeatMs: 0, lastWirelessAction: 'IDLE',
   rpiUrl: '',
   histT: Array.from({ length: 32 }, () => 75.2),
   histSp: Array.from({ length: 32 }, () => 73.0)
@@ -871,7 +887,7 @@ function initMobileTurntable() {
       if (dial.releasePointerCapture && ev && ev.pointerId !== undefined) {
         try { dial.releasePointerCapture(ev.pointerId); } catch (e) {}
       }
-      scheduleMobMqttSetpointPublish();
+      scheduleMobMqttSetpointPublish(true);
     };
     dial.addEventListener('pointerup', endDrag);
     dial.addEventListener('pointercancel', endDrag);
@@ -1007,15 +1023,37 @@ function updateMobileNestUI() {
   }
   dial.setAttribute('aria-valuenow', String(spF));
 
+  const liveHw = isMobHardwareLive();
   if ($('mobStateCaption')) {
     $('mobStateCaption').textContent = M.wdt.tripped ? 'WATCHDOG CUTOFF' :
                                        M.modeOvr === 'OFF' ? 'SYSTEM STANDBY' :
                                        M.inj.heatwave ? 'EMERGENCY COOLING' :
-                                       isHeating ? 'HEATING TO' :
-                                       isCooling ? 'COOLING TO' :
+                                       isHeating ? `HEATING \u2022 FAN ${Math.round(M.fanPct)}%` :
+                                       isCooling ? `COOLING \u2022 FAN ${Math.round(M.fanPct)}%` :
+                                       liveHw ? 'LIVE ROOM TEMP' :
                                        M.modeOvr === 'ECO' ? 'ECO HOLD AT' : 'HOLDING AT';
   }
-  if ($('mSpDisp')) $('mSpDisp').textContent = spF;
+  if ($('mSpDisp')) {
+    const showNum = (!isHeating && !isCooling && liveHw) ? Math.round(roomF) : spF;
+    $('mSpDisp').textContent = M.modeOvr === 'OFF' ? 'OFF' : showNum;
+  }
+  if ($('mobLiveSub')) {
+    const curPwm = Math.round(clamp((M.fanPct / 100) * 255, 0, 255));
+    if (liveHw) {
+      $('mobLiveSub').innerHTML = `LIVE <b>${roomF.toFixed(1)}&deg;F</b> &bull; FAN <b>${Math.round(M.fanPct)}%</b> (PWM ${curPwm})`;
+      $('mobLiveSub').style.color = isHeating ? '#ffbe76' : isCooling ? '#7dd3fc' : '#6ee7b7';
+    } else {
+      $('mobLiveSub').innerHTML = `ROOM ${roomF.toFixed(1)}&deg;F &bull; FAN ${Math.round(M.fanPct)}%`;
+      $('mobLiveSub').style.color = 'rgba(255,255,255,0.78)';
+    }
+  }
+  if ($('mobDialHint')) {
+    if (liveHw) {
+      $('mobDialHint').innerHTML = `<span style="color:#6ee7b7;font-weight:600">&#9679; WIFI LIVE (${roomF.toFixed(1)}&deg;F)</span> &bull; Left (&lt;${Math.round(roomF)}&deg;) = Cool Fan &uarr; &bull; Right (&gt;${Math.round(roomF)}&deg;) = Heat + Fan &uarr;`;
+    } else {
+      $('mobDialHint').innerHTML = 'Drag Left = Cool (Fan &uarr;) &bull; Right = Heat (PTC + Fan &uarr;)';
+    }
+  }
 
   const roomDeg = mobTempToDeg(roomF);
   const spDeg = mobTempToDeg(spF);
@@ -1226,7 +1264,9 @@ function mobMqttBuildPublishPacket(topic, message, retain = false) {
 function publishMobMqtt(topic, payload, retain = false) {
   if (!mobMqttWs || mobMqttWs.readyState !== 1 || !M.mqttConnected) return false;
   try {
-    mobMqttWs.send(mobMqttBuildPublishPacket(topic, payload, retain));
+    const str = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    mobMqttWs.send(mobMqttBuildPublishPacket(topic, str, retain));
+    if ($('mMqttLastTx')) $('mMqttLastTx').textContent = `${topic} -> ${str} (Retain: OFF)`;
     return true;
   } catch (e) {
     return false;
@@ -1250,6 +1290,18 @@ function updateMobConnectionBadges() {
   }
   if ($('btnMobUsb') && !M.usbConnected) {
     $('btnMobUsb').textContent = M.mqttBenchLive ? 'WiFi Live' : 'USB Arduino';
+  }
+  if ($('mMqttWsBadge')) {
+    if (M.mqttBenchLive) {
+      $('mMqttWsBadge').textContent = `WIFI LIVE (${M.mqttRssi} dBm)`;
+      $('mMqttWsBadge').className = 'pill ok';
+    } else if (M.mqttConnected) {
+      $('mMqttWsBadge').textContent = 'WSS:8884 OK';
+      $('mMqttWsBadge').className = 'pill ok';
+    } else {
+      $('mMqttWsBadge').textContent = 'RECONNECTING...';
+      $('mMqttWsBadge').className = 'pill warn';
+    }
   }
 }
 
@@ -1461,38 +1513,119 @@ function connectMobHiveMqWebSocket() {
   } catch (e) {}
 }
 
-function scheduleMobMqttSetpointPublish() {
-  if (mobSetpointDebounceTimer) clearTimeout(mobSetpointDebounceTimer);
-  mobSetpointDebounceTimer = setTimeout(() => {
-    const spF = Math.round(M.spC * 9 / 5 + 32);
+function computeMobWheelActuation() {
+  const liveF = M.T * 9 / 5 + 32;
+  const baseF = Math.round(liveF);
+  const spF = Math.round(M.spC * 9 / 5 + 32);
+  const deltaF = spF - baseF;
+
+  if (M.modeOvr === 'OFF' || M.wdt.tripped) {
+    return { action: 'OFF', fanPct: 0, fanPwm: 0, heater: false, deltaF, liveF, spF };
+  }
+  if (M.fanOvr >= 0) {
+    const fanPct = clamp(Math.round(M.fanOvr), 0, 100);
+    const fanPwm = clamp(Math.round((fanPct / 100) * 255), 0, 255);
+    const heater = (M.modeOvr === 'HEAT') || (M.modeOvr !== 'COOL' && deltaF > 0);
+    return { action: heater ? 'HEAT' : (fanPwm > 0 ? 'COOL' : 'IDLE'), fanPct, fanPwm, heater, deltaF, liveF, spF };
+  }
+  if (M.modeOvr === 'COOL' || (M.modeOvr !== 'HEAT' && deltaF < 0)) {
+    const stepsCool = Math.max(1, baseF - spF);
+    const rawPct = Math.round(15 + (stepsCool / 8) * 85);
+    const capPct = M.modeOvr === 'ECO' ? 75 : 100;
+    const fanPct = clamp(rawPct, 25, capPct);
+    const fanPwm = clamp(Math.round((fanPct / 100) * 255), 64, 255);
+    return { action: 'COOL', fanPct, fanPwm, heater: false, deltaF, liveF, spF };
+  }
+  if (M.modeOvr === 'HEAT' || (M.modeOvr !== 'COOL' && deltaF > 0)) {
+    const stepsHeat = Math.max(1, spF - baseF);
+    const rawPct = Math.round(18 + (stepsHeat / 7) * 82);
+    const capPct = M.modeOvr === 'ECO' ? 78 : 100;
+    const fanPct = clamp(rawPct, 30, capPct);
+    const fanPwm = clamp(Math.round((fanPct / 100) * 255), 77, 255);
+    return { action: 'HEAT', fanPct, fanPwm, heater: true, deltaF, liveF, spF };
+  }
+  return { action: 'IDLE', fanPct: 0, fanPwm: 0, heater: false, deltaF: 0, liveF, spF };
+}
+
+let mobLastThrottleMs = 0;
+function scheduleMobMqttSetpointPublish(immediate = false) {
+  const now = Date.now();
+  M.lastUserSetpointMs = now;
+
+  const act = computeMobWheelActuation();
+  if (isMobHardwareLive()) {
+    M.fanPct = act.fanPct;
+    M.heat = act.heater ? 100 : 0;
+    M.comp = act.action === 'COOL' ? act.fanPct : 0;
+  }
+
+  const dispatchNow = () => {
+    mobLastThrottleMs = Date.now();
+    if (!M.mqttConnected || M.inj.wifi) return;
+    const cur = computeMobWheelActuation();
     const spC = +M.spC.toFixed(2);
     const payload = {
       setpoint_c: spC,
-      setpoint_f: spF,
+      setpoint_f: cur.spF,
       mode: M.modeOvr,
-      fan_override_pct: M.fanOvr,
+      fan_override_pct: M.fanOvr >= 0 ? M.fanOvr : cur.fanPct,
+      fan_pwm: cur.fanPwm,
       client_id: MOB_CLIENT_TAG
     };
     publishMobMqtt(MOB_TOPIC_SETPOINT, payload, false);
 
-    if (M.mqttConnected && !M.arduinoHasEdgeLoop) {
-      const deadbandC = 0.5;
-      const effSpC = M.spC + (M.modeOvr === 'ECO' ? 1.1 : 0);
-      if (M.modeOvr === 'OFF') {
+    if (cur.action === 'OFF' || cur.action === 'IDLE') {
+      if (M.lastWirelessAction === 'HEAT' || M.heat > 0) {
+        publishMobMqtt(MOB_TOPIC_COMMAND, 'H', false);
+      }
+      if (M.lastWirelessPwm !== 0 || M.lastWirelessAction !== 'IDLE') {
+        publishMobMqtt(MOB_TOPIC_COMMAND, 'S', false);
+        publishMobMqtt(MOB_TOPIC_COMMAND, { fan_pwm: 0 }, false);
+      }
+      M.lastWirelessAction = cur.action;
+      M.lastWirelessPwm = 0;
+    } else if (cur.action === 'COOL') {
+      if (M.lastWirelessAction === 'HEAT' || M.cooldownActive) {
         publishMobMqtt(MOB_TOPIC_COMMAND, 'H', false);
         publishMobMqtt(MOB_TOPIC_COMMAND, 'S', false);
-      } else if (M.modeOvr === 'HEAT' || (M.modeOvr !== 'COOL' && effSpC > M.T + deadbandC)) {
-        publishMobMqtt(MOB_TOPIC_COMMAND, '5', false);
-      } else if (M.modeOvr === 'COOL' || (M.modeOvr !== 'HEAT' && effSpC < M.T - deadbandC)) {
-        publishMobMqtt(MOB_TOPIC_COMMAND, 'H', false);
-        const coolErr = M.T - effSpC;
-        publishMobMqtt(MOB_TOPIC_COMMAND, coolErr > 1.8 ? 'F' : 'M', false);
-      } else {
-        publishMobMqtt(MOB_TOPIC_COMMAND, 'H', false);
-        publishMobMqtt(MOB_TOPIC_COMMAND, M.fanOvr > 0 ? (M.fanOvr > 65 ? 'F' : 'M') : 'S', false);
+        setTimeout(() => {
+          publishMobMqtt(MOB_TOPIC_COMMAND, { fan_pwm: cur.fanPwm }, false);
+        }, 45);
+      } else if (M.lastWirelessPwm !== cur.fanPwm || immediate) {
+        publishMobMqtt(MOB_TOPIC_COMMAND, { fan_pwm: cur.fanPwm }, false);
       }
+      M.lastWirelessAction = 'COOL';
+      M.lastWirelessPwm = cur.fanPwm;
+    } else if (cur.action === 'HEAT') {
+      const needHeaterTrigger = (M.lastWirelessAction !== 'HEAT') || (Date.now() - M.lastWirelessHeatMs > 5600);
+      if (needHeaterTrigger) {
+        M.lastWirelessHeatMs = Date.now();
+        if (M.cooldownActive) publishMobMqtt(MOB_TOPIC_COMMAND, 'S', false);
+        publishMobMqtt(MOB_TOPIC_COMMAND, '5', false);
+        setTimeout(() => {
+          publishMobMqtt(MOB_TOPIC_COMMAND, { fan_pwm: cur.fanPwm }, false);
+        }, 65);
+      } else if (M.lastWirelessPwm !== cur.fanPwm || immediate) {
+        publishMobMqtt(MOB_TOPIC_COMMAND, { fan_pwm: cur.fanPwm }, false);
+      }
+      M.lastWirelessAction = 'HEAT';
+      M.lastWirelessPwm = cur.fanPwm;
     }
-  }, 380);
+  };
+
+  if (mobSetpointDebounceTimer) {
+    clearTimeout(mobSetpointDebounceTimer);
+    mobSetpointDebounceTimer = null;
+  }
+  const elapsed = now - mobLastThrottleMs;
+  if (immediate || elapsed >= 150) {
+    dispatchNow();
+  } else {
+    mobSetpointDebounceTimer = setTimeout(() => {
+      mobSetpointDebounceTimer = null;
+      dispatchNow();
+    }, 150 - elapsed);
+  }
 }
 
 function normalizeMobV5Cmd(cmd) {
@@ -1610,12 +1743,27 @@ function handleMobUsbLine(line) {
   try {
     const d = JSON.parse(trimmed);
     if (!M.wdt.testing) { M.wdt.elapsed = 0; M.wdt.seq = d.hb_seq || (M.wdt.seq + 1); M.wdt.tripped = false; }
-    if (typeof d.temp_c === 'number') { M.bmeLive = true; M.T = d.temp_c; M.adcRaw = d.adc_raw_20b || Math.round((d.temp_c + 40) * 8388.6); M.vSenseMv = d.v_sense_mv || +((M.adcRaw / 1048575) * 3300).toFixed(1); }
+    if (typeof d.temp_c === 'number') {
+      M.bmeLive = true; M.T = d.temp_c;
+      M.adcRaw = d.adc_raw_20b || Math.round((d.temp_c + 40) * 8388.6);
+      M.vSenseMv = d.v_sense_mv || +((M.adcRaw / 1048575) * 3300).toFixed(1);
+      if (!M.mqttInitialSyncDone && !M.dialDragging && (Date.now() - M.lastUserSetpointMs > 2000)) {
+        M.mqttInitialSyncDone = true;
+        const liveF = clamp(Math.round(d.temp_c * 9 / 5 + 32), MOB_MIN_F, MOB_MAX_F);
+        M.spC = (liveF - 32) * 5 / 9;
+        if ($('mSpSlider')) $('mSpSlider').value = liveF;
+      }
+    }
     if (typeof d.humidity === 'number') M.RH = d.humidity;
     if (typeof d.pressure_hpa === 'number') M.pressHpa = d.pressure_hpa;
     if (typeof d.gas_kohms === 'number') M.gasKOhms = d.gas_kohms;
     if (typeof d.fan_pwm === 'number') M.fanPct = (d.fan_pwm / 255) * 100;
     if (typeof d.heater_relay === 'number') M.heat = d.heater_relay ? 100 : 0;
+    if (typeof d.cooldown === 'number' || typeof d.cooldown === 'boolean') M.cooldownActive = !!d.cooldown;
+    if (typeof d.lockout === 'number' || typeof d.lockout === 'boolean') M.safetyLockout = !!d.lockout;
+    if ($('mMqttLastRx')) {
+      $('mMqttLastRx').textContent = `${fF(M.T)}°F (${M.T.toFixed(2)}°C) | RH ${M.RH.toFixed(1)}% | Fan ${Math.round(M.fanPct)}% | Htr ${M.heat > 0 ? 'ON' : 'OFF'} | ${M.mqttRssi}dBm`;
+    }
   } catch (e) {}
 }
 
@@ -1722,6 +1870,36 @@ if ($('mBtnGasReset')) {
   $('mBtnGasReset').addEventListener('click', async () => {
     await sendUsbCmd('B');
     showToast('Reset BME688 Gas Baseline (B) to current reading.', 'ok');
+  });
+}
+
+const sendMobDirectMqtt = async () => {
+  const inp = $('mMqttDirectIn');
+  if (!inp) return;
+  const raw = inp.value.trim();
+  if (!raw) return;
+  if (raw.startsWith('{')) {
+    if (publishMobMqtt(MOB_TOPIC_COMMAND, raw, false)) {
+      showToast(`Published JSON to ${MOB_TOPIC_COMMAND}: ${raw}`, 'ok');
+    }
+  } else if (/^\d+$/.test(raw) && raw !== '5') {
+    const pwm = clamp(parseInt(raw, 10), 0, 255);
+    if (publishMobMqtt(MOB_TOPIC_COMMAND, { fan_pwm: pwm }, false)) {
+      showToast(`Published Fan PWM ${pwm}/255 (${Math.round(pwm / 255 * 100)}%) to Arduino!`, 'ok');
+    }
+  } else {
+    await sendUsbCmd(raw);
+    showToast(`Published command '${raw.toUpperCase()}' to ${MOB_TOPIC_COMMAND}!`, 'ok');
+  }
+  inp.value = '';
+};
+if ($('mBtnMqttDirectSend')) $('mBtnMqttDirectSend').addEventListener('click', sendMobDirectMqtt);
+if ($('mMqttDirectIn')) {
+  $('mMqttDirectIn').addEventListener('keydown', ev => {
+    if (ev.key === 'Enter') {
+      ev.preventDefault();
+      sendMobDirectMqtt();
+    }
   });
 }
 

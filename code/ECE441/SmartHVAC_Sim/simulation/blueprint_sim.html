@@ -464,6 +464,7 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px;cursor:pointer
             <div class="nest-center">
               <div id="nestStateCaption">HEATING TO</div>
               <div id="nestTargetNum">73</div>
+              <div id="nestLiveSub" style="font-size:10px;font-weight:600;letter-spacing:.35px;color:rgba(255,255,255,0.82);margin-top:-3px;margin-bottom:2px;font-variant-numeric:tabular-nums">ROOM 75.2&deg;F &bull; FAN 0%</div>
               <div id="nestAnimStage">
                 <!-- Perspective Heating Animation (♨ Rising Thermal Waves) -->
                 <svg id="nestHeatSvg" class="nest-state-svg" viewBox="0 0 88 42">
@@ -503,7 +504,7 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px;cursor:pointer
             <button type="button" class="nest-step-btn" id="nestBtnMinus" title="Decrease Setpoint (-1 °F)" aria-label="Decrease Setpoint">&minus;</button>
             <button type="button" class="nest-step-btn" id="nestBtnPlus" title="Increase Setpoint (+1 °F)" aria-label="Increase Setpoint">+</button>
           </div>
-          <div class="nest-dial-hint">Drag turntable rim, scroll wheel, or tap &minus; / +</div>
+          <div class="nest-dial-hint" id="nestDialHint">Drag turntable rim: Left = Cool (Fan &uarr;) &bull; Right = Heat (PTC + Fan &uarr;)</div>
         </div>
 
         <!-- TOP-RIGHT: LIVE ENVIRONMENTAL READOUT + MINI SPARKLINE + MODE PILLS -->
@@ -679,6 +680,20 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:14px;cursor:pointer
                 <button class="btn" id="btnBenchGasReset" style="margin:0;padding:5px 4px;font-size:9px;border-color:var(--purple);color:#c4b5fd">B: RESET GAS BASELINE</button>
               </div>
               <button class="btn" id="btnBenchAuto" style="margin-top:6px;border-color:var(--green);color:var(--green);font-size:9.5px">&#8634; R: RESET SAFETY LOCKOUT / RESTORE AUTO PID</button>
+              <div style="margin-top:8px;padding-top:7px;border-top:1px solid rgba(255,255,255,0.08)">
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:8.5px;color:var(--accent);letter-spacing:.4px;margin-bottom:4px">
+                  <span><b>INTEGRATED HIVEMQ WEBSOCKET CLIENT</b> (<code>ece441/group2/hvac/command</code>)</span>
+                  <span id="mqttWsMiniBadge" class="badge">CONNECTING...</span>
+                </div>
+                <div style="display:flex;gap:4px">
+                  <input id="mqttDirectInput" class="iot-in" type="text" placeholder='5, H, F, M, S, R, X or {"fan_pwm":180}' style="flex:1;font-family:var(--mono);font-size:9.5px;padding:4px 6px">
+                  <button class="btn" id="btnMqttDirectSend" style="width:auto;margin:0;padding:4px 9px;font-size:9px;border-color:var(--cyan);color:var(--accent);font-weight:600">PUBLISH</button>
+                </div>
+                <div id="mqttLiveTxRx" style="margin-top:4px;font-family:var(--mono);font-size:8.5px;color:var(--muted);line-height:1.35;background:rgba(0,0,0,0.28);padding:4px 6px;border-radius:4px;border:1px solid rgba(255,255,255,0.06)">
+                  <div>TX: <span id="mqttLastTx" style="color:#fcd34d">None (Retain: OFF)</span></div>
+                  <div>RX: <span id="mqttLastRx" style="color:#6ee7b7">Awaiting broker.hivemq.com:8884...</span></div>
+                </div>
+              </div>
             </div>
           </details>
           <div class="grp-h" style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">
@@ -923,6 +938,8 @@ const S = {
   usbConnected: false,
   mqttConnected: false, mqttBenchLive: false, mqttLastRxMs: 0, mqttRssi: -46, mqttPkts: 0,
   arduinoHasEdgeLoop: false, dialDragging: false, lastUserSetpointMs: 0, lastLocalFaultMs: 0,
+  mqttInitialSyncDone: false, lastWirelessPwm: -1, lastWirelessHeatMs: 0, lastWirelessAction: 'IDLE',
+  lastMqttTxMsg: 'None (Retain: OFF)', lastMqttRxMsg: 'Awaiting broker.hivemq.com:8884...',
   bme: { hasLive: false, tempC: 24.0, rh: 48.0, pressHpa: 1013.25, bmeOk: true, adcRaw20b: 536870, vSenseMv: 1689.6,
          chipId: '0x61', i2cAddr: '0x76', gasKOhms: 142.5, gasBaseline: 140.0, gasRelPct: 101.8, gasTrend: 'Near baseline',
          gasReady: true, gasSamples: '20/20', dewPointF: 54.3, altitudeFt: 412, heaterOn: false, cooldownActive: false,
@@ -1579,6 +1596,8 @@ function mqttPublishRaw(topic, payloadStr) {
     pkt.set(tBytes, 1 + remLen.length);
     pkt.set(pBytes, 1 + remLen.length + tBytes.length);
     mqttWs.send(pkt);
+    S.lastMqttTxMsg = `${topic.split('/').pop()}: ${payloadStr}`;
+    if ($('mqttLastTx')) $('mqttLastTx').textContent = `${topic} -> ${payloadStr} (Retain: OFF)`;
     return true;
   } catch (e) {
     return false;
@@ -1602,51 +1621,137 @@ function mqttSubscribeTopic(topic, packetId) {
   mqttWs.send(pkt);
 }
 
-function scheduleMqttSetpointPublish(immediate = false) {
-  S.lastUserSetpointMs = performance.now();
-  if (mqttSpDebounceTimer) {
-    clearTimeout(mqttSpDebounceTimer);
-    mqttSpDebounceTimer = null;
+// Compute incremental fan speed (0..100% / PWM 0..255) & heater state from Nest wheel delta vs. live room temp
+function computeWheelIncrementalActuation() {
+  const liveF = S.T * 9 / 5 + 32;
+  const baseF = Math.round(liveF);
+  const spF = Math.round(S.setpoint * 9 / 5 + 32);
+  const deltaF = spF - baseF;
+
+  if (S.modeOverride === 'OFF' || S.wdt.tripped) {
+    return { action: 'OFF', fanPct: 0, fanPwm: 0, heater: false, deltaF, liveF, spF };
   }
-  const delayMs = immediate ? 15 : 380; // 380ms debounce prevents flooding Arduino during dial drag
-  mqttSpDebounceTimer = setTimeout(() => {
-    mqttSpDebounceTimer = null;
+  if (S.fanOverride >= 0) {
+    const fanPct = clamp(Math.round(S.fanOverride), 0, 100);
+    const fanPwm = clamp(Math.round((fanPct / 100) * 255), 0, 255);
+    const heater = (S.modeOverride === 'HEAT') || (S.modeOverride !== 'COOL' && deltaF > 0);
+    return { action: heater ? 'HEAT' : (fanPwm > 0 ? 'COOL' : 'IDLE'), fanPct, fanPwm, heater, deltaF, liveF, spF };
+  }
+  if (S.modeOverride === 'COOL' || (S.modeOverride !== 'HEAT' && deltaF < 0)) {
+    // Dragged to COOLING side: incrementally scale fan speed from 26% (PWM 66) at 1°F delta up to 100% (PWM 255) at >= 8°F delta
+    const stepsCool = Math.max(1, baseF - spF);
+    const rawPct = Math.round(15 + (stepsCool / 8) * 85);
+    const capPct = S.modeOverride === 'ECO' ? 75 : 100;
+    const fanPct = clamp(rawPct, 25, capPct);
+    const fanPwm = clamp(Math.round((fanPct / 100) * 255), 64, 255);
+    return { action: 'COOL', fanPct, fanPwm, heater: false, deltaF, liveF, spF };
+  }
+  if (S.modeOverride === 'HEAT' || (S.modeOverride !== 'COOL' && deltaF > 0)) {
+    // Dragged to HEATING side: engage Pin 10 PTC Heater + incrementally scale fan speed from 30% (PWM 77) at 1°F delta up to 100% (PWM 255) at >= 7°F delta
+    const stepsHeat = Math.max(1, spF - baseF);
+    const rawPct = Math.round(18 + (stepsHeat / 7) * 82);
+    const capPct = S.modeOverride === 'ECO' ? 78 : 100;
+    const fanPct = clamp(rawPct, 30, capPct);
+    const fanPwm = clamp(Math.round((fanPct / 100) * 255), 77, 255);
+    return { action: 'HEAT', fanPct, fanPwm, heater: true, deltaF, liveF, spF };
+  }
+  // Holding at Live Room Temperature (deltaF === 0)
+  return { action: 'IDLE', fanPct: 0, fanPwm: 0, heater: false, deltaF: 0, liveF, spF };
+}
+
+let mqttLastThrottleMs = 0;
+function scheduleMqttSetpointPublish(immediate = false) {
+  const now = performance.now();
+  S.lastUserSetpointMs = now;
+
+  // Apply incremental wheel feedback immediately to local UI state so dial, fan badge, & DMM respond at 60 FPS
+  const act = computeWheelIncrementalActuation();
+  if (isLiveHardwareActive()) {
+    S.bme.liveFanPwm = act.fanPwm;
+    S.bme.liveFanPct = act.fanPct;
+    S.fanAct = act.fanPct;
+    S.ctl.fanCmd = act.fanPct;
+    S.elec.fan_pwm = act.fanPwm;
+    S.rpm = Math.round(act.fanPct * 28);
+    S.bme.heaterOn = act.heater;
+    S.ctl.heat = act.heater ? 100 : 0;
+    S.ctl.comp = act.action === 'COOL' ? act.fanPct : 0;
+  }
+
+  const dispatchNow = () => {
+    mqttLastThrottleMs = performance.now();
     if (!S.mqttConnected || S.inj.wifi) return;
-    const spF = Math.round(S.setpoint * 9 / 5 + 32);
+    const cur = computeWheelIncrementalActuation();
     const spC = +S.setpoint.toFixed(2);
+
+    // 1. Publish structured setpoint & incremental fan_pwm to ece441/group2/hvac/setpoint
     const payload = JSON.stringify({
       setpoint_c: spC,
-      sp_f: spF,
+      sp_f: cur.spF,
       mode: S.modeOverride,
-      fan_pct: S.fanOverride,
+      fan_pct: S.fanOverride >= 0 ? S.fanOverride : cur.fanPct,
+      fan_pwm: cur.fanPwm,
       demand_limit_w: S.demandLimit,
       src: MQTT_CLIENT_TAG
     });
     mqttPublishRaw(MQTT_TOPIC_SETPOINT, payload);
-    recordCommMetric('WEB->MQTT', MQTT_TOPIC_SETPOINT, 18.4, 200, `SP ${spF}°F (${spC}°C) | Mode ${S.modeOverride}`);
 
-    // Fallback closed-loop actuation if bench Arduino is running V5.2 (before V6.0 edge-loop reflash)
-    if (!S.arduinoHasEdgeLoop) {
-      const effSpC = S.setpoint + (S.modeOverride === 'ECO' ? 1.11 : 0);
-      const errC = S.T - effSpC; // > 0 means room warmer than setpoint (needs COOL); < 0 means room cooler (needs HEAT)
-      if (S.modeOverride === 'OFF') {
+    // 2. Publish incremental actuator commands to ece441/group2/hvac/command (works on both V5.2 & V6.0!)
+    if (cur.action === 'OFF' || cur.action === 'IDLE') {
+      if (S.lastWirelessAction === 'HEAT' || S.bme.heaterOn) {
+        mqttPublishRaw(MQTT_TOPIC_COMMAND, 'H');
+      }
+      if (S.lastWirelessPwm !== 0 || S.lastWirelessAction !== 'IDLE') {
+        mqttPublishRaw(MQTT_TOPIC_COMMAND, 'S');
+        mqttPublishRaw(MQTT_TOPIC_COMMAND, JSON.stringify({ fan_pwm: 0 }));
+      }
+      S.lastWirelessAction = cur.action;
+      S.lastWirelessPwm = 0;
+    } else if (cur.action === 'COOL') {
+      if (S.lastWirelessAction === 'HEAT' || S.bme.cooldownActive) {
         mqttPublishRaw(MQTT_TOPIC_COMMAND, 'H');
         mqttPublishRaw(MQTT_TOPIC_COMMAND, 'S');
-      } else if (S.fanOverride >= 0) {
-        const fCmd = S.fanOverride === 0 ? 'S' : S.fanOverride <= 65 ? 'M' : 'F';
-        mqttPublishRaw(MQTT_TOPIC_COMMAND, fCmd);
-      } else if (S.modeOverride === 'HEAT' || (S.modeOverride !== 'COOL' && errC < -0.5)) {
-        mqttPublishRaw(MQTT_TOPIC_COMMAND, '5');
-      } else if (S.modeOverride === 'COOL' || (S.modeOverride !== 'HEAT' && errC > 0.5)) {
-        if (S.bme.heaterOn) mqttPublishRaw(MQTT_TOPIC_COMMAND, 'H');
-        const coolCmd = (S.modeOverride === 'COOL' || errC > 1.4) ? 'F' : 'M';
-        mqttPublishRaw(MQTT_TOPIC_COMMAND, coolCmd);
-      } else {
-        if (S.bme.heaterOn) mqttPublishRaw(MQTT_TOPIC_COMMAND, 'H');
-        mqttPublishRaw(MQTT_TOPIC_COMMAND, 'S');
+        setTimeout(() => {
+          mqttPublishRaw(MQTT_TOPIC_COMMAND, JSON.stringify({ fan_pwm: cur.fanPwm }));
+        }, 45);
+      } else if (S.lastWirelessPwm !== cur.fanPwm || immediate) {
+        mqttPublishRaw(MQTT_TOPIC_COMMAND, JSON.stringify({ fan_pwm: cur.fanPwm }));
       }
+      S.lastWirelessAction = 'COOL';
+      S.lastWirelessPwm = cur.fanPwm;
+    } else if (cur.action === 'HEAT') {
+      const needHeaterTrigger = (S.lastWirelessAction !== 'HEAT') || (performance.now() - S.lastWirelessHeatMs > 5600);
+      if (needHeaterTrigger) {
+        S.lastWirelessHeatMs = performance.now();
+        if (S.bme.cooldownActive) mqttPublishRaw(MQTT_TOPIC_COMMAND, 'S');
+        mqttPublishRaw(MQTT_TOPIC_COMMAND, '5');
+        setTimeout(() => {
+          mqttPublishRaw(MQTT_TOPIC_COMMAND, JSON.stringify({ fan_pwm: cur.fanPwm }));
+        }, 65);
+      } else if (S.lastWirelessPwm !== cur.fanPwm || immediate) {
+        mqttPublishRaw(MQTT_TOPIC_COMMAND, JSON.stringify({ fan_pwm: cur.fanPwm }));
+      }
+      S.lastWirelessAction = 'HEAT';
+      S.lastWirelessPwm = cur.fanPwm;
     }
-  }, delayMs);
+    recordCommMetric('WEB->MQTT', MQTT_TOPIC_COMMAND, 16.8, 200, `${cur.action} | SP ${cur.spF}°F | Fan ${cur.fanPct}% (PWM ${cur.fanPwm})`);
+  };
+
+  if (mqttSpDebounceTimer) {
+    clearTimeout(mqttSpDebounceTimer);
+    mqttSpDebounceTimer = null;
+  }
+
+  // Leading + trailing 150ms real-time throttle so physical fan speeds up smoothly while dragging the wheel
+  const elapsed = now - mqttLastThrottleMs;
+  if (immediate || elapsed >= 150) {
+    dispatchNow();
+  } else {
+    mqttSpDebounceTimer = setTimeout(() => {
+      mqttSpDebounceTimer = null;
+      dispatchNow();
+    }, 150 - elapsed);
+  }
 }
 
 function handleIncomingCloudMqtt(topic, payloadStr) {
@@ -1850,6 +1955,18 @@ function updateUsbButtonsUI() {
   if ($('rpiSyncBadge') && (usbConn || mqttLive)) {
     $('rpiSyncBadge').textContent = usbConn ? 'USB: LIVE' : 'MQTT: LIVE';
     $('rpiSyncBadge').className = 'badge ok';
+  }
+  if ($('mqttWsMiniBadge')) {
+    if (mqttLive) {
+      $('mqttWsMiniBadge').textContent = `WIFI BENCH LIVE (${S.mqttRssi} dBm)`;
+      $('mqttWsMiniBadge').className = 'badge ok';
+    } else if (S.mqttConnected) {
+      $('mqttWsMiniBadge').textContent = 'WSS:8884 CONNECTED';
+      $('mqttWsMiniBadge').className = 'badge ok';
+    } else {
+      $('mqttWsMiniBadge').textContent = 'RECONNECTING...';
+      $('mqttWsMiniBadge').className = 'badge warn';
+    }
   }
 }
 
@@ -2217,6 +2334,15 @@ function handleArduinoUsbLine(line, via = 'USB') {
       const rawAdc = typeof d.adc_raw_20b === 'number' ? d.adc_raw_20b : Math.round(clamp((d.temp_c + 40) * 8388.6, 0, 1048575));
       S.bme.adcRaw20b = rawAdc;
       S.bme.vSenseMv = typeof d.v_sense_mv === 'number' ? d.v_sense_mv : +((rawAdc / 1048575) * 3300).toFixed(1);
+
+      // Sync wheel setpoint to live BME688 room temperature on initial connection so wheel displays live temp
+      if (!S.mqttInitialSyncDone && !S.dialDragging && (performance.now() - S.lastUserSetpointMs > 2000)) {
+        S.mqttInitialSyncDone = true;
+        const liveF = clamp(Math.round(d.temp_c * 9 / 5 + 32), NEST_MIN_F, NEST_MAX_F);
+        S.setpoint = (liveF - 32) * 5 / 9;
+        if ($('sSp')) $('sSp').value = liveF;
+        if ($('lSp')) $('lSp').textContent = (d.temp_c * 9 / 5 + 32).toFixed(1) + ' F';
+      }
     }
     if (typeof d.humidity === 'number' && !isNaN(d.humidity)) {
       S.bme.rh = d.humidity;
@@ -2320,6 +2446,9 @@ function handleArduinoUsbLine(line, via = 'USB') {
 
     const viaLabel = via === 'MQTT' ? `MQTT WIFI (${S.mqttRssi} dBm)` : 'USB LIVE (115200 baud)';
     recordCommMetric(via === 'MQTT' ? 'MQTT->WEB' : 'USB->WEB', via === 'MQTT' ? MQTT_TOPIC_TELEMETRY : 'Serial(115200)', via === 'MQTT' ? 16.5 : 1.5, 200, `Arduino RX #${S.rpiPkts}`);
+    const rxSummary = `${fF(S.T)}°F (${S.T.toFixed(2)}°C) | RH ${S.RH.toFixed(1)}% | Fan ${Math.round(S.fanAct)}% (PWM ${S.elec.fan_pwm}) | Htr ${d.heater_relay ? 'ON' : 'OFF'} | ${S.mqttRssi}dBm`;
+    S.lastMqttRxMsg = rxSummary;
+    if ($('mqttLastRx')) $('mqttLastRx').textContent = rxSummary;
     if ($('rpiStatusLine')) {
       $('rpiStatusLine').textContent = `${viaLabel} | Temp: ${fF(S.T)}°F (${S.T.toFixed(1)}°C) | RH: ${S.RH.toFixed(0)}% | Gas: ${S.bme.gasKOhms.toFixed(1)} kΩ | Fan PWM: ${S.elec.fan_pwm}/255 | Pin 10 Relay: ${d.heater_relay ? 'ON' : 'OFF'}`;
       $('rpiStatusLine').style.color = '#6ee7b7';
@@ -2327,6 +2456,7 @@ function handleArduinoUsbLine(line, via = 'USB') {
     updateUsbButtonsUI();
     updateCards();
     updatePanel();
+    updateThermostatView();
   } catch (e) {
     // Ignore partial line parse errors
   }
@@ -4295,18 +4425,41 @@ function updateThermostatView() {
   }
   dial.setAttribute('aria-valuenow', String(Math.round(spF)));
 
-  // Center caption & giant target numeral
+  // Center caption, giant target numeral, & live BME688 temperature/fan sub-readout
+  const liveHw = isLiveHardwareActive();
   const capEl = $('nestStateCaption');
   if (capEl) {
     capEl.textContent = S.wdt.tripped ? 'WATCHDOG CUTOFF' :
                         S.modeOverride === 'OFF' ? 'SYSTEM STANDBY' :
                         c.heatEmerg ? 'EMERGENCY COOLING' :
-                        isHeating ? 'HEATING TO' :
-                        isCooling ? 'COOLING TO' :
+                        isHeating ? `HEATING \u2022 FAN ${f0(S.fanAct)}%` :
+                        isCooling ? `COOLING \u2022 FAN ${f0(S.fanAct)}%` :
+                        liveHw ? 'LIVE ROOM TEMP' :
                         S.modeOverride === 'ECO' ? 'ECO HOLD AT' : 'HOLDING AT';
   }
   const numEl = $('nestTargetNum');
-  if (numEl) numEl.textContent = S.modeOverride === 'OFF' ? 'OFF' : String(Math.round(spF));
+  if (numEl) {
+    const showNum = (!isHeating && !isCooling && liveHw) ? Math.round(roomF) : Math.round(spF);
+    numEl.textContent = S.modeOverride === 'OFF' ? 'OFF' : String(showNum);
+  }
+  const liveSubEl = $('nestLiveSub');
+  if (liveSubEl) {
+    if (liveHw) {
+      liveSubEl.innerHTML = `LIVE <b>${roomF.toFixed(1)}&deg;F</b> &bull; FAN <b>${f0(S.fanAct)}%</b> (PWM ${e.fan_pwm})`;
+      liveSubEl.style.color = isHeating ? '#ffbe76' : isCooling ? '#7dd3fc' : '#6ee7b7';
+    } else {
+      liveSubEl.innerHTML = `ROOM ${roomF.toFixed(1)}&deg;F &bull; FAN ${f0(S.fanAct)}%`;
+      liveSubEl.style.color = 'rgba(255,255,255,0.78)';
+    }
+  }
+  const hintEl = $('nestDialHint');
+  if (hintEl) {
+    if (liveHw) {
+      hintEl.innerHTML = `<span style="color:#6ee7b7;font-weight:600">&#9679; WIFI LIVE (${roomF.toFixed(1)}&deg;F)</span> &bull; Drag Left (&lt;${Math.round(roomF)}&deg;) = Cool Fan &uarr; &bull; Right (&gt;${Math.round(roomF)}&deg;) = Heat + Fan &uarr;`;
+    } else {
+      hintEl.innerHTML = 'Drag turntable rim: Left = Cool (Fan &uarr;) &bull; Right = Heat (PTC + Fan &uarr;)';
+    }
+  }
 
   // Arc positions for Current Room Temp Dot (70) & Target Setpoint Dot + Mini Glyph (♨/❄)
   const roomDeg = tempFToAngle(roomF);
@@ -4571,7 +4724,7 @@ function initThermostatTurntable() {
       if (dial.releasePointerCapture && ev && ev.pointerId !== undefined) {
         try { dial.releasePointerCapture(ev.pointerId); } catch (e) {}
       }
-      scheduleMqttSetpointPublish();
+      scheduleMqttSetpointPublish(true);
     };
     dial.addEventListener('pointerup', endDrag);
     dial.addEventListener('pointercancel', endDrag);
@@ -4675,12 +4828,45 @@ function initThermostatTurntable() {
     });
   }
 
-  // 6. Quick Summary & Dock Actions
+  // 6. Quick Summary & Dock Actions + Integrated HiveMQ WebSocket Publisher
   if ($('btnQuickUsb')) $('btnQuickUsb').addEventListener('click', connectUsbArduino);
   if ($('btnQuickTestIot')) $('btnQuickTestIot').addEventListener('click', () => { if ($('btnTestIot')) $('btnTestIot').click(); });
   if ($('btnQuickBackend')) $('btnQuickBackend').addEventListener('click', () => setSideView('backend'));
   if ($('dockFaultPill')) $('dockFaultPill').addEventListener('click', () => setSideView('backend'));
   if ($('btnToggleView')) $('btnToggleView').addEventListener('click', () => setSideView());
+
+  const sendDirectMqttInput = async () => {
+    const inp = $('mqttDirectInput');
+    if (!inp) return;
+    const raw = inp.value.trim();
+    if (!raw) return;
+    if (raw.startsWith('{')) {
+      if (mqttPublishRaw(MQTT_TOPIC_COMMAND, raw)) {
+        log('ok', `[MQTT->ARDUINO] Published raw JSON to ${MQTT_TOPIC_COMMAND}: ${raw}`);
+        toast('ok', 'HIVEMQ WEBSOCKET PUBLISHED', `Topic: ${MQTT_TOPIC_COMMAND}`, `Payload: ${raw}`, 'Retain: OFF (QoS 0)');
+      }
+    } else if (/^\d+$/.test(raw) && raw !== '5') {
+      const pwm = clamp(parseInt(raw, 10), 0, 255);
+      const jsonCmd = JSON.stringify({ fan_pwm: pwm });
+      if (mqttPublishRaw(MQTT_TOPIC_COMMAND, jsonCmd)) {
+        log('ok', `[MQTT->ARDUINO] Published Fan PWM ${pwm}/255 to ${MQTT_TOPIC_COMMAND}`);
+        toast('ok', 'HIVEMQ WEBSOCKET PUBLISHED', `Pin 9 Fan PWM -> ${pwm}/255 (${Math.round(pwm / 255 * 100)}%)`, `Payload: ${jsonCmd}`, 'Retain: OFF (QoS 0)');
+      }
+    } else {
+      await sendUsbSerialCommand(raw);
+      toast('ok', 'HIVEMQ WEBSOCKET PUBLISHED', `Command '${raw.toUpperCase()}' sent to ${MQTT_TOPIC_COMMAND}`, 'Executed on Arduino UNO R4 WiFi', 'Retain: OFF (QoS 0)');
+    }
+    inp.value = '';
+  };
+  if ($('btnMqttDirectSend')) $('btnMqttDirectSend').addEventListener('click', sendDirectMqttInput);
+  if ($('mqttDirectInput')) {
+    $('mqttDirectInput').addEventListener('keydown', ev => {
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        sendDirectMqttInput();
+      }
+    });
+  }
 
   // Seamless compatibility with legacy headless tests that read #iotPreview.innerText then click #f_blower
   const iotPrevEl = $('iotPreview');

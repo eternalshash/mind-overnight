@@ -430,26 +430,34 @@ void runClosedLoopThermostat(unsigned long now) {
                     ((hvacMode == "AUTO" || hvacMode == "ECO") && errC > DEADBAND_C);
 
   if (shouldHeat) {
+    // Proportional PWM fan modulation on heating side (scales from PWM 77 / 30% up to PWM 255 / 100%)
+    float heatDeltaC = max(0.3f, -errC);
+    int heatPwm = 60 + (int)(heatDeltaC * 50.0f);
+    uint8_t targetHeatPwm = (uint8_t)constrain(heatPwm, 77, 255);
+
     // Engage safe 5s duty-cycled heating pulse if not currently in post-heat cooldown
     if (!heaterOn && !cooldownActive) {
       startHeaterTest();
+      setFan(targetHeatPwm);
+    } else if (heaterOn) {
+      if (fanPWM != targetHeatPwm) setFan(targetHeatPwm);
     } else if (cooldownActive) {
-      setFan(255); // Continue circulating warm air during 30s inter-pulse cooldown
+      if (fanPWM != targetHeatPwm) setFan(targetHeatPwm); // Continue circulating warm air at proportional speed
     }
   } else if (shouldCool) {
     if (heaterOn) {
       stopHeater();
     }
     if (!cooldownActive) {
-      // Proportional PWM fan modulation based on thermal error
+      // Proportional PWM fan modulation on cooling side (scales from PWM 64 / 25% up to PWM 255 / 100%)
       uint8_t targetPwm = 0;
       if (hvacMode == "COOL" && errC <= DEADBAND_C) {
-        targetPwm = 190; // Force cooling baseline (75%)
+        targetPwm = 160; // Force cooling baseline (63%)
       } else {
-        // Scale smoothly from PWM 110 (43%) at 0.5C error up to PWM 255 (100%) at >= 2.5C error
-        int scaled = 110 + (int)((max(0.0f, errC - DEADBAND_C)) * 72.0f);
-        if (hvacMode == "ECO") scaled = min(scaled, 178); // Eco cap at 70%
-        targetPwm = (uint8_t)constrain(scaled, 110, 255);
+        float coolDeltaC = max(0.3f, errC);
+        int scaled = 50 + (int)(coolDeltaC * 48.0f);
+        if (hvacMode == "ECO") scaled = min(scaled, 185); // Eco cap at 72%
+        targetPwm = (uint8_t)constrain(scaled, 64, 255);
       }
       if (fanPWM != targetPwm) {
         setFan(targetPwm);
