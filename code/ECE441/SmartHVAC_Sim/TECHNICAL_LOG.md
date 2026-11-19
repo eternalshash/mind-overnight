@@ -4,6 +4,12 @@ This technical log is automatically maintained to record engineering implementat
 
 ---
 
+### [2026-11-19] Shashwat Choudhry
+* **Commit:** `b8b0293`
+* **Technical Summary:** Feat(ece441): add wireless WiFiS3 & cloud MQTT telemetry to Smart HVAC Arduino bench. Modified files in the Smart HVAC subsystem.
+
+---
+
 ### [2026-11-15] Shashwat Choudhry
 * **Commit:** `99283f9`
 * **Technical Summary:** Rust and Uni work. Modified files in the Smart HVAC subsystem.
