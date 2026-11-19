@@ -5,6 +5,12 @@ This technical log is automatically maintained to record engineering implementat
 ---
 
 ### [2026-11-19] Shashwat Choudhry
+* **Commit:** `6e49aae`
+* **Technical Summary:** Feat(ece441): add standalone SmartHVAC_Wireless_AllInOne sketch with embedded secrets, fan/heater control, HiveMQ & sim sync. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-19] Shashwat Choudhry
 * **Commit:** `11c3638`
 * **Technical Summary:** Feat(ece441): add standalone Arduino UNO R4 WiFi connection tester sketch. Modified files in the Smart HVAC subsystem.
 
