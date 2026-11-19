@@ -511,6 +511,10 @@ nav.bnav button.on{color:var(--accent);background:rgba(92,225,230,.08);font-weig
         <button class="m-btn grn" id="mBtnHeatOff">H: STOP HEATER (0V)</button>
         <button class="m-btn amb" id="mBtnHeatOn">5: 5s HEATER TEST (12V)</button>
       </div>
+      <div class="btn-grid2" style="margin-top:8px">
+        <button class="m-btn cy" id="mBtnDiag">D: BME688 DIAGNOSTICS</button>
+        <button class="m-btn" id="mBtnGasReset">B: RESET GAS BASELINE</button>
+      </div>
       <button class="m-btn grn" id="mBtnRestoreAuto" style="width:100%;margin-top:10px">&#8634; R: RESET SAFETY LOCKOUT / RESTORE AUTO PID</button>
     </div>
 
@@ -672,25 +676,35 @@ const FAULTS = [
   { id: 'heatwave', code: 'E-403', nm: 'Severe Heatwave (102.2°F)', ds: 'Triggers emergency max cooling + caregiver alert', act: 'System Action: Maximum emergency cooling engaged, caregiver notified' },
   { id: 'blower',   code: 'E-302', nm: 'Blower Motor Failure (0 RPM)', ds: 'Interlocks heater & compressor OFF', act: 'System Action: Safety interlock engaged, heater and compressor shut off' },
   { id: 'sensor',   code: 'E-202', nm: 'BME688 (TS-A) Sensor Fault', ds: 'Votes out TS-A, switches loop to TS-B', act: 'System Action: TS-A voted out, control loop switched to redundant TS-B' },
-  { id: 'mcu',      code: 'E-201', nm: 'Primary Controller Crash', ds: 'Hot-standby MCU-B takes over in 1.6s', act: 'System Action: Watchdog failover to MCU-B, heater relay gated safe' },
+  { id: 'mcu',      code: 'E-201', nm: 'Primary Controller / Relay Lock', ds: 'Hot-standby MCU-B takes over in 1.6s', act: 'System Action: Watchdog failover to MCU-B, heater relay gated safe' },
   { id: 'clog',     code: 'E-301', nm: 'MERV-13 Filter Restriction', ds: 'Boosts blower PWM + maintenance alert', act: 'System Action: Blower boosted, compressor capped at 50%, replace filter' },
-  { id: 'smoke',    code: 'E-102', nm: 'Outdoor Wildfire Smoke', ds: 'Locks OA damper closed + recirculates', act: 'System Action: Outdoor damper locked closed, MERV-13 recirculation active' }
+  { id: 'voc',      code: 'E-101', nm: 'Indoor VOC / CO2 Surge', ds: 'Triggers 100% OA damper & blower purge', act: 'System Action: Ventilation purge active (100% blower & OA damper)' },
+  { id: 'smoke',    code: 'E-102', nm: 'Outdoor Wildfire Smoke', ds: 'Locks OA damper closed + recirculates', act: 'System Action: Outdoor damper locked closed, MERV-13 recirculation active' },
+  { id: 'window',   code: 'E-402', nm: 'Open Window Contact Trip', ds: 'Pauses conditioning after 60s envelope open', act: 'System Action: Conditioning paused while window contact is open' },
+  { id: 'surge',    code: 'E-404', nm: 'Workstation Thermal Surge', ds: 'Feed-forward cooling ahead of room temp rise', act: 'System Action: Smart plug load shed, feed-forward cooling engaged' },
+  { id: 'wifi',     code: 'E-203', nm: 'Wi-Fi / Cloud Link Outage', ds: 'Verifies autonomous local edge PID regulation', act: 'System Action: Autonomous edge PID active on Arduino, telemetry buffered' }
 ];
 
 const M = {
   T: 24.0, RH: 48.0, Tout: 28.0, spC: (73 - 32) * 5 / 9,
   modeOvr: 'AUTO', fanOvr: -1, demandLimit: 1500,
-  mode: 'COOLING', comp: 25, heat: 0, fanPct: 35,
+  mode: 'COOLING', comp: 25, heat: 0, fanPct: 35, liveFanPct: 0,
   bmeLive: false, adcRaw: 536870, vSenseMv: 1689.6,
   i2cAddr: '0x76', chipId: '0x61', pressHpa: 1013.25, gasKOhms: 142.5, gasRelPct: 101.8, cooldownActive: false, safetyLockout: false,
   elec: { pwm: 89, vGs: 1.75, vFan: 1.74, iFan: 0.122, i5v: 0.167, iHtr: 0, i12v: 0.079, rFan: 41.0, r5v: 29.9, rTot: 151.9, pBench: 0.84 },
   totalW: 235,
   wdt: { elapsed: 0.2, timeout: 3.5, seq: 1, tripped: false, testing: false, _sec: 0 },
-  inj: {}, iotAuto: false, iotSent: 0, lastAlert: null,
-  usbConnected: false, rpiUrl: '',
+  inj: {}, faultTimers: {}, autoSolve: true, iotAuto: false, iotSent: 0, lastAlert: null,
+  usbConnected: false, mqttConnected: false, mqttBenchLive: false, mqttLastRxMs: 0, mqttRssi: -46,
+  arduinoHasEdgeLoop: false, dialDragging: false, lastUserSetpointMs: 0, lastLocalFaultMs: 0,
+  rpiUrl: '',
   histT: Array.from({ length: 32 }, () => 75.2),
   histSp: Array.from({ length: 32 }, () => 73.0)
 };
+
+function isMobHardwareLive() {
+  return (M.usbConnected && M.bmeLive) || (M.mqttBenchLive && M.bmeLive && !M.inj.wifi);
+}
 
 let usbPort = null, usbReader = null, usbBuf = '';
 const ctrlChan = typeof BroadcastChannel === 'function' ? new BroadcastChannel('ece441_hvac_ctrl') : null;
@@ -747,6 +761,7 @@ function mobTempToDeg(tempF) {
 
 function setMobSetpointF(newSpF) {
   const spInt = clamp(Math.round(newSpF), MOB_MIN_F, MOB_MAX_F);
+  M.lastUserSetpointMs = Date.now();
   if ($('mSpSlider')) $('mSpSlider').value = spInt;
   if (M.modeOvr === 'OFF') {
     M.modeOvr = 'AUTO';
@@ -836,6 +851,7 @@ function initMobileTurntable() {
     dial.addEventListener('pointerdown', ev => {
       if (ev.target && ev.target.closest('.step-btn')) return;
       dragging = true;
+      M.dialDragging = true;
       dial.classList.add('dragging');
       if (dial.setPointerCapture) {
         try { dial.setPointerCapture(ev.pointerId); } catch (e) {}
@@ -849,11 +865,13 @@ function initMobileTurntable() {
     const endDrag = ev => {
       if (!dragging) return;
       dragging = false;
+      M.dialDragging = false;
       deadZoneLock = null;
       dial.classList.remove('dragging');
       if (dial.releasePointerCapture && ev && ev.pointerId !== undefined) {
         try { dial.releasePointerCapture(ev.pointerId); } catch (e) {}
       }
+      scheduleMobMqttSetpointPublish();
     };
     dial.addEventListener('pointerup', endDrag);
     dial.addEventListener('pointercancel', endDrag);
@@ -1113,6 +1131,370 @@ if (ctrlChan) {
   });
 }
 
+/* =====================================================================
+   NATIVE MQTT v3.1.1 OVER WEBSOCKETS (wss://broker.hivemq.com:8884/mqtt)
+   Zero-dependency binary MQTT client for iOS Safari / 5G / GitHub Pages
+   ===================================================================== */
+const MOB_MQTT_WSS_URL = 'wss://broker.hivemq.com:8884/mqtt';
+const MOB_TOPIC_TELEMETRY = 'ece441/group2/hvac/telemetry';
+const MOB_TOPIC_COMMAND   = 'ece441/group2/hvac/command';
+const MOB_TOPIC_SETPOINT  = 'ece441/group2/hvac/setpoint';
+const MOB_TOPIC_STATUS    = 'ece441/group2/hvac/status';
+const MOB_CLIENT_TAG = 'ece441-mob-' + Math.random().toString(16).slice(2, 10);
+
+let mobMqttWs = null;
+let mobMqttPingTimer = null;
+let mobMqttReconnectTimer = null;
+let mobMqttRxBuf = new Uint8Array(0);
+let mobMqttPktId = 1;
+let mobSetpointDebounceTimer = null;
+
+function mobMqttEncodeRemainingLength(len) {
+  const out = [];
+  do {
+    let digit = len % 128;
+    len = Math.floor(len / 128);
+    if (len > 0) digit |= 0x80;
+    out.push(digit);
+  } while (len > 0);
+  return out;
+}
+
+function mobMqttEncodeUtf8(str) {
+  const bytes = new TextEncoder().encode(str);
+  const out = new Uint8Array(2 + bytes.length);
+  out[0] = (bytes.length >> 8) & 0xff;
+  out[1] = bytes.length & 0xff;
+  out.set(bytes, 2);
+  return out;
+}
+
+function mobMqttBuildConnectPacket(clientId, keepAliveSec = 30) {
+  const proto = mobMqttEncodeUtf8('MQTT');
+  const cid = mobMqttEncodeUtf8(clientId);
+  const bodyLen = proto.length + 1 + 1 + 2 + cid.length;
+  const rem = mobMqttEncodeRemainingLength(bodyLen);
+  const pkt = new Uint8Array(1 + rem.length + bodyLen);
+  let p = 0;
+  pkt[p++] = 0x10;
+  for (const b of rem) pkt[p++] = b;
+  pkt.set(proto, p); p += proto.length;
+  pkt[p++] = 0x04;
+  pkt[p++] = 0x02;
+  pkt[p++] = (keepAliveSec >> 8) & 0xff;
+  pkt[p++] = keepAliveSec & 0xff;
+  pkt.set(cid, p);
+  return pkt;
+}
+
+function mobMqttBuildSubscribePacket(topics) {
+  const topicChunks = topics.map(t => {
+    const tb = mobMqttEncodeUtf8(t);
+    const chunk = new Uint8Array(tb.length + 1);
+    chunk.set(tb, 0);
+    chunk[tb.length] = 0x00;
+    return chunk;
+  });
+  const payloadLen = topicChunks.reduce((a, c) => a + c.length, 0);
+  const bodyLen = 2 + payloadLen;
+  const rem = mobMqttEncodeRemainingLength(bodyLen);
+  const pkt = new Uint8Array(1 + rem.length + bodyLen);
+  let p = 0;
+  pkt[p++] = 0x82;
+  for (const b of rem) pkt[p++] = b;
+  const id = (mobMqttPktId++ & 0x7fff) || 1;
+  pkt[p++] = (id >> 8) & 0xff;
+  pkt[p++] = id & 0xff;
+  for (const c of topicChunks) { pkt.set(c, p); p += c.length; }
+  return pkt;
+}
+
+function mobMqttBuildPublishPacket(topic, message, retain = false) {
+  const tb = mobMqttEncodeUtf8(topic);
+  const mb = new TextEncoder().encode(typeof message === 'string' ? message : JSON.stringify(message));
+  const bodyLen = tb.length + mb.length;
+  const rem = mobMqttEncodeRemainingLength(bodyLen);
+  const pkt = new Uint8Array(1 + rem.length + bodyLen);
+  let p = 0;
+  pkt[p++] = 0x30 | (retain ? 0x01 : 0x00);
+  for (const b of rem) pkt[p++] = b;
+  pkt.set(tb, p); p += tb.length;
+  pkt.set(mb, p);
+  return pkt;
+}
+
+function publishMobMqtt(topic, payload, retain = false) {
+  if (!mobMqttWs || mobMqttWs.readyState !== 1 || !M.mqttConnected) return false;
+  try {
+    mobMqttWs.send(mobMqttBuildPublishPacket(topic, payload, retain));
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function updateMobConnectionBadges() {
+  if ($('connDot')) {
+    $('connDot').style.background = isMobHardwareLive() ? 'var(--green)' : (M.mqttConnected ? 'var(--cyan)' : 'var(--green)');
+  }
+  if ($('connSub')) {
+    if (M.mqttBenchLive) {
+      $('connSub').textContent = `ECE 441 \u2022 LIVE WIFI BENCH (IIT-IoT${M.mqttRssi ? ' ' + M.mqttRssi + 'dBm' : ''})`;
+    } else if (M.usbConnected && M.bmeLive) {
+      $('connSub').textContent = 'LIVE ARDUINO V6 BME688 (115200 BAUD)';
+    } else if (M.mqttConnected) {
+      $('connSub').textContent = 'ECE 441 \u2022 HIVEMQ CLOUD READY';
+    } else {
+      $('connSub').textContent = 'ECE 441 \u2022 LOCAL DIGITAL TWIN';
+    }
+  }
+  if ($('btnMobUsb') && !M.usbConnected) {
+    $('btnMobUsb').textContent = M.mqttBenchLive ? 'WiFi Live' : 'USB Arduino';
+  }
+}
+
+function handleMobMqttMessage(topic, payloadStr) {
+  const trimmed = (payloadStr || '').trim();
+  if (!trimmed) return;
+
+  if (topic === MOB_TOPIC_STATUS) {
+    if (trimmed.toLowerCase() === 'offline') {
+      M.mqttBenchLive = false;
+      updateMobConnectionBadges();
+    } else if (trimmed.toLowerCase() === 'online') {
+      M.mqttBenchLive = true;
+      M.mqttLastRxMs = Date.now();
+      updateMobConnectionBadges();
+    }
+    return;
+  }
+
+  if (topic === MOB_TOPIC_SETPOINT && trimmed.startsWith('{')) {
+    try {
+      const sp = JSON.parse(trimmed);
+      if (sp.client_id && sp.client_id === MOB_CLIENT_TAG) return;
+      if (!M.dialDragging && (Date.now() - M.lastUserSetpointMs > 1500)) {
+        if (typeof sp.setpoint_c === 'number' && !isNaN(sp.setpoint_c)) {
+          M.spC = clamp(sp.setpoint_c, 15, 30);
+          if ($('mSpSlider')) $('mSpSlider').value = Math.round(M.spC * 9 / 5 + 32);
+        }
+        if (sp.mode && ['AUTO', 'HEAT', 'COOL', 'ECO', 'OFF'].includes(String(sp.mode).toUpperCase())) {
+          M.modeOvr = String(sp.mode).toUpperCase();
+          if ($('mModeSelect')) $('mModeSelect').value = M.modeOvr;
+        }
+        syncControlsFromUI(false);
+        updateMobileNestUI();
+      }
+    } catch (e) {}
+    return;
+  }
+
+  if (topic === MOB_TOPIC_COMMAND && trimmed.startsWith('{')) {
+    try {
+      const cmd = JSON.parse(trimmed);
+      if (cmd.fault && FAULTS.some(x => x.id === cmd.fault)) {
+        const fid = cmd.fault;
+        if (fid === 'clear' || cmd.on === 0 || cmd.on === false) {
+          if (fid === 'clear') {
+            M.inj = {};
+            M.faultTimers = {};
+            buildFaultCards();
+            updateIoTPreview(null);
+          } else if (M.inj[fid]) {
+            M.inj[fid] = false;
+            delete M.faultTimers[fid];
+            buildFaultCards();
+            updateIoTPreview(null);
+          }
+        } else if (cmd.on && !M.inj[fid]) {
+          M.inj[fid] = true;
+          M.faultTimers[fid] = 0;
+          const fObj = FAULTS.find(x => x.id === fid);
+          buildFaultCards();
+          updateIoTPreview(fObj || null);
+        }
+      }
+    } catch (e) {}
+    return;
+  }
+
+  if (topic === MOB_TOPIC_TELEMETRY && trimmed.startsWith('{')) {
+    M.mqttBenchLive = true;
+    M.mqttLastRxMs = Date.now();
+    try {
+      const d = JSON.parse(trimmed);
+      if (typeof d.rssi === 'number') M.mqttRssi = d.rssi;
+      if (typeof d.setpoint_c === 'number') {
+        M.arduinoHasEdgeLoop = true;
+        if (!M.dialDragging && (Date.now() - M.lastUserSetpointMs > 1800)) {
+          const spDiff = Math.abs(d.setpoint_c - M.spC);
+          if (spDiff > 0.28) {
+            M.spC = clamp(d.setpoint_c, 15, 30);
+            if ($('mSpSlider')) $('mSpSlider').value = Math.round(M.spC * 9 / 5 + 32);
+            syncControlsFromUI(false);
+          }
+        }
+      }
+      if (typeof d.mode === 'string') {
+        const m = d.mode.toUpperCase();
+        if (['AUTO', 'HEAT', 'COOL', 'ECO', 'OFF'].includes(m) && !M.dialDragging && (Date.now() - M.lastUserSetpointMs > 1800)) {
+          if (M.modeOvr !== m) {
+            M.modeOvr = m;
+            if ($('mModeSelect')) $('mModeSelect').value = m;
+            syncControlsFromUI(false);
+          }
+        }
+      }
+      if (typeof d.fault === 'string') {
+        const af = d.fault.trim();
+        if ((af === 'none' || af === '') && (Date.now() - M.lastLocalFaultMs > 2800)) {
+          if (Object.keys(M.inj).some(k => M.inj[k])) {
+            M.inj = {};
+            M.faultTimers = {};
+            buildFaultCards();
+            updateIoTPreview(null);
+          }
+        } else if (af && af !== 'none' && FAULTS.some(x => x.id === af) && !M.inj[af]) {
+          M.inj[af] = true;
+          M.faultTimers[af] = 0;
+          const fObj = FAULTS.find(x => x.id === af);
+          buildFaultCards();
+          updateIoTPreview(fObj || null);
+        }
+      }
+    } catch (e) {}
+    handleMobUsbLine(trimmed);
+    updateMobConnectionBadges();
+    updateMobileNestUI();
+  }
+}
+
+function processMobMqttIncomingBytes(chunk) {
+  const merged = new Uint8Array(mobMqttRxBuf.length + chunk.length);
+  merged.set(mobMqttRxBuf, 0);
+  merged.set(chunk, mobMqttRxBuf.length);
+  mobMqttRxBuf = merged;
+
+  while (mobMqttRxBuf.length >= 2) {
+    const type = mobMqttRxBuf[0] >> 4;
+    let mult = 1, remLen = 0, idx = 1, byte = 0;
+    do {
+      if (idx >= mobMqttRxBuf.length) return;
+      byte = mobMqttRxBuf[idx++];
+      remLen += (byte & 0x7f) * mult;
+      mult *= 128;
+    } while ((byte & 0x80) !== 0);
+
+    const totalLen = idx + remLen;
+    if (mobMqttRxBuf.length < totalLen) return;
+
+    const pkt = mobMqttRxBuf.slice(0, totalLen);
+    mobMqttRxBuf = mobMqttRxBuf.slice(totalLen);
+
+    if (type === 2) {
+      M.mqttConnected = true;
+      updateMobConnectionBadges();
+      try {
+        mobMqttWs.send(mobMqttBuildSubscribePacket([
+          MOB_TOPIC_TELEMETRY,
+          MOB_TOPIC_STATUS,
+          MOB_TOPIC_SETPOINT,
+          MOB_TOPIC_COMMAND
+        ]));
+      } catch (e) {}
+    } else if (type === 3) {
+      const flags = pkt[0] & 0x0f;
+      const qos = (flags >> 1) & 0x03;
+      let p = idx;
+      const tLen = (pkt[p] << 8) | pkt[p + 1];
+      p += 2;
+      const topic = new TextDecoder().decode(pkt.slice(p, p + tLen));
+      p += tLen;
+      if (qos > 0) p += 2;
+      const payloadStr = new TextDecoder().decode(pkt.slice(p, totalLen));
+      handleMobMqttMessage(topic, payloadStr);
+    }
+  }
+}
+
+function connectMobHiveMqWebSocket() {
+  if (typeof WebSocket === 'undefined') return;
+  if (navigator.webdriver && !window.__enableLiveMqttInTest) return;
+  if (mobMqttWs && (mobMqttWs.readyState === 0 || mobMqttWs.readyState === 1)) return;
+
+  try {
+    mobMqttRxBuf = new Uint8Array(0);
+    mobMqttWs = new WebSocket(MOB_MQTT_WSS_URL, 'mqtt');
+    mobMqttWs.binaryType = 'arraybuffer';
+
+    mobMqttWs.onopen = () => {
+      try {
+        mobMqttWs.send(mobMqttBuildConnectPacket(MOB_CLIENT_TAG, 30));
+      } catch (e) {}
+      if (mobMqttPingTimer) clearInterval(mobMqttPingTimer);
+      mobMqttPingTimer = setInterval(() => {
+        if (mobMqttWs && mobMqttWs.readyState === 1 && M.mqttConnected) {
+          try { mobMqttWs.send(new Uint8Array([0xc0, 0x00])); } catch (e) {}
+        }
+      }, 22000);
+    };
+
+    mobMqttWs.onmessage = ev => {
+      if (ev.data instanceof ArrayBuffer) {
+        processMobMqttIncomingBytes(new Uint8Array(ev.data));
+      } else if (ev.data instanceof Blob) {
+        ev.data.arrayBuffer().then(ab => processMobMqttIncomingBytes(new Uint8Array(ab)));
+      }
+    };
+
+    const onDisconnect = () => {
+      M.mqttConnected = false;
+      M.mqttBenchLive = false;
+      if (mobMqttPingTimer) { clearInterval(mobMqttPingTimer); mobMqttPingTimer = null; }
+      updateMobConnectionBadges();
+      if (mobMqttReconnectTimer) clearTimeout(mobMqttReconnectTimer);
+      mobMqttReconnectTimer = setTimeout(connectMobHiveMqWebSocket, 3500);
+    };
+
+    mobMqttWs.onerror = () => {};
+    mobMqttWs.onclose = onDisconnect;
+  } catch (e) {}
+}
+
+function scheduleMobMqttSetpointPublish() {
+  if (mobSetpointDebounceTimer) clearTimeout(mobSetpointDebounceTimer);
+  mobSetpointDebounceTimer = setTimeout(() => {
+    const spF = Math.round(M.spC * 9 / 5 + 32);
+    const spC = +M.spC.toFixed(2);
+    const payload = {
+      setpoint_c: spC,
+      setpoint_f: spF,
+      mode: M.modeOvr,
+      fan_override_pct: M.fanOvr,
+      client_id: MOB_CLIENT_TAG
+    };
+    publishMobMqtt(MOB_TOPIC_SETPOINT, payload, false);
+
+    if (M.mqttConnected && !M.arduinoHasEdgeLoop) {
+      const deadbandC = 0.5;
+      const effSpC = M.spC + (M.modeOvr === 'ECO' ? 1.1 : 0);
+      if (M.modeOvr === 'OFF') {
+        publishMobMqtt(MOB_TOPIC_COMMAND, 'H', false);
+        publishMobMqtt(MOB_TOPIC_COMMAND, 'S', false);
+      } else if (M.modeOvr === 'HEAT' || (M.modeOvr !== 'COOL' && effSpC > M.T + deadbandC)) {
+        publishMobMqtt(MOB_TOPIC_COMMAND, '5', false);
+      } else if (M.modeOvr === 'COOL' || (M.modeOvr !== 'HEAT' && effSpC < M.T - deadbandC)) {
+        publishMobMqtt(MOB_TOPIC_COMMAND, 'H', false);
+        const coolErr = M.T - effSpC;
+        publishMobMqtt(MOB_TOPIC_COMMAND, coolErr > 1.8 ? 'F' : 'M', false);
+      } else {
+        publishMobMqtt(MOB_TOPIC_COMMAND, 'H', false);
+        publishMobMqtt(MOB_TOPIC_COMMAND, M.fanOvr > 0 ? (M.fanOvr > 65 ? 'F' : 'M') : 'S', false);
+      }
+    }
+  }, 380);
+}
+
 function normalizeMobV5Cmd(cmd) {
   const raw = String(cmd || '').trim().toUpperCase();
   if (!raw || raw.startsWith('SET ')) return null;
@@ -1124,6 +1506,7 @@ function normalizeMobV5Cmd(cmd) {
   if (raw === 'X' || raw === 'KILL') return 'X';
   if (raw === 'R' || raw === 'AUTO' || raw === 'RESET') return 'R';
   if (raw === 'D' || raw === 'DIAG') return 'D';
+  if (raw === 'W' || raw === 'WIFI') return 'W';
   if (raw === 'B' || raw === 'GAS RESET') return 'B';
   if (raw === '?') return '?';
   if (raw.startsWith('FAN ')) {
@@ -1136,9 +1519,11 @@ function normalizeMobV5Cmd(cmd) {
 }
 
 async function sendUsbCmd(cmd) {
-  if (!M.usbConnected || !usbPort || !usbPort.writable) return;
   const wire = normalizeMobV5Cmd(cmd);
-  if (!wire) return;
+  if (wire && M.mqttConnected) {
+    publishMobMqtt(MOB_TOPIC_COMMAND, wire, false);
+  }
+  if (!M.usbConnected || !usbPort || !usbPort.writable || !wire) return;
   try {
     const w = usbPort.writable.getWriter();
     await w.write(new TextEncoder().encode(wire + '\n'));
@@ -1250,12 +1635,14 @@ function syncControlsFromUI(pushRemote = true) {
   $('mLimLbl').textContent = `${M.demandLimit} W`;
 
   if (pushRemote) {
+    M.lastUserSetpointMs = Date.now();
     if (M.usbConnected) {
       if (M.modeOvr === 'OFF') { sendUsbCmd('H'); sendUsbCmd('S'); }
       else if (M.modeOvr === 'HEAT') sendUsbCmd('5');
       else if (M.modeOvr === 'COOL') { sendUsbCmd('H'); sendUsbCmd('F'); }
       else if (M.fanOvr >= 0) sendUsbCmd(M.fanOvr === 0 ? 'S' : M.fanOvr <= 65 ? 'M' : 'F');
     }
+    scheduleMobMqttSetpointPublish();
     broadcastControl();
   }
 }
@@ -1312,14 +1699,31 @@ $('mBtnHeatOn').addEventListener('click', async () => {
 
 $('mBtnRestoreAuto').addEventListener('click', async () => {
   M.modeOvr = 'AUTO'; M.fanOvr = -1; M.safetyLockout = false;
+  M.inj = {}; M.faultTimers = {};
   $('mModeSelect').value = 'AUTO'; $('mFanSlider').value = -1;
   $('mBtnKill').classList.remove('latched');
   $('mKillBadge').textContent = 'STANDBY'; $('mKillBadge').className = 'pill';
+  buildFaultCards();
+  updateIoTPreview(null);
   syncControlsFromUI(true);
   updateMobileNestUI();
+  if (M.mqttConnected) publishMobMqtt(MOB_TOPIC_COMMAND, { fault: 'clear', on: 0 }, false);
   await sendUsbCmd('R');
   showToast('Safety reset (R) & closed-loop AUTO PID control restored.', 'ok');
 });
+
+if ($('mBtnDiag')) {
+  $('mBtnDiag').addEventListener('click', async () => {
+    await sendUsbCmd('D');
+    showToast('Requested BME688 & Hardware Diagnostics (D) from Arduino.', 'ok');
+  });
+}
+if ($('mBtnGasReset')) {
+  $('mBtnGasReset').addEventListener('click', async () => {
+    await sendUsbCmd('B');
+    showToast('Reset BME688 Gas Baseline (B) to current reading.', 'ok');
+  });
+}
 
 // Watchdog
 $('mBtnTestWdt').addEventListener('click', () => {
@@ -1354,15 +1758,25 @@ function buildFaultCards() {
       `<div class="fault-right"><span class="fault-sw">${isOn ? 'ACTIVE' : 'OFF'}</span><span class="ios-switch amber${isOn ? ' on' : ''}"></span></div>`;
     el.addEventListener('click', () => {
       M.inj[f.id] = !M.inj[f.id];
+      const active = !!M.inj[f.id];
+      M.lastLocalFaultMs = Date.now();
+      if (active) M.faultTimers[f.id] = 0;
+      else delete M.faultTimers[f.id];
       buildFaultCards();
-      updateIoTPreview(M.inj[f.id] ? f : null);
-      if (M.inj[f.id] && M.iotAuto) {
+      updateIoTPreview(active ? f : null);
+      if (active && M.iotAuto) {
         $('mBtnSendIot').click();
       }
-      if (M.usbConnected) {
-        if (f.id === 'blower') sendUsbCmd(M.inj.blower ? 'X' : 'R');
-        else if (M.inj[f.id]) sendUsbCmd('F');
-        else sendUsbCmd('R');
+      if (M.mqttConnected) {
+        publishMobMqtt(MOB_TOPIC_COMMAND, { fault: f.id, on: active ? 1 : 0 }, false);
+      }
+      if (active) {
+        if (f.id === 'blower' || f.id === 'sensor' || f.id === 'mcu' || f.id === 'smoke') sendUsbCmd('X');
+        else if (f.id === 'heatwave' || f.id === 'voc' || f.id === 'clog') { sendUsbCmd('H'); sendUsbCmd('F'); }
+        else if (f.id === 'surge') { sendUsbCmd('H'); sendUsbCmd('M'); }
+        else if (f.id === 'window') { sendUsbCmd('H'); sendUsbCmd('S'); }
+      } else {
+        sendUsbCmd('R');
       }
     });
     box.appendChild(el);
@@ -1386,9 +1800,12 @@ function updateIoTPreview(f) {
 
 $('mBtnClearFaults').addEventListener('click', () => {
   M.inj = {};
+  M.faultTimers = {};
+  M.lastLocalFaultMs = Date.now();
   buildFaultCards();
   updateIoTPreview(null);
-  if (M.usbConnected) sendUsbCmd('R');
+  if (M.mqttConnected) publishMobMqtt(MOB_TOPIC_COMMAND, { fault: 'clear', on: 0 }, false);
+  sendUsbCmd('R');
   showToast('All injected faults cleared.', 'ok');
 });
 
@@ -1421,13 +1838,16 @@ $('mBtnSendIot').addEventListener('click', async () => {
 // USB Web Serial (Android Chrome / Desktop)
 $('btnMobUsb').addEventListener('click', async () => {
   if (!('serial' in navigator)) {
-    showToast('Direct USB Serial requires Chrome/Edge. Use Desktop CAD or RPi Sync on iOS Safari.', 'crit');
+    if (M.mqttBenchLive) {
+      showToast('Connected wirelessly to Arduino UNO R4 WiFi over HiveMQ Cloud!', 'ok');
+    } else {
+      showToast('Direct USB Serial requires Chrome/Edge. Wireless HiveMQ Cloud is active on iOS Safari.', 'ok');
+    }
     return;
   }
   if (M.usbConnected && usbPort) {
-    try { M.usbConnected = false; M.bmeLive = false; if (usbReader) await usbReader.cancel(); await usbPort.close(); } catch (e) {}
-    $('btnMobUsb').textContent = 'USB Arduino';
-    $('connSub').textContent = 'ECE 441 • LOCAL DIGITAL TWIN';
+    try { M.usbConnected = false; if (!M.mqttBenchLive) M.bmeLive = false; if (usbReader) await usbReader.cancel(); await usbPort.close(); } catch (e) {}
+    updateMobConnectionBadges();
     return;
   }
   try {
@@ -1435,8 +1855,8 @@ $('btnMobUsb').addEventListener('click', async () => {
     await usbPort.open({ baudRate: 115200 });
     M.usbConnected = true;
     $('btnMobUsb').textContent = 'USB ON';
-    $('connSub').textContent = 'LIVE ARDUINO V5 BME688 (115200 BAUD)';
-    showToast('Connected to Arduino Uno R4 V5 (A4/A5 BME688 live)!', 'ok');
+    $('connSub').textContent = 'LIVE ARDUINO V6 BME688 (115200 BAUD)';
+    showToast('Connected to Arduino Uno R4 (A4/A5 BME688 live)!', 'ok');
     const dec = new TextDecoderStream();
     usbPort.readable.pipeTo(dec.writable).catch(() => {});
     usbReader = dec.readable.getReader();
@@ -1467,10 +1887,41 @@ let mobTick = 0;
 setInterval(() => {
   const dt = 0.2;
   mobTick++;
+
+  // 6-second MQTT telemetry watchdog
+  if (M.mqttBenchLive && (Date.now() - M.mqttLastRxMs > 6000)) {
+    M.mqttBenchLive = false;
+    updateMobConnectionBadges();
+  }
+
+  // Auto-solve injected faults on resolution so fault switches automatically toggle back to OFF
+  if (M.autoSolve) {
+    let resolvedAny = false;
+    Object.keys(M.inj).forEach(fid => {
+      if (!M.inj[fid]) return;
+      M.faultTimers[fid] = (M.faultTimers[fid] || 0) + dt;
+      if (M.faultTimers[fid] >= 8.0) {
+        M.inj[fid] = false;
+        delete M.faultTimers[fid];
+        resolvedAny = true;
+        if (M.mqttConnected) {
+          publishMobMqtt(MOB_TOPIC_COMMAND, { fault: fid, on: 0 }, false);
+        }
+        sendUsbCmd('R');
+        const fObj = FAULTS.find(x => x.id === fid);
+        showToast(`AUTO-SOLVED: ${fObj ? fObj.nm : fid} mitigated & reset to OFF.`, 'ok');
+      }
+    });
+    if (resolvedAny) {
+      buildFaultCards();
+      updateIoTPreview(null);
+    }
+  }
+
   // Watchdog step
   if (M.wdt.testing) {
     M.wdt.elapsed = Math.min(5.0, M.wdt.elapsed + dt);
-  } else if (M.usbConnected) {
+  } else if (isMobHardwareLive()) {
     M.wdt.elapsed = Math.min(6.0, M.wdt.elapsed + dt);
   } else if (!M.wdt.tripped) {
     M.wdt.elapsed = (M.wdt.elapsed + dt) % 1.0;
@@ -1487,14 +1938,25 @@ setInterval(() => {
     showToast('ALARM E-204: Serial Watchdog Timeout (>3.5s)! Pin 10 Relay gated OFF.', 'crit');
   }
 
-  // Plant & PID step when not locked to USB
+  // Plant & PID step when not locked to live USB or WiFi hardware
   const tout = M.inj.heatwave ? 39.0 : M.Tout;
   const err = M.T - (M.spC + (M.modeOvr === 'ECO' ? 1.1 : 0));
-  if (M.wdt.tripped || M.modeOvr === 'OFF') {
+  if (isMobHardwareLive()) {
+    const deadbandC = 0.5;
+    const effSpC = M.spC + (M.modeOvr === 'ECO' ? 1.1 : 0);
+    M.comp = (!M.heat && M.fanPct > 5 && M.T > effSpC + deadbandC) ? M.fanPct : 0;
+    if (M.safetyLockout) M.mode = 'SAFETY LOCK';
+    else if (M.wdt.tripped) M.mode = 'WDT CUTOFF';
+    else if (M.modeOvr === 'OFF') M.mode = 'SYSTEM OFF';
+    else if (M.heat > 0) M.mode = 'HEATING (LIVE)';
+    else if (M.cooldownActive) M.mode = '30s COOLDOWN';
+    else if (M.fanPct > 0) M.mode = M.T > effSpC + deadbandC ? 'COOLING (LIVE)' : 'FAN ACTIVE';
+    else M.mode = 'IDLE (LIVE)';
+  } else if (M.wdt.tripped || M.modeOvr === 'OFF') {
     M.comp = 0; M.heat = 0; M.fanPct = 0;
     M.mode = M.wdt.tripped ? 'WDT CUTOFF' : 'SYSTEM OFF';
-  } else if (M.inj.blower) {
-    M.comp = 0; M.heat = 0; M.fanPct = 0; M.mode = 'BLOWER FAULT';
+  } else if (M.inj.blower || M.inj.sensor || M.inj.mcu || M.inj.smoke) {
+    M.comp = 0; M.heat = 0; M.fanPct = 0; M.mode = 'SAFETY CUTOFF';
   } else if (M.modeOvr === 'COOL' || M.inj.heatwave) {
     M.comp = 100; M.heat = 0; M.fanPct = M.fanOvr >= 0 ? M.fanOvr : 90;
     M.mode = M.inj.heatwave ? 'HEAT EMERG' : 'FORCE COOL';
@@ -1506,11 +1968,11 @@ setInterval(() => {
     M.comp = u > 3 ? u : 0;
     M.heat = u < -3 ? -u : 0;
     const autoFan = (M.comp > 0 || M.heat > 0) ? 30 + 0.6 * Math.max(M.comp, M.heat) : 22;
-    M.fanPct = M.fanOvr >= 0 ? M.fanOvr : (M.inj.clog ? Math.min(100, autoFan + 22) : autoFan);
+    M.fanPct = M.fanOvr >= 0 ? M.fanOvr : (M.inj.clog || M.inj.voc ? Math.min(100, autoFan + 30) : autoFan);
     M.mode = M.comp > 0 ? 'COOLING' : M.heat > 0 ? 'HEATING' : 'IDLE';
   }
 
-  if (!M.usbConnected || !M.bmeLive) {
+  if (!isMobHardwareLive()) {
     const qCool = (M.comp / 100) * 1400;
     const qHeat = (M.heat / 100) * 900;
     const qEnv = 18 * (tout - M.T) + 140;
@@ -1550,13 +2012,15 @@ setInterval(() => {
   $('mRh').textContent = Math.round(M.RH) + '%';
   $('mTotalW').textContent = M.totalW + (M.totalW > M.demandLimit ? ' W (SHED)' : ' W');
   $('mModePill').textContent = M.mode;
-  $('mModePill').className = 'pill ' + (/CUTOFF|FAULT|EMERG/.test(M.mode) ? 'crit' : /FORCE|OFF/.test(M.mode) ? 'warn' : 'ok');
+  $('mModePill').className = 'pill ' + (/CUTOFF|FAULT|EMERG|LOCK/.test(M.mode) ? 'crit' : /FORCE|OFF|COOLDOWN/.test(M.mode) ? 'warn' : 'ok');
   $('mActuatorSummary').textContent = `FAN ${Math.round(M.fanPct)}% | HTR ${M.heat > 0 ? 'ON' : 'OFF'}`;
 
-  $('mAdcStrip').className = 'adc-strip' + (M.usbConnected && M.bmeLive ? ' live' : '');
-  $('mAdcTitle').textContent = M.usbConnected && M.bmeLive
-    ? `LIVE ARDUINO A4 (SDA) / A5 (SCL) BME688 (${M.i2cAddr}, Chip ${M.chipId}):`
-    : 'A4 (SDA) / A5 (SCL) BME688 SIGNAL PIPELINE:';
+  $('mAdcStrip').className = 'adc-strip' + (isMobHardwareLive() ? ' live' : '');
+  $('mAdcTitle').textContent = M.mqttBenchLive
+    ? `LIVE WIFI ARDUINO UNO R4 BME688 (${M.i2cAddr}, IIT-IoT):`
+    : (M.usbConnected && M.bmeLive)
+      ? `LIVE ARDUINO A4 (SDA) / A5 (SCL) BME688 (${M.i2cAddr}, Chip ${M.chipId}):`
+      : 'A4 (SDA) / A5 (SCL) BME688 SIGNAL PIPELINE:';
   $('mAdcFlow').innerHTML =
     `Analog <b>${M.vSenseMv.toFixed(1)} mV</b> &rarr; I2C <b>${M.i2cAddr} (${M.chipId})</b> &rarr; <span class="grn"><b>${fF(M.T)}&deg;F (${M.T.toFixed(2)}&deg;C) | Gas ${M.gasKOhms.toFixed(1)} k&Omega; (${M.gasRelPct.toFixed(0)}%)</b></span>`;
 
@@ -1616,6 +2080,7 @@ buildFaultCards();
 syncControlsFromUI(false);
 updateIoTPreview(null);
 updateMobileNestUI();
+connectMobHiveMqWebSocket();
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }

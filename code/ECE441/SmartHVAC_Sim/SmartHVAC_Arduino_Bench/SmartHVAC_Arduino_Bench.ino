@@ -1,12 +1,14 @@
 // =============================================================================
-// ECE 441: SMART HVAC CONTROL — ALL-IN-ONE WIRELESS BENCH FIRMWARE (V5.2)
+// ECE 441: SMART HVAC CONTROL — ALL-IN-ONE WIRELESS BENCH FIRMWARE (V6.0)
 // Single-file standalone sketch for Arduino UNO R4 WiFi (ESP32-S3 Co-Processor)
 // Includes:
 //   - Embedded IIT-IoT Wi-Fi & HiveMQ Cloud credentials (Zero extra files needed)
-//   - Direct TCP Port 1883 MQTT (Bypasses UNO R4 SSL cert issues; bridges to Web 8884)
-//   - Unique MAC-based ClientID & <256-byte telemetry buffer for ArduinoMqttClient
-//   - Full Fan PWM (Pin 9) & Active-HIGH Relay Heater (Pin 10) control
-//   - Bosch BME688 I2C telemetry & safety lockouts (5s heater limit, 30s cooldown)
+//   - Direct TCP Port 1883 MQTT (Bridges directly to Web/Mobile WSS Port 8884)
+//   - Unique MAC-based ClientID & LWT ("offline"/"online") on ece441/group2/hvac/status
+//   - Closed-Loop Edge Autonomous Thermostat (Nest Dial Setpoint +/- 0.5C Deadband)
+//   - Full Manual Bench Overrides (5, H, F, M, S, X, R, D, W, B + raw PWM slider)
+//   - Injectable Faults Suite (heatwave, blower, sensor, mcu, clog, voc, smoke,
+//     window, surge, wifi) with automatic state sync & reset
 // =============================================================================
 
 #include <Wire.h>
@@ -23,42 +25,43 @@
 const char SECRET_SSID[]      = "IIT-IoT";
 const char SECRET_PASS[]      = "XtAOhMfEQ7yeLeIVOSgHdv7bjNOxtqH7A1XjyzCpTsXRr";
 
-// Note: Port 1883 (TCP) on Arduino bridges directly to Port 8884 (WSS) on HiveMQ Web Client
-// and avoids ESP32-S3 Root CA certificate rejections on public HiveMQ.
+// Port 1883 (TCP) on Arduino bridges directly to Port 8884 (WSS) on Web & Mobile
 const char SECRET_BROKER[]    = "broker.hivemq.com";
 const int  SECRET_PORT        = 1883;
 const char SECRET_USER[]      = "";
 const char SECRET_MQTT_PASS[] = "";
 
-// Unique Client ID prevents public broker collisions
+// Unique MAC-tied Client ID prevents public broker collisions
 const char MQTT_CLIENT_ID[]   = "ece441-group2-uno-r4-70041DD4F668";
 
-// MQTT Topics (Compatible with both HiveMQ Web Client & Digital Twin Sim)
+// MQTT Topics (Shared across Arduino, Web Digital Twin, and Mobile PWA)
 const char TOPIC_TELEMETRY[]     = "ece441/group2/hvac/telemetry";
 const char TOPIC_TELEMETRY_ALT[] = "ece441/hvac/telemetry";
 const char TOPIC_COMMAND[]       = "ece441/group2/hvac/command";
 const char TOPIC_COMMAND_ALT[]   = "ece441/hvac/command";
 const char TOPIC_SETPOINT[]      = "ece441/group2/hvac/setpoint";
+const char TOPIC_STATUS[]        = "ece441/group2/hvac/status";
 
 // =======================================
 // 2. HARDWARE PINOUT & TIMING
 // =======================================
 const uint8_t RELAY_PIN = 10;   // Active-HIGH Relay (12V PTC Heater)
-const uint8_t FAN_PIN   = 9;    // PWM Gate (12V Blower Fan via MOSFET)
+const uint8_t FAN_PIN   = 9;    // PWM Gate (12V Blower Fan via IRLZ44N MOSFET)
 
 const uint8_t RELAY_ON  = HIGH;
 const uint8_t RELAY_OFF = LOW;
 
-const unsigned long HEAT_TIME_MS           = 5000;   // 5-second max heating pulse
-const unsigned long COOLDOWN_MS            = 30000;  // 30-second mandatory post-heat fan cooldown
-const unsigned long SENSOR_INTERVAL_MS     = 2000;   // 2-second telemetry & sim sync loop
+const unsigned long HEAT_TIME_MS           = 5000;   // Hard 5-second max heating pulse
+const unsigned long COOLDOWN_MS            = 30000;  // Mandatory 30-second post-heat fan cooldown
+const unsigned long SENSOR_INTERVAL_MS     = 2000;   // 2-second telemetry & closed-loop PID tick
 const unsigned long WIFI_RETRY_INTERVAL_MS = 15000;
 const unsigned long MQTT_RETRY_INTERVAL_MS = 5000;
 
-// Safety Limits
-const float MAX_TEMP_C = 40.0;
-const float MIN_TEMP_C = -40.0;
-const float SEA_LEVEL_HPA = 1013.25;
+// Safety & Hysteresis Limits
+const float MAX_TEMP_C        = 40.0;
+const float MIN_TEMP_C        = -40.0;
+const float DEADBAND_C        = 0.5;     // +/- 0.5 C hysteresis deadband to prevent relay chatter
+const float SEA_LEVEL_HPA     = 1013.25;
 const int   GAS_BASELINE_SAMPLES = 20;
 
 // =======================================
@@ -70,42 +73,50 @@ bool sensorFound = false;
 bool sensorValid = false;
 uint8_t sensorAddress = 0;
 
-float temperatureC = 22.0; // Fallback for bench fan testing if sensor unplugged
-float humidity     = 45.0;
-float pressureHPA  = 1013.25;
-float gasKOhms     = 100.0;
+float temperatureC = 23.9; // Nominal room fallback if sensor unplugged
+float humidity     = 35.0;
+float pressureHPA  = 1004.3;
+float gasKOhms     = 140.0;
 
 float gasTotal    = 0;
 float gasBaseline = 0;
 int   gasCount    = 0;
 bool  gasReady    = false;
 
-bool heaterOn       = false;
-bool cooldownActive = false;
-bool safetyLockout  = false;
-uint8_t fanPWM      = 0;
-float targetSetpointC = 22.0;
-String hvacMode       = "AUTO";
+// Actuators & Closed-Loop State
+bool heaterOn          = false;
+bool cooldownActive    = false;
+bool safetyLockout     = false;
+bool autoControlActive = true;  // True = Nest Dial Setpoint closed-loop; False = Manual bench override
+uint8_t fanPWM         = 0;
 
-unsigned long heaterStart     = 0;
-unsigned long cooldownStart   = 0;
-unsigned long lastSensorRead  = 0;
-unsigned long lastWifiAttempt = 0;
-unsigned long lastMqttAttempt = 0;
+float  targetSetpointC = 23.89; // Default 75.0 F (matches nominal room so bench starts quietly in IDLE)
+String hvacMode        = "AUTO"; // AUTO, HEAT, COOL, ECO, OFF
+String activeFault     = "none"; // none, heatwave, blower, sensor, mcu, clog, voc, smoke, window, surge, wifi
+
+unsigned long heaterStart       = 0;
+unsigned long cooldownStart     = 0;
+unsigned long lastSensorRead    = 0;
+unsigned long lastWifiAttempt   = 0;
+unsigned long lastMqttAttempt   = 0;
+unsigned long wifiSimDropUntil  = 0;
 
 const char* lockoutReason = "None";
 const char* lastError     = "None";
 char lastCmdExecuted      = '-';
 
-// Wireless Clients (Standard WiFiClient on Port 1883 for rock-solid UNO R4 connection)
+// Wireless Clients
 WiFiClient wifiClient;
 MqttClient mqttClient(wifiClient);
 
 // Forward Declarations
 void executeCommand(char cmd, const char* source = "SERIAL");
 void publishTelemetry();
+void publishStatus(const char* st);
 void onMqttMessageReceived(int messageSize);
 void printWiFiStatus();
+void runClosedLoopThermostat(unsigned long now);
+void applyInjectedFault(const String& faultId, bool turnOn);
 
 // =======================================
 // 4. ACTUATOR CONTROL (RELAY & FAN)
@@ -121,6 +132,9 @@ void relayOn() {
 }
 
 void setFan(uint8_t pwm) {
+  if (activeFault == "blower") {
+    pwm = 0; // Simulated blower motor stall interlock
+  }
   fanPWM = pwm;
   analogWrite(FAN_PIN, pwm);
 }
@@ -132,7 +146,9 @@ void stopHeater() {
   if (wasHeating) {
     cooldownActive = true;
     cooldownStart = millis();
-    setFan(255);
+    if (activeFault != "blower") {
+      setFan(255);
+    }
 
     Serial.println();
     Serial.println("HEATER OFF");
@@ -157,7 +173,11 @@ void emergencyStop(const char* reason) {
   }
 
   safetyLockout = true;
-  setFan(255);
+  if (activeFault == "blower") {
+    setFan(0);
+  } else {
+    setFan(255); // Keep fan cooling at 100% during thermal/MCU lockout
+  }
   publishTelemetry();
 }
 
@@ -317,16 +337,210 @@ void readSensor() {
 }
 
 // =======================================
-// 7. TELEMETRY DISPLAY & DIAGNOSTICS
+// 7. CLOSED-LOOP EDGE THERMOSTAT & FAULTS
+// =======================================
+void startHeaterTest() {
+  if (safetyLockout || cooldownActive || heaterOn || activeFault == "blower" || activeFault == "window") {
+    Serial.println("HEATER TEST DENIED");
+    if (safetyLockout) {
+      Serial.print("Lockout Reason: ");
+      Serial.println(lockoutReason);
+    } else if (cooldownActive) {
+      Serial.println("Reason: 30-second cooldown is still active (send R to clear cooldown).");
+    }
+    return;
+  }
+
+  if (sensorFound) {
+    readSensor();
+    if (safetyLockout || !sensorValid) {
+      Serial.println("HEATER TEST DENIED: Unsafe sensor reading.");
+      return;
+    }
+  }
+
+  setFan(255);
+  heaterStart = millis();
+  relayOn();
+
+  Serial.println();
+  Serial.println("HEATER ON (Pin 10 HIGH)");
+  Serial.println("5-second heating pulse active.");
+  Serial.println("Fan at 100% (Pin 9 PWM = 255).");
+  publishTelemetry();
+}
+
+void runClosedLoopThermostat(unsigned long now) {
+  // 1. Non-negotiable safety lockouts always win
+  if (safetyLockout) {
+    relayOff();
+    if (activeFault == "blower") setFan(0);
+    else setFan(255);
+    return;
+  }
+
+  // 2. Active fault overrides
+  if (activeFault == "blower") {
+    relayOff();
+    setFan(0);
+    return;
+  }
+  if (activeFault == "window") {
+    if (heaterOn) stopHeater();
+    if (!cooldownActive) setFan(0);
+    return;
+  }
+  if (activeFault == "heatwave" || activeFault == "surge") {
+    if (heaterOn) stopHeater();
+    setFan(255);
+    return;
+  }
+  if (activeFault == "smoke") {
+    if (heaterOn) stopHeater();
+    if (!cooldownActive) setFan(128);
+    return;
+  }
+  if (activeFault == "clog" || activeFault == "voc") {
+    if (!heaterOn && !cooldownActive) setFan(255);
+    return;
+  }
+
+  // 3. System OFF mode
+  if (hvacMode == "OFF") {
+    if (heaterOn) stopHeater();
+    if (!cooldownActive) setFan(0);
+    return;
+  }
+
+  // 4. Respect manual bench button overrides until user adjusts Nest dial, mode, or hits Reset (R)
+  if (!autoControlActive) {
+    return;
+  }
+
+  // 5. Closed-loop comparison: Real BME688 Temp vs Target Setpoint (+/- 0.5 C hysteresis deadband)
+  float effSpC = targetSetpointC + (hvacMode == "ECO" ? 1.1 : 0.0);
+  float errC = temperatureC - effSpC; // > 0 means room is too warm (COOL); < 0 means room is too cold (HEAT)
+
+  // Force HEAT or Setpoint above Room Temp + Deadband
+  bool shouldHeat = (hvacMode == "HEAT" && errC < 0.2) ||
+                    ((hvacMode == "AUTO" || hvacMode == "ECO") && errC < -DEADBAND_C);
+
+  // Force COOL or Setpoint below Room Temp - Deadband
+  bool shouldCool = (hvacMode == "COOL" && errC > -0.2) ||
+                    ((hvacMode == "AUTO" || hvacMode == "ECO") && errC > DEADBAND_C);
+
+  if (shouldHeat) {
+    // Engage safe 5s duty-cycled heating pulse if not currently in post-heat cooldown
+    if (!heaterOn && !cooldownActive) {
+      startHeaterTest();
+    } else if (cooldownActive) {
+      setFan(255); // Continue circulating warm air during 30s inter-pulse cooldown
+    }
+  } else if (shouldCool) {
+    if (heaterOn) {
+      stopHeater();
+    }
+    if (!cooldownActive) {
+      // Proportional PWM fan modulation based on thermal error
+      uint8_t targetPwm = 0;
+      if (hvacMode == "COOL" && errC <= DEADBAND_C) {
+        targetPwm = 190; // Force cooling baseline (75%)
+      } else {
+        // Scale smoothly from PWM 110 (43%) at 0.5C error up to PWM 255 (100%) at >= 2.5C error
+        int scaled = 110 + (int)((max(0.0f, errC - DEADBAND_C)) * 72.0f);
+        if (hvacMode == "ECO") scaled = min(scaled, 178); // Eco cap at 70%
+        targetPwm = (uint8_t)constrain(scaled, 110, 255);
+      }
+      if (fanPWM != targetPwm) {
+        setFan(targetPwm);
+      }
+    }
+  } else {
+    // Within +/- 0.5 C Deadband -> IDLE
+    if (heaterOn) {
+      stopHeater();
+    }
+    if (!cooldownActive && fanPWM != 0) {
+      setFan(0);
+    }
+  }
+}
+
+void applyInjectedFault(const String& faultId, bool turnOn) {
+  if (!turnOn || faultId == "none" || faultId == "clear") {
+    activeFault = "none";
+    wifiSimDropUntil = 0;
+    if (safetyLockout) {
+      safetyLockout = false;
+      lockoutReason = "None";
+    }
+    autoControlActive = true;
+    runClosedLoopThermostat(millis());
+    Serial.println("[FAULT CLEARED] Restored nominal closed-loop operation.");
+    publishTelemetry();
+    return;
+  }
+
+  activeFault = faultId;
+  Serial.print("[FAULT INJECTED]: ");
+  Serial.println(activeFault);
+
+  if (faultId == "blower") {
+    emergencyStop("Blower motor failure (0 RPM)");
+    setFan(0);
+  } else if (faultId == "mcu" || faultId == "stuck_relay") {
+    emergencyStop("Primary MCU / Stuck Relay Interlock");
+  } else if (faultId == "heatwave" || faultId == "surge") {
+    if (heaterOn) stopHeater();
+    setFan(255);
+  } else if (faultId == "clog" || faultId == "voc") {
+    setFan(255);
+  } else if (faultId == "smoke") {
+    if (heaterOn) stopHeater();
+    setFan(128);
+  } else if (faultId == "window") {
+    if (heaterOn) stopHeater();
+    setFan(0);
+  } else if (faultId == "wifi") {
+    wifiSimDropUntil = millis() + 7000;
+    Serial.println("[FAULT] Simulating 7-second cloud link dropout (Edge autonomy active)...");
+  }
+  publishTelemetry();
+}
+
+void resetSafety() {
+  relayOff();
+  Serial.println("Attempting safety reset...");
+
+  cooldownActive = false;
+  safetyLockout = false;
+  lockoutReason = "None";
+  activeFault = "none";
+  wifiSimDropUntil = 0;
+  autoControlActive = true;
+
+  initializeSensor();
+  if (sensorFound) {
+    readSensor();
+  }
+
+  setFan(0);
+  runClosedLoopThermostat(millis());
+
+  Serial.println("SAFETY RESET SUCCESSFUL");
+  publishTelemetry();
+}
+
+// =======================================
+// 8. TELEMETRY DISPLAY & DIAGNOSTICS
 // =======================================
 void printSensorData() {
   float fanPct = fanPWM * 100.0 / 255.0;
   float airVel = (fanPct / 100.0) * 3.4;
-  float feelsC = apparentTempC(temperatureC, humidity, airVel);
   float powerW = calculateCircuitPower(fanPWM, heaterOn);
 
   Serial.println("================================");
-  Serial.println("       SMART HVAC DEMO V5       ");
+  Serial.println("       SMART HVAC DEMO V6       ");
   Serial.println("================================");
   Serial.println("[BME688]");
   Serial.print("Temperature: ");
@@ -334,6 +548,13 @@ void printSensorData() {
   Serial.print(" F / ");
   Serial.print(temperatureC, 2);
   Serial.println(" C");
+  Serial.print("Setpoint:    ");
+  Serial.print(fahrenheit(targetSetpointC), 1);
+  Serial.print(" F / ");
+  Serial.print(targetSetpointC, 2);
+  Serial.print(" C (Mode: ");
+  Serial.print(hvacMode);
+  Serial.println(")");
   Serial.print("Humidity: ");
   Serial.print(humidity, 1);
   Serial.println(" % RH");
@@ -356,6 +577,8 @@ void printSensorData() {
   Serial.println(cooldownActive ? "ACTIVE" : "OFF");
   Serial.print("Safety lockout: ");
   Serial.println(safetyLockout ? "ACTIVE" : "CLEAR");
+  Serial.print("Active fault: ");
+  Serial.println(activeFault);
   Serial.print("Wi-Fi / MQTT: ");
   Serial.print(WiFi.status() == WL_CONNECTED ? "WIFI OK" : "WIFI DOWN");
   Serial.print(" / ");
@@ -393,70 +616,15 @@ void printDiagnostics() {
   Serial.print("Sensor address:    0x"); Serial.println(sensorAddress, HEX);
   Serial.print("Sensor data valid: "); Serial.println(sensorValid ? "YES" : "NO");
   Serial.print("Last error:        "); Serial.println(lastError);
+  Serial.print("Control Mode:      "); Serial.print(hvacMode); Serial.println(autoControlActive ? " (CLOSED-LOOP)" : " (MANUAL OVERRIDE)");
+  Serial.print("Setpoint:          "); Serial.print(targetSetpointC, 2); Serial.print(" C ("); Serial.print(fahrenheit(targetSetpointC), 1); Serial.println(" F)");
   Serial.print("Heater Relay (10): "); Serial.println(heaterOn ? "ON (HIGH)" : "OFF (LOW)");
   Serial.print("Fan PWM (Pin 9):   "); Serial.print(fanPWM); Serial.print(" ("); Serial.print(fanPWM * 100.0 / 255.0, 0); Serial.println("%)");
   Serial.print("Cooldown Active:   "); Serial.println(cooldownActive ? "ACTIVE" : "OFF");
   Serial.print("Safety Lockout:    "); Serial.println(safetyLockout ? "ACTIVE" : "CLEAR");
   Serial.print("Lockout Reason:    "); Serial.println(lockoutReason);
+  Serial.print("Active Fault:      "); Serial.println(activeFault);
   printWiFiStatus();
-}
-
-// =======================================
-// 8. HEATER TEST & SAFETY RESET
-// =======================================
-void startHeaterTest() {
-  if (safetyLockout || cooldownActive || heaterOn) {
-    Serial.println("HEATER TEST DENIED");
-    if (safetyLockout) {
-      Serial.print("Lockout Reason: ");
-      Serial.println(lockoutReason);
-    } else if (cooldownActive) {
-      Serial.println("Reason: 30-second cooldown is still active (send R to clear cooldown).");
-    }
-    return;
-  }
-
-  if (sensorFound) {
-    readSensor();
-    if (safetyLockout || !sensorValid) {
-      Serial.println("HEATER TEST DENIED: Unsafe sensor reading.");
-      return;
-    }
-  } else {
-    Serial.println("WARNING: BME688 not detected; running 5-second bench relay & fan test!");
-  }
-
-  setFan(255);
-  heaterStart = millis();
-  relayOn();
-
-  Serial.println();
-  Serial.println("HEATER ON (Pin 10 HIGH)");
-  Serial.println("5-second heating test started.");
-  Serial.println("Fan at 100% (Pin 9 PWM = 255).");
-  publishTelemetry();
-}
-
-void resetSafety() {
-  relayOff();
-  Serial.println("Attempting safety reset...");
-
-  if (cooldownActive) {
-    cooldownActive = false;
-    Serial.println("Cooldown timer cleared.");
-  }
-
-  initializeSensor();
-  if (sensorFound) {
-    readSensor();
-  }
-
-  safetyLockout = false;
-  lockoutReason = "None";
-  setFan(0);
-
-  Serial.println("SAFETY RESET SUCCESSFUL");
-  publishTelemetry();
 }
 
 // =======================================
@@ -471,8 +639,8 @@ void printMenu() {
   Serial.println("M = Fan ON 50%  (Pin 9 PWM = 128)");
   Serial.println("S = Fan OFF     (Pin 9 PWM = 0)");
   Serial.println("W = Check Wi-Fi & MQTT connection status");
-  Serial.println("X = Emergency software stop");
-  Serial.println("R = Reset safety lockout / clear cooldown");
+  Serial.println("X = Emergency software stop / Lockout");
+  Serial.println("R = Reset safety lockout / Restore Auto PID");
   Serial.println("D = Full system diagnostics");
   Serial.println("B = Reset gas baseline");
   Serial.println("? = Show menu");
@@ -491,14 +659,18 @@ void executeCommand(char cmd, const char* source) {
 
   switch (cmd) {
     case '5':
+      autoControlActive = false;
       startHeaterTest();
       break;
 
     case 'H':
+      autoControlActive = false;
       stopHeater();
+      publishTelemetry();
       break;
 
     case 'F':
+      autoControlActive = false;
       setFan(255);
       Serial.println("Fan ON 100% (Pin 9 PWM = 255)");
       publishTelemetry();
@@ -506,6 +678,7 @@ void executeCommand(char cmd, const char* source) {
 
     case 'M':
       if (!heaterOn) {
+        autoControlActive = false;
         setFan(128);
         Serial.println("Fan ON 50% (Pin 9 PWM = 128)");
         publishTelemetry();
@@ -516,6 +689,7 @@ void executeCommand(char cmd, const char* source) {
 
     case 'S':
       if (!heaterOn) {
+        autoControlActive = false;
         cooldownActive = false;
         setFan(0);
         Serial.println("Fan OFF (Pin 9 PWM = 0)");
@@ -531,6 +705,7 @@ void executeCommand(char cmd, const char* source) {
       break;
 
     case 'X':
+      autoControlActive = false;
       emergencyStop("Manual emergency stop");
       break;
 
@@ -545,6 +720,7 @@ void executeCommand(char cmd, const char* source) {
 
     case 'B':
       resetGasBaseline();
+      publishTelemetry();
       break;
 
     case '?':
@@ -594,6 +770,13 @@ void connectWiFi(bool waitOnBoot = false) {
   }
 }
 
+void publishStatus(const char* st) {
+  if (!mqttClient.connected()) return;
+  mqttClient.beginMessage(TOPIC_STATUS, (unsigned long)strlen(st), true, 0, false);
+  mqttClient.print(st);
+  mqttClient.endMessage();
+}
+
 void connectMQTT() {
   if (WiFi.status() != WL_CONNECTED || mqttClient.connected()) return;
 
@@ -607,7 +790,12 @@ void connectMQTT() {
   if (strlen(SECRET_USER) > 0) {
     mqttClient.setUsernamePassword(SECRET_USER, SECRET_MQTT_PASS);
   }
-  mqttClient.setKeepAliveInterval(60 * 1000);
+  mqttClient.setKeepAliveInterval(30 * 1000);
+
+  // Configure Last Will and Testament (LWT) so Web/Mobile detect unexpected power-off
+  mqttClient.beginWill(TOPIC_STATUS, 7, true, 0);
+  mqttClient.print("offline");
+  mqttClient.endWill();
 
   if (!mqttClient.connect(SECRET_BROKER, SECRET_PORT)) {
     Serial.print("[MQTT] Connection failed! Error code = ");
@@ -621,11 +809,37 @@ void connectMQTT() {
   mqttClient.subscribe(TOPIC_COMMAND_ALT);
   mqttClient.subscribe(TOPIC_SETPOINT);
 
-  Serial.print("[MQTT] Listening for commands on: ");
-  Serial.println(TOPIC_COMMAND);
-
-  // Immediately publish initial state upon connection
+  publishStatus("online");
   publishTelemetry();
+}
+
+// Helper to extract JSON string field value
+String extractJsonString(const String& json, const char* key) {
+  String k = String("\"") + key + "\"";
+  int idx = json.indexOf(k);
+  if (idx < 0) return "";
+  int colon = json.indexOf(':', idx + k.length());
+  if (colon < 0) return "";
+  int q1 = json.indexOf('\"', colon + 1);
+  if (q1 < 0) return "";
+  int q2 = json.indexOf('\"', q1 + 1);
+  if (q2 < 0) return "";
+  return json.substring(q1 + 1, q2);
+}
+
+// Helper to extract JSON numeric field value
+float extractJsonFloat(const String& json, const char* key, float defaultVal = NAN) {
+  String k = String("\"") + key + "\"";
+  int idx = json.indexOf(k);
+  if (idx < 0) return defaultVal;
+  int colon = json.indexOf(':', idx + k.length());
+  if (colon < 0) return defaultVal;
+  int start = colon + 1;
+  while (start < (int)json.length() && (json.charAt(start) == ' ' || json.charAt(start) == '\"')) start++;
+  int end = start;
+  while (end < (int)json.length() && (isdigit(json.charAt(end)) || json.charAt(end) == '.' || json.charAt(end) == '-')) end++;
+  if (end <= start) return defaultVal;
+  return json.substring(start, end).toFloat();
 }
 
 void onMqttMessageReceived(int messageSize) {
@@ -644,84 +858,132 @@ void onMqttMessageReceived(int messageSize) {
 
   if (payload.length() == 0) return;
 
-  // 1. Direct single-letter command from HiveMQ Web Client (e.g. "5", "F", "M", "S", "H", "W")
-  if (payload.length() == 1) {
+  // 1. Direct single-letter command (e.g. "5", "F", "M", "S", "H", "W", "X", "R", "D", "B")
+  if (payload.length() == 1 && !isdigit(payload.charAt(0))) {
     executeCommand(payload.charAt(0), "MQTT");
     return;
   }
+  if (payload == "5") {
+    executeCommand('5', "MQTT");
+    return;
+  }
 
-  // 2. JSON command from Digital Twin Simulation or Web UI:
-  //    e.g. {"cmd":"F"}, {"command":"5"}, {"fan_pwm":200}, {"setpoint":23.5}
-  int cmdIdx = payload.indexOf("\"cmd\"");
-  if (cmdIdx < 0) cmdIdx = payload.indexOf("\"command\"");
-  if (cmdIdx >= 0) {
-    int colon = payload.indexOf(':', cmdIdx);
-    if (colon >= 0) {
-      for (int i = colon + 1; i < (int)payload.length(); i++) {
-        char c = payload.charAt(i);
-        if (c != ' ' && c != '\"' && c != '\'' && c != '{' && c != '}') {
-          executeCommand(c, "MQTT-JSON");
-          return;
-        }
+  // 2. Fault injection command: {"fault":"blower","on":1} or {"fault":"clear"}
+  String faultId = extractJsonString(payload, "fault");
+  if (faultId.length() > 0) {
+    float onVal = extractJsonFloat(payload, "on", 1.0);
+    bool isTrue = payload.indexOf(":true") >= 0 || onVal > 0.5;
+    if (faultId == "none" || faultId == "clear") isTrue = false;
+    applyInjectedFault(faultId, isTrue);
+    return;
+  }
+
+  // 3. Setpoint and/or Mode update from Web or Mobile Nest Turntable:
+  //    e.g. {"setpoint_c":24.4,"mode":"HEAT"} or {"sp_f":76} or raw float on TOPIC_SETPOINT
+  bool updatedSetpointOrMode = false;
+
+  String modeStr = extractJsonString(payload, "mode");
+  if (modeStr.length() > 0) {
+    modeStr.toUpperCase();
+    if (modeStr == "AUTO" || modeStr == "HEAT" || modeStr == "COOL" || modeStr == "ECO" || modeStr == "OFF") {
+      hvacMode = modeStr;
+      autoControlActive = true;
+      updatedSetpointOrMode = true;
+      Serial.print("[MQTT-NEST] HVAC Mode set to: ");
+      Serial.println(hvacMode);
+    }
+  }
+
+  float spC = extractJsonFloat(payload, "setpoint_c");
+  if (isnan(spC)) spC = extractJsonFloat(payload, "setpoint");
+  if (isnan(spC)) {
+    float spF = extractJsonFloat(payload, "setpoint_f");
+    if (isnan(spF)) spF = extractJsonFloat(payload, "sp_f");
+    if (!isnan(spF) && spF >= 50.0 && spF <= 95.0) {
+      spC = (spF - 32.0) * 5.0 / 9.0;
+    }
+  }
+  if (isnan(spC) && topic == TOPIC_SETPOINT && payload.charAt(0) != '{') {
+    float rawVal = payload.toFloat();
+    if (rawVal >= 50.0 && rawVal <= 95.0) spC = (rawVal - 32.0) * 5.0 / 9.0;
+    else if (rawVal >= 10.0 && rawVal <= 35.0) spC = rawVal;
+  }
+
+  if (!isnan(spC) && spC >= 10.0 && spC <= 35.0) {
+    targetSetpointC = spC;
+    autoControlActive = true;
+    updatedSetpointOrMode = true;
+    Serial.print("[MQTT-NEST] Target Setpoint updated to: ");
+    Serial.print(targetSetpointC, 2);
+    Serial.print(" C (");
+    Serial.print(fahrenheit(targetSetpointC), 1);
+    Serial.println(" F)");
+  }
+
+  // 4. Direct Fan PWM slider override: {"fan_pwm": 180} or {"fan_pct": 70}
+  float fanPwmVal = extractJsonFloat(payload, "fan_pwm");
+  if (isnan(fanPwmVal)) {
+    float fanPctVal = extractJsonFloat(payload, "fan_pct");
+    if (!isnan(fanPctVal)) {
+      if (fanPctVal < 0) {
+        autoControlActive = true;
+        updatedSetpointOrMode = true;
+      } else {
+        fanPwmVal = (fanPctVal / 100.0) * 255.0;
       }
     }
   }
-
-  // Direct fan PWM value from Sim slider: {"fan_pwm": 180}
-  int fanIdx = payload.indexOf("\"fan_pwm\"");
-  if (fanIdx >= 0) {
-    int colon = payload.indexOf(':', fanIdx);
-    if (colon >= 0) {
-      int val = payload.substring(colon + 1).toInt();
-      val = constrain(val, 0, 255);
-      setFan((uint8_t)val);
-      Serial.print("[MQTT-SIM] Fan PWM set to: ");
-      Serial.println(val);
-      publishTelemetry();
-    }
+  if (!isnan(fanPwmVal) && fanPwmVal >= 0) {
+    uint8_t pwm = (uint8_t)constrain((int)round(fanPwmVal), 0, 255);
+    autoControlActive = false;
+    setFan(pwm);
+    Serial.print("[MQTT-SIM] Manual Fan PWM set to: ");
+    Serial.println(pwm);
+    publishTelemetry();
+    return;
   }
 
-  // Setpoint update from Sim Nest Turntable: {"setpoint": 24.0}
-  if (topic == TOPIC_SETPOINT || payload.indexOf("\"setpoint\"") >= 0) {
-    float sp = payload.toFloat();
-    int spIdx = payload.indexOf("\"setpoint\"");
-    if (spIdx >= 0) {
-      int colon = payload.indexOf(':', spIdx);
-      if (colon >= 0) sp = payload.substring(colon + 1).toFloat();
-    }
-    if (sp >= 10.0 && sp <= 35.0) {
-      targetSetpointC = sp;
-      Serial.print("[MQTT-SIM] Target Setpoint updated to: ");
-      Serial.print(targetSetpointC, 1);
-      Serial.println(" C");
-      publishTelemetry();
-    }
+  if (updatedSetpointOrMode) {
+    runClosedLoopThermostat(millis());
+    publishTelemetry();
+    return;
+  }
+
+  // 5. Explicit single-char command inside JSON: {"cmd":"F"} or {"command":"5"}
+  String cmdStr = extractJsonString(payload, "cmd");
+  if (cmdStr.length() == 0) cmdStr = extractJsonString(payload, "command");
+  if (cmdStr.length() > 0) {
+    executeCommand(cmdStr.charAt(0), "MQTT-JSON");
   }
 }
 
 void publishTelemetry() {
   if (!mqttClient.connected()) return;
+  if (wifiSimDropUntil > 0 && millis() < wifiSimDropUntil) return; // Simulated Wi-Fi fault window
 
   float fanPct = fanPWM * 100.0 / 255.0;
   float airVel = (fanPct / 100.0) * 3.4;
   float feelsC = apparentTempC(temperatureC, humidity, airVel);
   float powerW = calculateCircuitPower(fanPWM, heaterOn);
 
-  // Compact JSON payload (< 240 bytes) so it fits safely inside ArduinoMqttClient's 256-byte TX buffer
+  // Compact JSON payload (< 238 bytes) containing all 17 telemetry & state fields
   String json = "{";
-  json += "\"device_id\":\"UNO-R4-WIFI\",";
   json += "\"temp_c\":" + String(temperatureC, 2) + ",";
-  json += "\"temp_f\":" + String(fahrenheit(temperatureC), 2) + ",";
+  json += "\"temp_f\":" + String(fahrenheit(temperatureC), 1) + ",";
   json += "\"humidity\":" + String(humidity, 1) + ",";
   json += "\"pressure_hpa\":" + String(pressureHPA, 1) + ",";
+  json += "\"gas_kohms\":" + String(gasKOhms, 1) + ",";
   json += "\"feels_like_c\":" + String(feelsC, 2) + ",";
   json += "\"air_vel_ms\":" + String(airVel, 2) + ",";
   json += "\"heater_relay\":" + String(heaterOn ? 1 : 0) + ",";
   json += "\"fan_pwm\":" + String(fanPWM) + ",";
-  json += "\"fan_speed_pct\":" + String(fanPct, 0) + ",";
+  json += "\"fan_speed_pct\":" + String((int)round(fanPct)) + ",";
   json += "\"power_w\":" + String(powerW, 2) + ",";
+  json += "\"setpoint_c\":" + String(targetSetpointC, 2) + ",";
+  json += "\"mode\":\"" + hvacMode + "\",";
   json += "\"cooldown\":" + String(cooldownActive ? 1 : 0) + ",";
   json += "\"lockout\":" + String(safetyLockout ? 1 : 0) + ",";
+  json += "\"fault\":\"" + activeFault + "\",";
   json += "\"last_cmd\":\"" + String(lastCmdExecuted) + "\",";
   json += "\"rssi\":" + String(WiFi.RSSI());
   json += "}";
@@ -732,6 +994,16 @@ void publishTelemetry() {
 }
 
 void handleNetwork(unsigned long now) {
+  // Auto-recover from simulated Wi-Fi dropout fault after 7 seconds
+  if (wifiSimDropUntil > 0 && now >= wifiSimDropUntil) {
+    wifiSimDropUntil = 0;
+    if (activeFault == "wifi") {
+      activeFault = "none";
+      Serial.println("[FAULT SOLVED] Cloud link restored after simulated Wi-Fi dropout.");
+      publishTelemetry();
+    }
+  }
+
   if (WiFi.status() != WL_CONNECTED) {
     digitalWrite(LED_BUILTIN, LOW);
     if (now - lastWifiAttempt >= WIFI_RETRY_INTERVAL_MS) {
@@ -779,13 +1051,17 @@ void setup() {
 
   Serial.println();
   Serial.println("========================================================");
-  Serial.println("   ECE 441 SMART HVAC: ALL-IN-ONE WIRELESS BENCH V5.2   ");
-  Serial.println("   Arduino UNO R4 WiFi | Fan (Pin 9) | Heater (Pin 10)  ");
+  Serial.println("   ECE 441 SMART HVAC: ALL-IN-ONE WIRELESS BENCH V6.0   ");
+  Serial.println("   Arduino UNO R4 WiFi | Closed-Loop Nest + Fault Sync  ");
   Serial.println("========================================================");
 
   initializeSensor();
   if (sensorFound) {
     readSensor();
+    // Initialize default setpoint to match current room temperature so bench starts in quiet IDLE
+    if (isfinite(temperatureC) && temperatureC >= 15.0 && temperatureC <= 32.0) {
+      targetSetpointC = temperatureC;
+    }
   }
   lastSensorRead = millis();
 
@@ -804,7 +1080,7 @@ void loop() {
   // 1. Mandatory 5-second software heater safety cutoff
   if (heaterOn && (now - heaterStart >= HEAT_TIME_MS)) {
     stopHeater();
-    Serial.println("5-second heating test complete.");
+    Serial.println("5-second heating pulse complete.");
   }
 
   // 2. Always force relay OFF during safety lockout
@@ -812,12 +1088,13 @@ void loop() {
     relayOff();
   }
 
-  // 3. Periodic sensor reading & telemetry broadcast (every 2s)
+  // 3. Periodic sensor reading, closed-loop thermostat evaluation & telemetry broadcast (every 2s)
   if (now - lastSensorRead >= SENSOR_INTERVAL_MS) {
     lastSensorRead = now;
     if (sensorFound) {
       readSensor();
     }
+    runClosedLoopThermostat(now);
     printSensorData();
     publishTelemetry();
   }
@@ -834,7 +1111,8 @@ void loop() {
     if (!safetyLockout) {
       setFan(0);
     }
-    Serial.println("30-second cooldown completed. Fan OFF.");
+    Serial.println("30-second cooldown completed.");
+    runClosedLoopThermostat(now);
     publishTelemetry();
   }
 

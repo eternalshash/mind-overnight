@@ -921,10 +921,12 @@ const S = {
   iotAuto: false, iotSent: 0, iotOnline: false, iotDispatched: {}, iotQueue: [],
   rpiSync: true, rpiOnline: false, rpiPkts: 0, rpiLastCmdSeq: -1, rpiBuffer: [],
   usbConnected: false,
+  mqttConnected: false, mqttBenchLive: false, mqttLastRxMs: 0, mqttRssi: -46, mqttPkts: 0,
+  arduinoHasEdgeLoop: false, dialDragging: false, lastUserSetpointMs: 0, lastLocalFaultMs: 0,
   bme: { hasLive: false, tempC: 24.0, rh: 48.0, pressHpa: 1013.25, bmeOk: true, adcRaw20b: 536870, vSenseMv: 1689.6,
          chipId: '0x61', i2cAddr: '0x76', gasKOhms: 142.5, gasBaseline: 140.0, gasRelPct: 101.8, gasTrend: 'Near baseline',
          gasReady: true, gasSamples: '20/20', dewPointF: 54.3, altitudeFt: 412, heaterOn: false, cooldownActive: false,
-         safetyLockout: false, lockoutReason: 'None' },
+         safetyLockout: false, lockoutReason: 'None', liveFanPwm: 0, liveFanPct: 0 },
   wdt: { elapsedS: 0.2, timeoutS: 3.5, lastHbSeq: 1, tripped: false, testBlocking: false, _lastSimSec: 0 },
   commLog: [], commStats: { count: 0, minMs: 9999, maxMs: 0, avgMs: 0, lastMs: 0, totalMs: 0 }
 };
@@ -1490,9 +1492,16 @@ async function flushRPiBuffer() {
     })
     .catch(() => {});
 }
+function isLiveHardwareActive() {
+  return (S.usbConnected && S.bme.hasLive) || (S.mqttBenchLive && S.bme.hasLive && !S.inj.wifi);
+}
+
 function pushSimControlToRPi() {
   if (S.usbConnected) {
     syncUsbControlFromUI();
+  }
+  if (S.mqttConnected && !S.inj.wifi) {
+    scheduleMqttSetpointPublish();
   }
   if (!S.rpiSync || !S.rpiOnline || S.usbConnected || S.inj.wifi || typeof fetch !== 'function') return;
   const baseUrl = getRPiServerUrl();
@@ -1515,31 +1524,331 @@ function pushSimControlToRPi() {
 }
 
 /* =====================================================================
-   4D. DIRECT USB WEB SERIAL BRIDGE (CHROME / EDGE -> ARDUINO 115200 BAUD)
+   4D. DIRECT USB WEB SERIAL & WIRELESS HIVEMQ CLOUD MQTT BRIDGE
+   - USB Serial: 115200 baud (Chrome / Edge)
+   - Wireless MQTT: wss://broker.hivemq.com:8884/mqtt <-> Arduino TCP :1883
    ===================================================================== */
 let usbPort = null;
 let usbReader = null;
 let usbWriter = null;
 let usbRxBuffer = '';
 
+const MQTT_WS_URL = 'wss://broker.hivemq.com:8884/mqtt';
+const MQTT_CLIENT_TAG = 'ece441-web-' + Math.random().toString(36).slice(2, 9);
+const MQTT_TOPIC_TELEMETRY = 'ece441/group2/hvac/telemetry';
+const MQTT_TOPIC_COMMAND   = 'ece441/group2/hvac/command';
+const MQTT_TOPIC_SETPOINT  = 'ece441/group2/hvac/setpoint';
+const MQTT_TOPIC_STATUS    = 'ece441/group2/hvac/status';
+
+let mqttWs = null;
+let mqttPingTimer = null;
+let mqttReconnectTimer = null;
+let mqttSpDebounceTimer = null;
+let mqttRxBuffer = new Uint8Array(0);
+
+function mqttEncodeStr(str) {
+  const bytes = new TextEncoder().encode(str);
+  const out = new Uint8Array(2 + bytes.length);
+  out[0] = (bytes.length >> 8) & 0xff;
+  out[1] = bytes.length & 0xff;
+  out.set(bytes, 2);
+  return out;
+}
+
+function mqttEncodeVarLen(len) {
+  const out = [];
+  do {
+    let d = len % 128;
+    len = Math.floor(len / 128);
+    if (len > 0) d |= 0x80;
+    out.push(d);
+  } while (len > 0);
+  return new Uint8Array(out);
+}
+
+function mqttPublishRaw(topic, payloadStr) {
+  if (!mqttWs || mqttWs.readyState !== 1 || !S.mqttConnected || S.inj.wifi) return false;
+  try {
+    const tBytes = mqttEncodeStr(topic);
+    const pBytes = new TextEncoder().encode(String(payloadStr));
+    const remLen = mqttEncodeVarLen(tBytes.length + pBytes.length);
+    // 0x30 = PUBLISH, QoS 0, Retain = false (NEVER retain action commands)
+    const pkt = new Uint8Array(1 + remLen.length + tBytes.length + pBytes.length);
+    pkt[0] = 0x30;
+    pkt.set(remLen, 1);
+    pkt.set(tBytes, 1 + remLen.length);
+    pkt.set(pBytes, 1 + remLen.length + tBytes.length);
+    mqttWs.send(pkt);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function mqttSubscribeTopic(topic, packetId) {
+  if (!mqttWs || mqttWs.readyState !== 1) return;
+  const tBytes = mqttEncodeStr(topic);
+  const bodyLen = 2 + tBytes.length + 1;
+  const remLen = mqttEncodeVarLen(bodyLen);
+  const pkt = new Uint8Array(1 + remLen.length + bodyLen);
+  pkt[0] = 0x82; // SUBSCRIBE
+  pkt.set(remLen, 1);
+  let off = 1 + remLen.length;
+  pkt[off++] = (packetId >> 8) & 0xff;
+  pkt[off++] = packetId & 0xff;
+  pkt.set(tBytes, off);
+  off += tBytes.length;
+  pkt[off] = 0x00; // QoS 0
+  mqttWs.send(pkt);
+}
+
+function scheduleMqttSetpointPublish(immediate = false) {
+  S.lastUserSetpointMs = performance.now();
+  if (mqttSpDebounceTimer) {
+    clearTimeout(mqttSpDebounceTimer);
+    mqttSpDebounceTimer = null;
+  }
+  const delayMs = immediate ? 15 : 380; // 380ms debounce prevents flooding Arduino during dial drag
+  mqttSpDebounceTimer = setTimeout(() => {
+    mqttSpDebounceTimer = null;
+    if (!S.mqttConnected || S.inj.wifi) return;
+    const spF = Math.round(S.setpoint * 9 / 5 + 32);
+    const spC = +S.setpoint.toFixed(2);
+    const payload = JSON.stringify({
+      setpoint_c: spC,
+      sp_f: spF,
+      mode: S.modeOverride,
+      fan_pct: S.fanOverride,
+      demand_limit_w: S.demandLimit,
+      src: MQTT_CLIENT_TAG
+    });
+    mqttPublishRaw(MQTT_TOPIC_SETPOINT, payload);
+    recordCommMetric('WEB->MQTT', MQTT_TOPIC_SETPOINT, 18.4, 200, `SP ${spF}°F (${spC}°C) | Mode ${S.modeOverride}`);
+
+    // Fallback closed-loop actuation if bench Arduino is running V5.2 (before V6.0 edge-loop reflash)
+    if (!S.arduinoHasEdgeLoop) {
+      const effSpC = S.setpoint + (S.modeOverride === 'ECO' ? 1.11 : 0);
+      const errC = S.T - effSpC; // > 0 means room warmer than setpoint (needs COOL); < 0 means room cooler (needs HEAT)
+      if (S.modeOverride === 'OFF') {
+        mqttPublishRaw(MQTT_TOPIC_COMMAND, 'H');
+        mqttPublishRaw(MQTT_TOPIC_COMMAND, 'S');
+      } else if (S.fanOverride >= 0) {
+        const fCmd = S.fanOverride === 0 ? 'S' : S.fanOverride <= 65 ? 'M' : 'F';
+        mqttPublishRaw(MQTT_TOPIC_COMMAND, fCmd);
+      } else if (S.modeOverride === 'HEAT' || (S.modeOverride !== 'COOL' && errC < -0.5)) {
+        mqttPublishRaw(MQTT_TOPIC_COMMAND, '5');
+      } else if (S.modeOverride === 'COOL' || (S.modeOverride !== 'HEAT' && errC > 0.5)) {
+        if (S.bme.heaterOn) mqttPublishRaw(MQTT_TOPIC_COMMAND, 'H');
+        const coolCmd = (S.modeOverride === 'COOL' || errC > 1.4) ? 'F' : 'M';
+        mqttPublishRaw(MQTT_TOPIC_COMMAND, coolCmd);
+      } else {
+        if (S.bme.heaterOn) mqttPublishRaw(MQTT_TOPIC_COMMAND, 'H');
+        mqttPublishRaw(MQTT_TOPIC_COMMAND, 'S');
+      }
+    }
+  }, delayMs);
+}
+
+function handleIncomingCloudMqtt(topic, payloadStr) {
+  const trimmed = String(payloadStr || '').trim();
+  if (!trimmed || S.inj.wifi) return;
+
+  if (topic === MQTT_TOPIC_STATUS) {
+    if (trimmed.toLowerCase() === 'offline') {
+      S.mqttBenchLive = false;
+      if (!S.usbConnected) S.bme.hasLive = false;
+      updateUsbButtonsUI();
+      log('warn', '[MQTT-LWT] Arduino bench reported offline — seamless fallback to local Digital Twin Sim Mode.');
+      updateCards();
+      updatePanel();
+    } else if (trimmed.toLowerCase() === 'online') {
+      log('ok', '[MQTT] Arduino UNO R4 WiFi bench reported online on IIT-IoT!');
+    }
+    return;
+  }
+
+  if (topic === MQTT_TOPIC_SETPOINT) {
+    try {
+      const d = JSON.parse(trimmed);
+      if (d.src === MQTT_CLIENT_TAG) return; // Ignore own echo
+      if (!S.dialDragging && (performance.now() - S.lastUserSetpointMs > 1800)) {
+        if (typeof d.setpoint_c === 'number') {
+          S.setpoint = clamp(d.setpoint_c, 15, 30);
+          if ($('sSp')) $('sSp').value = Math.round(S.setpoint * 9 / 5 + 32);
+        } else if (typeof d.sp_f === 'number') {
+          S.setpoint = (clamp(d.sp_f, 64, 82) - 32) * 5 / 9;
+          if ($('sSp')) $('sSp').value = Math.round(d.sp_f);
+        }
+        if (d.mode && ['AUTO', 'HEAT', 'COOL', 'ECO', 'OFF'].includes(d.mode)) {
+          S.modeOverride = d.mode;
+          if ($('sModeOvr')) $('sModeOvr').value = d.mode;
+        }
+        if (typeof d.fan_pct === 'number') {
+          S.fanOverride = d.fan_pct;
+          if ($('sFanOvr')) $('sFanOvr').value = d.fan_pct;
+        }
+        readSliders();
+        updateThermostatView();
+      }
+    } catch (e) {}
+    return;
+  }
+
+  if (topic === MQTT_TOPIC_COMMAND) {
+    if (trimmed.startsWith('{')) {
+      try {
+        const d = JSON.parse(trimmed);
+        if (d.src === MQTT_CLIENT_TAG) return;
+        if (d.fault) {
+          if (d.fault === 'clear' || d.fault === 'none' || d.on === 0) {
+            if (d.id && S.inj[d.id]) setFault(d.id, false, true);
+            else Object.keys(S.inj).forEach(k => { if (S.inj[k]) setFault(k, false, true); });
+          } else if (FAULT_NAME[d.fault] && !S.inj[d.fault]) {
+            setFault(d.fault, true, true);
+          }
+        }
+      } catch (e) {}
+    }
+    return;
+  }
+
+  if (topic === MQTT_TOPIC_TELEMETRY) {
+    const wasLive = S.mqttBenchLive;
+    S.mqttBenchLive = true;
+    S.mqttLastRxMs = performance.now();
+    S.mqttPkts++;
+    if (!wasLive) {
+      updateUsbButtonsUI();
+      log('ok', '[MQTT->WEB] Live telemetry stream active from Arduino UNO R4 WiFi (IIT-IoT -> broker.hivemq.com)!');
+    }
+    handleArduinoUsbLine(trimmed, 'MQTT');
+  }
+}
+
+function connectCloudMqtt() {
+  if (navigator.webdriver && !window.__enableLiveMqttInTest) return;
+  if (mqttWs && (mqttWs.readyState === 0 || mqttWs.readyState === 1)) return;
+
+  try {
+    mqttWs = new WebSocket(MQTT_WS_URL, 'mqtt');
+    mqttWs.binaryType = 'arraybuffer';
+  } catch (e) {
+    return;
+  }
+
+  mqttWs.onopen = () => {
+    mqttRxBuffer = new Uint8Array(0);
+    // Build MQTT v3.1.1 CONNECT packet
+    const vh = new Uint8Array([0x00, 0x04, 0x4d, 0x51, 0x54, 0x54, 0x04, 0x02, 0x00, 0x3c]);
+    const cidBytes = mqttEncodeStr(MQTT_CLIENT_TAG);
+    const remLen = mqttEncodeVarLen(vh.length + cidBytes.length);
+    const pkt = new Uint8Array(1 + remLen.length + vh.length + cidBytes.length);
+    pkt[0] = 0x10;
+    pkt.set(remLen, 1);
+    pkt.set(vh, 1 + remLen.length);
+    pkt.set(cidBytes, 1 + remLen.length + vh.length);
+    mqttWs.send(pkt);
+  };
+
+  mqttWs.onmessage = ev => {
+    const chunk = new Uint8Array(ev.data);
+    const merged = new Uint8Array(mqttRxBuffer.length + chunk.length);
+    merged.set(mqttRxBuffer, 0);
+    merged.set(chunk, mqttRxBuffer.length);
+    mqttRxBuffer = merged;
+
+    while (mqttRxBuffer.length >= 2) {
+      const type = mqttRxBuffer[0];
+      let mult = 1, remLen = 0, idx = 1, byte = 0;
+      do {
+        if (idx >= mqttRxBuffer.length) return; // Wait for more bytes
+        byte = mqttRxBuffer[idx++];
+        remLen += (byte & 0x7f) * mult;
+        mult *= 128;
+      } while ((byte & 0x80) !== 0);
+
+      const totalLen = idx + remLen;
+      if (mqttRxBuffer.length < totalLen) return; // Wait for full packet
+
+      const pkt = mqttRxBuffer.slice(0, totalLen);
+      mqttRxBuffer = mqttRxBuffer.slice(totalLen);
+
+      const highNibble = type & 0xf0;
+      if (highNibble === 0x20) {
+        // CONNACK
+        S.mqttConnected = true;
+        updateUsbButtonsUI();
+        mqttSubscribeTopic(MQTT_TOPIC_TELEMETRY, 1);
+        mqttSubscribeTopic(MQTT_TOPIC_STATUS, 2);
+        mqttSubscribeTopic(MQTT_TOPIC_SETPOINT, 3);
+        mqttSubscribeTopic(MQTT_TOPIC_COMMAND, 4);
+        if (mqttPingTimer) clearInterval(mqttPingTimer);
+        mqttPingTimer = setInterval(() => {
+          if (mqttWs && mqttWs.readyState === 1) {
+            mqttWs.send(new Uint8Array([0xc0, 0x00])); // PINGREQ
+          }
+        }, 25000);
+      } else if (highNibble === 0x30) {
+        // PUBLISH
+        const qos = (type >> 1) & 0x03;
+        let pOff = idx;
+        const topicLen = (pkt[pOff] << 8) | pkt[pOff + 1];
+        pOff += 2;
+        const topicStr = new TextDecoder().decode(pkt.slice(pOff, pOff + topicLen));
+        pOff += topicLen;
+        if (qos > 0) pOff += 2; // Skip Packet ID
+        const payloadStr = new TextDecoder().decode(pkt.slice(pOff));
+        handleIncomingCloudMqtt(topicStr, payloadStr);
+      }
+    }
+  };
+
+  const onDisconnect = () => {
+    S.mqttConnected = false;
+    S.mqttBenchLive = false;
+    if (mqttPingTimer) { clearInterval(mqttPingTimer); mqttPingTimer = null; }
+    updateUsbButtonsUI();
+    if (!mqttReconnectTimer) {
+      mqttReconnectTimer = setTimeout(() => {
+        mqttReconnectTimer = null;
+        connectCloudMqtt();
+      }, 4500);
+    }
+  };
+
+  mqttWs.onerror = onDisconnect;
+  mqttWs.onclose = onDisconnect;
+}
+
 function updateUsbButtonsUI() {
-  const connected = !!S.usbConnected;
+  const usbConn = !!S.usbConnected;
+  const mqttLive = !!S.mqttBenchLive && !S.inj.wifi;
   const topBtn = $('btnUsbTop');
   const mainBtn = $('btnConnectUsb');
   if (topBtn) {
-    topBtn.textContent = connected ? '🟢 USB ARDUINO: CONNECTED' : '⚡ CONNECT USB ARDUINO';
-    topBtn.style.background = connected ? 'rgba(16,185,129,0.18)' : '';
+    if (usbConn) {
+      topBtn.textContent = '🟢 USB ARDUINO: CONNECTED';
+      topBtn.style.background = 'rgba(16,185,129,0.18)';
+    } else if (mqttLive) {
+      topBtn.textContent = `🟢 WIFI BENCH: LIVE (${S.mqttRssi} dBm)`;
+      topBtn.style.background = 'rgba(16,185,129,0.16)';
+    } else {
+      topBtn.textContent = 'Connect USB Arduino';
+      topBtn.style.background = '';
+    }
     topBtn.style.borderColor = 'var(--green)';
     topBtn.style.color = 'var(--green)';
   }
   if (mainBtn) {
-    mainBtn.textContent = connected
+    mainBtn.textContent = usbConn
       ? '🟢 USB ARDUINO CONNECTED (115200 BAUD) — CLICK TO DISCONNECT'
-      : '⚡ CONNECT USB ARDUINO DIRECTLY (NO PI / NO PYTHON NEEDED)';
-    mainBtn.style.background = connected ? 'rgba(16,185,129,0.18)' : '';
+      : mqttLive
+        ? `🟢 WIRELESS IIT-IoT BENCH LIVE (${S.mqttRssi} dBm) — CLICK FOR DIRECT USB`
+        : '⚡ CONNECT USB ARDUINO DIRECTLY (NO PI / NO PYTHON NEEDED)';
+    mainBtn.style.background = (usbConn || mqttLive) ? 'rgba(16,185,129,0.18)' : '';
   }
-  if ($('rpiSyncBadge') && connected) {
-    $('rpiSyncBadge').textContent = 'USB: LIVE';
+  if ($('rpiSyncBadge') && (usbConn || mqttLive)) {
+    $('rpiSyncBadge').textContent = usbConn ? 'USB: LIVE' : 'MQTT: LIVE';
     $('rpiSyncBadge').className = 'badge ok';
   }
 }
@@ -1552,8 +1861,9 @@ function normalizeArduinoV5Cmd(cmdStr) {
   if (raw === 'F' || raw === 'FAN 100') return { wire: 'F', desc: 'F (Fan ON 100% PWM 255 on Pin 9)' };
   if (raw === 'M' || raw === 'FAN 50') return { wire: 'M', desc: 'M (Fan ON 50% PWM 128 on Pin 9)' };
   if (raw === 'S' || raw === 'FAN 0') return { wire: 'S', desc: 'S (Fan OFF PWM 0 on Pin 9)' };
+  if (raw === 'W' || raw === 'WIFI') return { wire: 'W', desc: 'W (Wi-Fi & MQTT Connection Diagnostics)' };
   if (raw === 'X' || raw === 'KILL') return { wire: 'X', desc: 'X (Emergency software stop / Lockout)' };
-  if (raw === 'R' || raw === 'AUTO' || raw === 'RESET') return { wire: 'R', desc: 'R (Reset safety lockout / retry BME688)' };
+  if (raw === 'R' || raw === 'AUTO' || raw === 'RESET') return { wire: 'R', desc: 'R (Reset safety lockout / Restore Auto PID)' };
   if (raw === 'D' || raw === 'DIAG') return { wire: 'D', desc: 'D (BME688 & HVAC Diagnostics)' };
   if (raw === 'B' || raw === 'GAS RESET') return { wire: 'B', desc: 'B (Reset BME688 gas baseline)' };
   if (raw === '?') return { wire: '?', desc: '? (Show HVAC Command Menu)' };
@@ -1567,21 +1877,34 @@ function normalizeArduinoV5Cmd(cmdStr) {
 }
 
 async function sendUsbSerialCommand(cmdStr) {
-  if (!S.usbConnected || !usbPort || !usbPort.writable) return false;
   const norm = normalizeArduinoV5Cmd(cmdStr);
   if (!norm) return true;
-  try {
-    const writer = usbPort.writable.getWriter();
-    const data = new TextEncoder().encode(norm.wire + '\n');
-    await writer.write(data);
-    writer.releaseLock();
-    recordCommMetric('WEB->USB', 'Serial(115200)', 2.1, 200, `TX: ${norm.wire}`);
-    log('ok', `[USB->ARDUINO V5] Sent command '${norm.wire}': ${norm.desc}`);
-    return true;
-  } catch (err) {
-    log('warn', `[USB] Failed to write command: ${err && err.message ? err.message : err}`);
-    return false;
+  let sentAny = false;
+
+  // 1. Wireless HiveMQ Cloud MQTT Dispatch (Never Retained)
+  if (S.mqttConnected && !S.inj.wifi) {
+    if (mqttPublishRaw(MQTT_TOPIC_COMMAND, norm.wire)) {
+      recordCommMetric('WEB->MQTT', MQTT_TOPIC_COMMAND, 19.2, 200, `TX: ${norm.wire}`);
+      log('ok', `[MQTT->ARDUINO] Sent wireless command '${norm.wire}': ${norm.desc}`);
+      sentAny = true;
+    }
   }
+
+  // 2. Direct USB Web Serial Dispatch
+  if (S.usbConnected && usbPort && usbPort.writable) {
+    try {
+      const writer = usbPort.writable.getWriter();
+      const data = new TextEncoder().encode(norm.wire + '\n');
+      await writer.write(data);
+      writer.releaseLock();
+      recordCommMetric('WEB->USB', 'Serial(115200)', 2.1, 200, `TX: ${norm.wire}`);
+      log('ok', `[USB->ARDUINO V5] Sent command '${norm.wire}': ${norm.desc}`);
+      sentAny = true;
+    } catch (err) {
+      log('warn', `[USB] Failed to write command: ${err && err.message ? err.message : err}`);
+    }
+  }
+  return sentAny;
 }
 
 async function syncUsbControlFromUI() {
@@ -1604,47 +1927,60 @@ async function syncUsbControlFromUI() {
 }
 
 async function syncUsbOnFault(id, on) {
-  if (!S.usbConnected) return;
+  S.lastLocalFaultMs = performance.now();
+  const hasRemote = S.usbConnected || (S.mqttConnected && !S.inj.wifi);
+  if (!hasRemote) return;
+
+  // Publish structured JSON fault event for V6.0 Arduino & Mobile UI sync
+  if (S.mqttConnected && !S.inj.wifi) {
+    mqttPublishRaw(MQTT_TOPIC_COMMAND, JSON.stringify({
+      fault: on ? id : 'clear',
+      id,
+      on: on ? 1 : 0,
+      src: MQTT_CLIENT_TAG
+    }));
+  }
+
   if (!on) {
     const remaining = Object.values(S.inj).filter(Boolean).length;
     if (remaining === 0) {
       await sendUsbSerialCommand('R');
-      toast('ok', 'USB ARDUINO RESTORED', 'Fault Cleared -> Safety Reset & Auto Restored', 'Sent: R (Reset Safety / Retry BME688) over USB', 'Pin 9 PWM & Pin 10 Relay back to nominal');
+      toast('ok', 'ARDUINO BENCH RESTORED', 'Fault Cleared -> Safety Reset & Auto Restored', 'Sent: R (Reset Safety / Restore Auto PID)', 'Pin 9 PWM & Pin 10 Relay back to nominal');
     }
     return;
   }
   if (id === 'blower') {
     await sendUsbSerialCommand('X');
-    toast('crit', 'USB ARDUINO HARDWARE INTERLOCK', 'Blower Fault -> Emergency Stop & Lockout (Pin 10 LOW)', 'Sent: X to physical Arduino Uno R4', 'Prevents 12V PTC heater thermal runaway');
+    toast('crit', 'ARDUINO HARDWARE INTERLOCK', 'Blower Fault -> Emergency Stop & Lockout (Pin 10 LOW)', 'Sent: X to physical Arduino Uno R4', 'Prevents 12V PTC heater thermal runaway');
   } else if (id === 'clog') {
     await sendUsbSerialCommand('F');
-    toast('warn', 'USB ARDUINO BOOST', 'Filter Clog -> Boosting Physical Fan to 100%', 'Sent: F (Fan ON 100%, PWM 255) to Pin 9 MOSFET', 'Compensating for static pressure drop');
+    toast('warn', 'ARDUINO BLOWER BOOST', 'Filter Clog -> Boosting Physical Fan to 100%', 'Sent: F (Fan ON 100%, PWM 255) to Pin 9 MOSFET', 'Compensating for static pressure drop');
   } else if (id === 'voc') {
     await sendUsbSerialCommand('F');
-    toast('warn', 'USB ARDUINO PURGE', 'High VOC/CO2 -> Max Ventilation Purge (100% Fan)', 'Sent: F (Fan ON 100%) to physical Arduino', 'Flushing zone air');
+    toast('warn', 'ARDUINO IAQ PURGE', 'High VOC/CO2 -> Max Ventilation Purge (100% Fan)', 'Sent: F (Fan ON 100%) to physical Arduino', 'Flushing zone air');
   } else if (id === 'smoke') {
     await sendUsbSerialCommand('H');
     await sendUsbSerialCommand('M');
-    toast('crit', 'USB ARDUINO SMOKE LOCKOUT', 'Wildfire Smoke -> Heater OFF, Recirc Fan 50%', 'Sent: H | M to physical Arduino', 'MERV-13 recirculation mode');
+    toast('crit', 'ARDUINO SMOKE LOCKOUT', 'Wildfire Smoke -> Heater OFF, Recirc Fan 50%', 'Sent: H | M to physical Arduino', 'MERV-13 recirculation mode');
   } else if (id === 'heatwave' || id === 'surge') {
     await sendUsbSerialCommand('H');
     await sendUsbSerialCommand('F');
-    toast('crit', 'USB ARDUINO EMERGENCY COOLING', 'Thermal Spike -> Heater OFF, Fan 100% Max Cooling', 'Sent: H | F to physical Arduino', 'Mitigating indoor heat stress');
+    toast('crit', 'ARDUINO EMERGENCY COOLING', 'Thermal Spike -> Heater OFF, Fan 100% Max Cooling', 'Sent: H | F to physical Arduino', 'Mitigating indoor heat stress');
   } else if (id === 'window') {
     await sendUsbSerialCommand('H');
     await sendUsbSerialCommand('S');
-    toast('warn', 'USB ARDUINO ENVELOPE PAUSE', 'Window Open -> Paused Heater & Fan (0%)', 'Sent: H | S to physical Arduino', 'Preventing conditioning outdoors');
+    toast('warn', 'ARDUINO ENVELOPE PAUSE', 'Window Open -> Paused Heater & Fan (0%)', 'Sent: H | S to physical Arduino', 'Preventing conditioning outdoors');
   } else if (id === 'mcu') {
     await sendUsbSerialCommand('X');
-    toast('crit', 'USB ARDUINO FAIL-SAFE', 'Primary MCU Fault -> Emergency Stop (Pin 10 LOW)', 'Sent: X to physical Arduino', 'Hardware safety lockout engaged');
+    toast('crit', 'ARDUINO FAIL-SAFE', 'Primary MCU Fault -> Emergency Stop (Pin 10 LOW)', 'Sent: X to physical Arduino', 'Hardware safety lockout engaged');
   }
 }
 
-function handleArduinoUsbLine(line) {
+function handleArduinoUsbLine(line, via = 'USB') {
   const trimmed = line.trim();
   if (!trimmed) return;
 
-  // Any live serial line from the Arduino resets the serial comms watchdog
+  // Any live telemetry packet from the Arduino (USB or Wireless MQTT) resets the comms watchdog
   S.rpiOnline = true;
   if (!S.wdt.testBlocking) {
     S.wdt.elapsedS = 0;
@@ -1903,7 +2239,9 @@ function handleArduinoUsbLine(line) {
     }
     if (typeof d.fan_pwm === 'number') {
       S.elec.fan_pwm = d.fan_pwm;
+      S.bme.liveFanPwm = d.fan_pwm;
       const pct = clamp((d.fan_pwm / 255) * 100, 0, 100);
+      S.bme.liveFanPct = pct;
       S.fanAct = pct;
       S.ctl.fanCmd = pct;
       S.rpm = Math.round(pct * 28);
@@ -1912,13 +2250,53 @@ function handleArduinoUsbLine(line) {
       S.ctl.heat = d.heater_relay ? 100 : 0;
       S.bme.heaterOn = !!d.heater_relay;
     }
-    if (typeof d.cooldown_active === 'boolean' || typeof d.cooldown_active === 'number') {
-      S.bme.cooldownActive = !!d.cooldown_active;
+    const cdVal = d.cooldown_active !== undefined ? d.cooldown_active : d.cooldown;
+    if (typeof cdVal === 'boolean' || typeof cdVal === 'number') {
+      S.bme.cooldownActive = !!cdVal;
     }
-    if (typeof d.safety_lockout === 'boolean' || typeof d.safety_lockout === 'number') {
-      S.bme.safetyLockout = !!d.safety_lockout;
+    const lkVal = d.safety_lockout !== undefined ? d.safety_lockout : d.lockout;
+    if (typeof lkVal === 'boolean' || typeof lkVal === 'number') {
+      S.bme.safetyLockout = !!lkVal;
     }
     if (typeof d.air_velocity_ms === 'number') S.vel = d.air_velocity_ms;
+    else if (typeof d.air_vel_ms === 'number') S.vel = d.air_vel_ms;
+    if (typeof d.rssi === 'number') S.mqttRssi = d.rssi;
+    if (typeof d.setpoint_c === 'number' && !isNaN(d.setpoint_c)) {
+      S.arduinoHasEdgeLoop = true;
+      if (!S.dialDragging && (performance.now() - S.lastUserSetpointMs > 1800)) {
+        S.setpoint = clamp(d.setpoint_c, 15, 30);
+        if ($('sSp')) $('sSp').value = Math.round(S.setpoint * 9 / 5 + 32);
+        if ($('lSp')) $('lSp').textContent = fF(S.setpoint) + ' F';
+      }
+    }
+    if (typeof d.mode === 'string' && !S.dialDragging && (performance.now() - S.lastUserSetpointMs > 1800)) {
+      const mUp = d.mode.toUpperCase();
+      if (['AUTO', 'HEAT', 'COOL', 'ECO', 'OFF'].includes(mUp) && S.modeOverride !== mUp) {
+        S.modeOverride = mUp;
+        if ($('sModeOvr')) $('sModeOvr').value = mUp;
+        if ($('lModeOvr')) $('lModeOvr').textContent = mUp === 'AUTO' ? 'AUTO (PID)' : `OVERRIDE: ${mUp}`;
+      }
+    }
+    if (typeof d.fault === 'string' && (performance.now() - S.lastLocalFaultMs > 2500)) {
+      if (d.fault === 'none' || d.last_cmd === 'R') {
+        Object.keys(S.inj).forEach(k => {
+          if (S.inj[k]) solveFault(k, 'Cleared via Arduino bench safety reset');
+        });
+      } else if (FAULT_NAME[d.fault] && !S.inj[d.fault]) {
+        setFault(d.fault, true, true);
+      }
+    }
+    if (S.bme.safetyLockout) {
+      updateKillDrawerUI('SAFETY LOCKOUT', 'crit');
+    } else if (S.bme.cooldownActive) {
+      updateKillDrawerUI('30s COOLDOWN', 'warn');
+    } else if (S.bme.heaterOn) {
+      updateKillDrawerUI('5s HEATER ON', 'warn');
+    } else if (S.bme.liveFanPwm > 0) {
+      updateKillDrawerUI(`FAN ${Math.round(S.bme.liveFanPct)}%`, 'ok');
+    } else {
+      updateKillDrawerUI('STANDBY', '');
+    }
     if (typeof d.v_supply_12v === 'number') S.elec.v_supply_12v = d.v_supply_12v;
     if (typeof d.v_rail_5v === 'number') S.elec.v_rail_5v = d.v_rail_5v;
     if (typeof d.v_mosfet_gs === 'number') S.elec.v_mosfet_gs = d.v_mosfet_gs;
@@ -1940,11 +2318,13 @@ function handleArduinoUsbLine(line) {
     if (typeof d.r_5v_rail_ohm === 'number') S.elec.r_5v_rail_ohm = d.r_5v_rail_ohm;
     if (typeof d.r_total_circuit_ohm === 'number') S.elec.r_total_circuit_ohm = d.r_total_circuit_ohm;
 
-    recordCommMetric('USB->WEB', 'Serial(115200)', 1.5, 200, `Arduino RX #${S.rpiPkts}`);
+    const viaLabel = via === 'MQTT' ? `MQTT WIFI (${S.mqttRssi} dBm)` : 'USB LIVE (115200 baud)';
+    recordCommMetric(via === 'MQTT' ? 'MQTT->WEB' : 'USB->WEB', via === 'MQTT' ? MQTT_TOPIC_TELEMETRY : 'Serial(115200)', via === 'MQTT' ? 16.5 : 1.5, 200, `Arduino RX #${S.rpiPkts}`);
     if ($('rpiStatusLine')) {
-      $('rpiStatusLine').textContent = `USB LIVE (115200 baud) | Temp: ${fF(S.T)}°F (${S.T.toFixed(1)}°C) | RH: ${S.RH.toFixed(0)}% | Gas: ${S.bme.gasKOhms.toFixed(1)} kΩ | Fan PWM: ${S.elec.fan_pwm}/255 | Pin 10 Relay: ${d.heater_relay ? 'ON' : 'OFF'}`;
+      $('rpiStatusLine').textContent = `${viaLabel} | Temp: ${fF(S.T)}°F (${S.T.toFixed(1)}°C) | RH: ${S.RH.toFixed(0)}% | Gas: ${S.bme.gasKOhms.toFixed(1)} kΩ | Fan PWM: ${S.elec.fan_pwm}/255 | Pin 10 Relay: ${d.heater_relay ? 'ON' : 'OFF'}`;
       $('rpiStatusLine').style.color = '#6ee7b7';
     }
+    updateUsbButtonsUI();
     updateCards();
     updatePanel();
   } catch (e) {
@@ -2075,6 +2455,12 @@ const controllerAlive = () => (S.mcu.active === 'A' && S.mcu.a === 'RUN') || S.m
 
 function serialWatchdogStep(dtR) {
   if (S.quiet) return;
+  if (S.mqttBenchLive && (performance.now() - S.mqttLastRxMs > 6000)) {
+    S.mqttBenchLive = false;
+    if (!S.usbConnected) S.bme.hasLive = false;
+    updateUsbButtonsUI();
+    log('warn', '[MQTT-WDT] No Arduino wireless telemetry for >6.0s — falling back to local Digital Twin Sim Mode.');
+  }
   const w = S.wdt;
   if (w.testBlocking) {
     w.elapsedS = Math.min(w.timeoutS + 1.5, w.elapsedS + dtR);
@@ -2101,9 +2487,7 @@ function serialWatchdogStep(dtR) {
     if ($('sModeOvr')) $('sModeOvr').value = 'OFF';
     if ($('sFanOvr')) $('sFanOvr').value = 0;
     updateKillDrawerUI('WDT CUTOFF', 'crit');
-    if (S.usbConnected) {
-      sendUsbSerialCommand('X');
-    }
+    sendUsbSerialCommand('X');
     pushSimControlToRPi();
   }
 }
@@ -2112,7 +2496,7 @@ function serialWatchdogStep(dtR) {
    6. SENSORS
    ===================================================================== */
 function sensors() {
-  if (S.usbConnected && S.bme.hasLive) {
+  if (isLiveHardwareActive()) {
     S.T = S.bme.tempC;
     S.sensB = S.bme.tempC;
     S.sensA = S.inj.sensor ? 17.2 : S.bme.tempC;
@@ -2240,11 +2624,17 @@ function controller(dtS, dtR) {
     comp = Math.min(comp, c.compCap);
   }
 
+  if (isLiveHardwareActive()) {
+    heat = S.bme.heaterOn ? 100 : 0;
+  }
   c.comp = comp; c.heat = heat;
-  c.fanCmd = S.fanOverride >= 0 ? clamp(S.fanOverride, 0, 100) : clamp(fan, 0, 100);
+  c.fanCmd = S.fanOverride >= 0 ? clamp(S.fanOverride, 0, 100) : (isLiveHardwareActive() ? clamp(S.bme.liveFanPct, 0, 100) : clamp(fan, 0, 100));
   c.damper = damper;
   c.mode = S.wdt.tripped ? 'WATCHDOG CUTOFF' :
+           S.bme.safetyLockout ? 'SAFETY LOCKOUT' :
            c.blowerFault ? 'INTERLOCK' :
+           S.bme.cooldownActive ? '30s COOLDOWN' :
+           S.bme.heaterOn ? 'HEATING' :
            S.modeOverride === 'HEAT' ? 'FORCE HEATING' :
            S.modeOverride === 'COOL' ? 'FORCE COOLING' :
            S.modeOverride === 'OFF' ? 'SYSTEM OFF' :
@@ -2266,6 +2656,8 @@ function plant(dtS) {
   // actuators
   if (S.fanOverride >= 0 && !inj.blower) {
     S.fanAct = clamp(S.fanOverride, 0, 100);
+  } else if (isLiveHardwareActive() && !inj.blower) {
+    S.fanAct = clamp(S.bme.liveFanPct, 0, 100);
   } else {
     S.fanAct += ((inj.blower ? 0 : c.fanCmd) - S.fanAct) * k(20);
   }
@@ -2319,9 +2711,9 @@ function plant(dtS) {
   S.pw.total = S.pw.comp + S.pw.heat + S.pw.fan + S.pw.plugs + S.pw.ctrl;
   S.kWh += S.pw.total * dtS / 3.6e6;
 
-  // thermal balance & humidity (locked to physical A4/A5 BME688 when Arduino USB is connected)
+  // thermal balance & humidity (locked to physical A4/A5 BME688 when Arduino USB or Wireless MQTT is active)
   const achInf = inj.window ? 6 : 0.4, achOA = S.damperAct / 100 * 4;
-  if (S.usbConnected && S.bme.hasLive) {
+  if (isLiveHardwareActive()) {
     S.T = S.bme.tempC;
     S.RH = S.bme.rh;
   } else {
@@ -2579,7 +2971,7 @@ function buildFaultUI() {
     root.appendChild(wrap);
   });
 }
-function setFault(id, on) {
+function setFault(id, on, fromRemote = false) {
   S.inj[id] = on;
   const row = $('f_' + id);
   const stEl = $('fs_' + id);
@@ -2694,7 +3086,7 @@ function setFault(id, on) {
       c.comp = u > 3 ? u : 0;
       c.heat = u < -3 ? -u : 0;
       c.fanCmd = (c.comp > 0 || c.heat > 0) ? 30 + 0.6 * Math.max(c.comp, c.heat) : 22;
-      S.fanAct = c.fanCmd;
+      S.fanAct = isLiveHardwareActive() ? S.bme.liveFanPct : c.fanCmd;
       S.rpm = S.fanAct * 28;
       c.damper = 0;
       S.damperAct = 0;
@@ -2706,7 +3098,9 @@ function setFault(id, on) {
   }
   const n = Object.values(S.inj).filter(Boolean).length;
   $('injCount').textContent = `${n} INJECTED`; $('injCount').className = 'badge' + (n ? ' warn' : '');
-  syncUsbOnFault(id, on);
+  if (!fromRemote) {
+    syncUsbOnFault(id, on);
+  }
 }
 
 function solveFault(id, reason) {
@@ -2899,9 +3293,7 @@ async function triggerMasterHardwareKill() {
   if ($('sFanOvr')) $('sFanOvr').value = 0;
   readSliders();
   updateKillDrawerUI('KILL LATCHED', 'crit');
-  if (S.usbConnected) {
-    await sendUsbSerialCommand('X');
-  }
+  await sendUsbSerialCommand('X');
   pushSimControlToRPi();
   plant(0.05);
   updateCards();
@@ -2919,9 +3311,7 @@ async function benchSetFanSpeed(pct) {
   if ($('sFanOvr')) $('sFanOvr').value = S.fanOverride;
   readSliders();
   updateKillDrawerUI(`FAN ${S.fanOverride}%`, S.fanOverride === 0 ? 'warn' : 'ok');
-  if (S.usbConnected) {
-    await sendUsbSerialCommand(S.fanOverride === 0 ? 'S' : S.fanOverride <= 65 ? 'M' : 'F');
-  }
+  await sendUsbSerialCommand(S.fanOverride === 0 ? 'S' : S.fanOverride <= 65 ? 'M' : 'F');
   pushSimControlToRPi();
   plant(0.05);
   updateCards();
@@ -2942,15 +3332,13 @@ async function benchSetHeaterRelay(turnOn) {
   }
   readSliders();
   updateKillDrawerUI(turnOn ? '5s HEATER ON' : 'RELAY SAFE OFF', turnOn ? 'warn' : 'ok');
-  if (S.usbConnected) {
-    await sendUsbSerialCommand(turnOn ? '5' : 'H');
-  }
+  await sendUsbSerialCommand(turnOn ? '5' : 'H');
   pushSimControlToRPi();
   plant(0.05);
   updateCards();
   updatePanel();
   log(turnOn ? 'warn' : 'ok', `[BENCH TEST] Direct Pin 10 12V PTC Heater Relay ${turnOn ? '5-second pulse started (5 -> HIGH + Fan 100%)' : 'stopped (H -> LOW)'}.`);
-  if (turnOn && !S.usbConnected) {
+  if (turnOn && !isLiveHardwareActive()) {
     benchHeatPulseTimer = setTimeout(() => {
       S.ctl.heat = 0;
       S.bme.heaterOn = false;
@@ -2990,11 +3378,10 @@ async function benchRestoreAutoPid() {
   S.fanOverride = -1;
   if ($('sModeOvr')) $('sModeOvr').value = 'AUTO';
   if ($('sFanOvr')) $('sFanOvr').value = -1;
+  Object.keys(S.inj).forEach(k => { if (S.inj[k]) setFault(k, false); });
   readSliders();
   updateKillDrawerUI('STANDBY', '');
-  if (S.usbConnected) {
-    await sendUsbSerialCommand('R');
-  }
+  await sendUsbSerialCommand('R');
   pushSimControlToRPi();
   controller(0.1, 0.1);
   plant(0.1);
@@ -3005,9 +3392,9 @@ async function benchRestoreAutoPid() {
 }
 
 async function benchRequestDiagnostics() {
-  if (S.usbConnected) {
+  if (S.usbConnected || (S.mqttConnected && !S.inj.wifi)) {
     await sendUsbSerialCommand('D');
-    toast('info', 'BME688 DIAGNOSTICS (D)', 'Requested Hardware Diagnostics Dump', 'Sent: D to Arduino Uno R4 V5 over USB', 'Inspect Firmware Event Log for full report');
+    toast('info', 'BME688 DIAGNOSTICS (D)', 'Requested Hardware Diagnostics Dump', 'Sent: D to Arduino Uno R4 (USB / Wireless MQTT)', 'Inspect Firmware Event Log for full report');
   } else {
     log('info', `[BME688 DIAG] Sensor: YES (${S.bme.i2cAddr}, Chip ${S.bme.chipId}) | Temp: ${S.T.toFixed(2)}°C | RH: ${S.RH.toFixed(1)}% | Press: ${S.bme.pressHpa.toFixed(2)} hPa | Gas: ${S.bme.gasKOhms.toFixed(2)} kΩ (${S.bme.gasRelPct.toFixed(1)}%) | Pin 10 Heater: ${S.ctl.heat > 0 ? 'ON' : 'OFF'} | Cooldown: ${S.bme.cooldownActive ? 'ACTIVE' : 'OFF'} | Lockout: ${S.bme.safetyLockout ? 'ACTIVE' : 'CLEAR'}`);
     toast('ok', 'BME688 DIAGNOSTICS (D)', `Sensor ${S.bme.i2cAddr} (Chip ${S.bme.chipId}) Valid`, `Temp ${fF(S.T)}°F | RH ${S.RH.toFixed(1)}% | Gas ${S.bme.gasKOhms.toFixed(1)} kΩ (${S.bme.gasRelPct.toFixed(0)}%)`, `Pin 10 Heater: ${S.ctl.heat > 0 ? 'ON' : 'OFF'} | Lockout: ${S.bme.safetyLockout ? 'ACTIVE' : 'CLEAR'}`);
@@ -3018,9 +3405,7 @@ async function benchResetGasBaseline() {
   S.bme.gasBaseline = S.bme.gasKOhms || 140.0;
   S.bme.gasRelPct = 100.0;
   S.bme.gasTrend = 'Near baseline';
-  if (S.usbConnected) {
-    await sendUsbSerialCommand('B');
-  }
+  await sendUsbSerialCommand('B');
   log('ok', '[BME688 GAS] Reset MOX gas resistance baseline (B) — collecting 20 reference samples.');
   toast('ok', 'GAS BASELINE RESET (B)', 'BME688 MOX Reference Reset', 'Recalibrating 20-sample gas resistance baseline (320°C / 150ms heater)', '');
   updateCards();
@@ -3062,7 +3447,7 @@ function resetSerialWatchdog() {
     if ($('sFanOvr')) $('sFanOvr').value = -1;
     readSliders();
     updateKillDrawerUI('STANDBY', '');
-    if (S.usbConnected) sendUsbSerialCommand('R');
+    sendUsbSerialCommand('R');
     pushSimControlToRPi();
   }
   if (wasActive) {
@@ -3079,7 +3464,10 @@ if ($('btnResetWdt')) $('btnResetWdt').addEventListener('click', resetSerialWatc
 $('clearAll').addEventListener('click', () => {
   Object.keys(S.inj).forEach(k => { if (S.inj[k]) setFault(k, false); });
   S.setpoint = 23; S.ToutSet = 28; S.demandLimit = 1500; S.fanOverride = -1; S.modeOverride = 'AUTO';
-  S.T = 23.5; S.RH = 48; S.VOC = 140; S.CO2 = 700; S.PM = 3; S.PMout = 8;
+  if (!isLiveHardwareActive()) {
+    S.T = 23.5; S.RH = 48;
+  }
+  S.VOC = 140; S.CO2 = 700; S.PM = 3; S.PMout = 8;
   S.filterH = 0.96; S.vel = 2.4; S.dP = 10;
   S.ctl.I = 0; S.ctl.P = 0; S.ctl.comp = 0; S.ctl.heat = 0; S.ctl.fanCmd = 22; S.ctl.damper = 0;
   S.fanAct = 22; S.damperAct = 0; S.rpm = 616; S.ctl.mode = 'IDLE';
@@ -3092,6 +3480,7 @@ $('clearAll').addEventListener('click', () => {
   if ($('sFanOvr')) $('sFanOvr').value = -1;
   if ($('sModeOvr')) $('sModeOvr').value = 'AUTO';
   readSliders();
+  sendUsbSerialCommand('R');
   pushSimControlToRPi();
   updateCards(); updatePanel();
   log('sim', '[SIM] Baseline restored. Controller returned to normal state.');
@@ -3130,6 +3519,10 @@ function readSliders() {
 ['sModeOvr', 'sSp', 'sFanOvr', 'sLim'].forEach(id => {
   if ($(id)) $(id).addEventListener('change', () => {
     readSliders();
+    if (id === 'sFanOvr' && S.mqttConnected && !S.inj.wifi) {
+      if (S.fanOverride < 0) sendUsbSerialCommand('R');
+      else mqttPublishRaw(MQTT_TOPIC_COMMAND, JSON.stringify({ fan_pct: S.fanOverride, fan_pwm: Math.round(S.fanOverride * 255 / 100), src: MQTT_CLIENT_TAG }));
+    }
     pushSimControlToRPi();
   });
 });
@@ -3156,11 +3549,11 @@ function updateCards() {
     h += card('PREDICTED PEAK', f0(F.peakW), 'W', `AT ${F.peakT}${F.peakW > S.demandLimit ? ' - OVER LIMIT' : ''}`, F.peakW > S.demandLimit ? 'warn' : '');
     h += card('AVG OUTDOOR (FCST)', f1(F.avgTo), 'C', S.inj.heatwave ? 'HEATWAVE ACTIVE' : 'PEAK AT 15:00');
   } else if (view === 'thermal') {
-    const isLiveUsb = S.usbConnected && S.bme.hasLive;
-    const sensLabel = isLiveUsb
-      ? `LIVE A4/A5 BME688 (${S.T.toFixed(2)}°C | Gas ${S.bme.gasKOhms.toFixed(1)} kΩ)`
+    const isLiveHw = isLiveHardwareActive();
+    const sensLabel = isLiveHw
+      ? `LIVE ${S.usbConnected ? 'USB' : 'WIFI'} BME688 (${S.T.toFixed(2)}°C | Gas ${S.bme.gasKOhms.toFixed(1)} kΩ)`
       : `SENSOR: ${c.sensorAOk ? 'TS-A (BME688 A4/A5)' : 'TS-B (TS-A VOTED OUT)'}`;
-    h += card('ROOM (A4/A5 BME688)', fF(c.Tctl), 'F', sensLabel, d['E-202'] ? 'warn' : isLiveUsb ? 'ok' : '');
+    h += card('ROOM (A4/A5 BME688)', fF(c.Tctl), 'F', sensLabel, d['E-202'] ? 'warn' : isLiveHw ? 'ok' : '');
     h += card('EFFECTIVE SETPOINT', fF(c.sp), 'F', `ERROR ${fD(c.Tctl - c.sp)} F | PID ${f0(c.u)}%`);
     h += card('FEELS LIKE', fF(c.AT), 'F', `STEADMAN | RH ${f1(S.RH)}%`, c.heatEmerg ? 'crit' : '');
     h += card('OUTDOOR', fF(S.Tout), 'F', S.inj.window ? 'WINDOW OPEN' : 'ENVELOPE SEALED');
@@ -3190,10 +3583,12 @@ function updateCards() {
     renderDmmModal();
   }
   if ($('bmeAdcBar')) {
-    const live = S.usbConnected && S.bme.hasLive;
+    const live = isLiveHardwareActive();
     $('bmeAdcBar').className = 'adc-bar' + (live ? ' live' : '');
     if ($('bmeSrcTag')) {
-      $('bmeSrcTag').textContent = live ? `🟢 LIVE ARDUINO BME688 (PINS A4 SDA / A5 SCL | CHIP ID ${S.bme.chipId}):` : `BME688 (PINS A4 SDA / A5 SCL | CHIP ID ${S.bme.chipId}) SIGNAL PIPELINE:`;
+      $('bmeSrcTag').textContent = live
+        ? `🟢 LIVE ${S.usbConnected ? 'USB' : 'WIFI/MQTT'} ARDUINO BME688 (A4 SDA / A5 SCL | ${S.usbConnected ? '115200 BAUD' : S.mqttRssi + ' dBm'}):`
+        : `BME688 (PINS A4 SDA / A5 SCL | CHIP ID ${S.bme.chipId}) SIGNAL PIPELINE:`;
       $('bmeSrcTag').style.color = live ? 'var(--green)' : 'var(--cyan)';
     }
     if ($('bmeAdcFlow')) {
@@ -3232,7 +3627,9 @@ function updatePanel() {
           ? `BLOCKING HB (${w.elapsedS.toFixed(1)}s / ${w.timeoutS.toFixed(1)}s)`
           : S.usbConnected
             ? `USB HB #${w.lastHbSeq} (${w.elapsedS.toFixed(1)}s)`
-            : `SIM HB #${w.lastHbSeq} (${w.elapsedS.toFixed(1)}s)`;
+            : S.mqttBenchLive
+              ? `WIFI HB #${w.lastHbSeq} (${w.elapsedS.toFixed(1)}s)`
+              : `SIM HB #${w.lastHbSeq} (${w.elapsedS.toFixed(1)}s)`;
       $('wdtBadge').className = 'badge ' + (w.tripped ? 'crit' : isWarn ? 'warn' : 'ok');
     }
     if ($('wdtBar')) {
@@ -3241,22 +3638,23 @@ function updatePanel() {
     }
     if ($('wdtDetail')) {
       $('wdtDetail').innerHTML = w.tripped
-        ? `<span class="red"><b>ALARM E-204:</b> Serial telemetry lost &gt;${w.timeoutS.toFixed(1)}s! Pin 10 PTC Relay latched OFF (0V). Click RESET to clear.</span>`
+        ? `<span class="red"><b>ALARM E-204:</b> Telemetry lost &gt;${w.timeoutS.toFixed(1)}s! Pin 10 PTC Relay latched OFF (0V). Click RESET to clear.</span>`
         : w.testBlocking
-          ? `<span class="amb">Simulating frozen/unplugged USB serial cable... tripping fail-safe at ${w.timeoutS.toFixed(1)}s</span>`
-          : S.usbConnected
-            ? `<span class="grn">Live Arduino Uno R4 V5 (BME688 2s stream, pkt #${w.lastHbSeq}) &bull; Pin 10 5s limit + 30s cooldown armed</span>`
-            : `<span>Standalone sim heartbeat &bull; Connect USB Arduino V5 for live BME688 serial watchdog</span>`;
+          ? `<span class="amb">Simulating frozen/unplugged Arduino link... tripping fail-safe at ${w.timeoutS.toFixed(1)}s</span>`
+          : (S.usbConnected || S.mqttBenchLive)
+            ? `<span class="grn">Live Arduino Uno R4 (${S.usbConnected ? 'USB 115200' : 'IIT-IoT MQTT ' + S.mqttRssi + 'dBm'}, pkt #${w.lastHbSeq}) &bull; Pin 10 5s limit + 30s cooldown armed</span>`
+            : `<span>Standalone sim heartbeat &bull; Auto-listening on HiveMQ (IIT-IoT) &amp; USB Serial</span>`;
     }
   }
   // header
   const setDot = (id, col) => { $(id).style.background = col; $(id).style.color = col; };
   setDot('hA', m.a === 'RUN' ? '#10b981' : m.a === 'SYNC' ? '#f59e0b' : '#ef4444'); $('hAt').textContent = m.a;
   setDot('hB', m.b === 'ACTIVE' ? '#10b981' : '#f59e0b'); $('hBt').textContent = m.b;
-  setDot('hW', S.inj.wifi ? '#ef4444' : '#10b981'); $('hWt').textContent = S.inj.wifi ? 'OFFLINE' : 'ONLINE';
+  setDot('hW', S.inj.wifi ? '#ef4444' : S.mqttBenchLive ? '#10b981' : S.mqttConnected ? '#38bdf8' : '#10b981');
+  $('hWt').textContent = S.inj.wifi ? 'OFFLINE' : S.mqttBenchLive ? 'HIVEMQ LIVE' : S.mqttConnected ? 'MQTT READY' : 'ONLINE';
   if ($('hPi')) {
-    setDot('hPi', (S.usbConnected || S.rpiOnline) ? '#10b981' : S.rpiSync ? '#38bdf8' : '#f59e0b');
-    $('hPit').textContent = S.usbConnected ? `USB LIVE (${S.rpiPkts})` : S.rpiOnline ? `SYNC (${S.rpiPkts})` : S.rpiSync ? 'ARMED' : 'OFF';
+    setDot('hPi', (S.usbConnected || S.mqttBenchLive || S.rpiOnline) ? '#10b981' : S.rpiSync ? '#38bdf8' : '#f59e0b');
+    $('hPit').textContent = S.usbConnected ? `USB LIVE (${S.rpiPkts})` : S.mqttBenchLive ? `WIFI LIVE (${S.rpiPkts})` : S.rpiOnline ? `SYNC (${S.rpiPkts})` : S.rpiSync ? 'ARMED' : 'OFF';
   }
   if ($('hIot')) {
     setDot('hIot', !S.iotAuto ? '#f59e0b' : S.iotOnline ? '#10b981' : '#38bdf8');
@@ -3974,8 +4372,13 @@ function updateThermostatView() {
   // Top-right environmental readouts
   if ($('qSensorBadge')) {
     const liveUsb = S.usbConnected && S.bme.hasLive;
-    $('qSensorBadge').textContent = liveUsb ? `USB BME688 (${S.bme.gasKOhms.toFixed(0)}k\u03a9)` : c.sensorAOk ? 'TS-A BME688' : 'TS-B REDUNDANT';
-    $('qSensorBadge').className = 'badge ' + (liveUsb ? 'ok' : c.sensorAOk ? 'ok' : 'warn');
+    const liveWifi = !liveUsb && S.mqttBenchLive && S.bme.hasLive && !S.inj.wifi;
+    $('qSensorBadge').textContent = liveUsb
+      ? `USB BME688 (${S.bme.gasKOhms.toFixed(0)}k\u03a9)`
+      : liveWifi
+        ? `WIFI BME688 (${S.mqttRssi}dBm)`
+        : c.sensorAOk ? 'TS-A BME688' : 'TS-B REDUNDANT';
+    $('qSensorBadge').className = 'badge ' + ((liveUsb || liveWifi || c.sensorAOk) ? 'ok' : 'warn');
   }
   if ($('qRoomTemp')) $('qRoomTemp').innerHTML = `${roomF.toFixed(1)}<small>&deg;F</small>`;
   if ($('qFeelsLike')) $('qFeelsLike').innerHTML = `${feelsF.toFixed(1)}<small>&deg;F</small>`;
@@ -4043,7 +4446,7 @@ function updateThermostatView() {
       `<div class="r3">Row 3: System Action: ${c.mode} regulating zone climate</div>`;
   }
   if ($('btnQuickUsb')) {
-    $('btnQuickUsb').textContent = S.usbConnected ? 'USB Live (COM7)' : 'Connect USB';
+    $('btnQuickUsb').textContent = S.usbConnected ? 'USB Live (COM7)' : (S.mqttBenchLive && !S.inj.wifi) ? 'WiFi Live (IIT-IoT)' : 'Connect USB';
   }
 
   // Persistent Bottom Dock pills
@@ -4148,6 +4551,7 @@ function initThermostatTurntable() {
     dial.addEventListener('pointerdown', ev => {
       if (ev.target && ev.target.closest('.nest-step-btn')) return;
       dragging = true;
+      S.dialDragging = true;
       dial.classList.add('dragging');
       if (dial.setPointerCapture) {
         try { dial.setPointerCapture(ev.pointerId); } catch (e) {}
@@ -4161,11 +4565,13 @@ function initThermostatTurntable() {
     const endDrag = ev => {
       if (!dragging) return;
       dragging = false;
+      S.dialDragging = false;
       deadZoneLock = null;
       dial.classList.remove('dragging');
       if (dial.releasePointerCapture && ev && ev.pointerId !== undefined) {
         try { dial.releasePointerCapture(ev.pointerId); } catch (e) {}
       }
+      scheduleMqttSetpointPublish();
     };
     dial.addEventListener('pointerup', endDrag);
     dial.addEventListener('pointercancel', endDrag);
@@ -4310,9 +4716,11 @@ S.kWh = 0; S.quiet = false;
 log('ok', 'MCU-B hot standby: heartbeat mirror active, watchdog armed (1.6 s).');
 log('ok', 'FS3000 airflow baseline captured. TS-A / TS-B cross-check enabled.');
 log('ok', `IoT Email & SMS Alert Gateway ready (9254075652 Verizon / choudhryshashwat29@gmail.com | AUTO-SEND: ${S.iotAuto ? 'ON' : 'OFF'}).`);
+log('ok', 'HiveMQ Cloud WebSockets Bridge armed (wss://broker.hivemq.com:8884/mqtt <-> IIT-IoT Arduino UNO R4).');
 log('', 'ESP32 boot complete. Split-range PID: Kp=55 %/C, Ki=0.02 %/(C s), smart-plug feed-forward ON.');
 checkIoTGatewayHealth();
 syncRPiTelemetry();
+connectCloudMqtt();
 buildChart(); updateCards(); updatePanel();
 setInterval(tick, 200);
 requestAnimationFrame(render);
