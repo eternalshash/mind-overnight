@@ -5,6 +5,12 @@ This technical log is automatically maintained to record engineering implementat
 ---
 
 ### [2026-11-19] Shashwat Choudhry
+* **Commit:** `e6c9d77`
+* **Technical Summary:** Fix(ece441): fix UNO R4 HiveMQ connection using TCP 1883, unique MAC ClientID, and <256B MQTT payload. Modified files in the Smart HVAC subsystem.
+
+---
+
+### [2026-11-19] Shashwat Choudhry
 * **Commit:** `6e49aae`
 * **Technical Summary:** Feat(ece441): add standalone SmartHVAC_Wireless_AllInOne sketch with embedded secrets, fan/heater control, HiveMQ & sim sync. Modified files in the Smart HVAC subsystem.
 
