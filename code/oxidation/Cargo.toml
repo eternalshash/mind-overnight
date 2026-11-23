@@ -43,3 +43,11 @@ path = "src/rustprac5.rs"
 [[bin]]
 name = "practiceRust6"
 path = "src/practiceRust6.rs"
+
+[[bin]]
+name = "practiceRust7"
+path = "src/practiceRust7.rs"
+
+[[bin]]
+name = "praticeRust8"
+path = "src/praticeRust8.rs"
