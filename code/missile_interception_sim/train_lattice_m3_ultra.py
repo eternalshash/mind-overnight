@@ -365,3 +365,79 @@ class LatticeKinematicSurrogateNet(nn.Module):
 class MultiHeadSetAttention(nn.Module):
     """Explicit MPS-native multi-head self/cross attention without CPU fallback."""
 
+    def __init__(self, d_model: int = 128, n_heads: int = 4):
+        super().__init__()
+        self.d_model = d_model
+        self.n_heads = n_heads
+        self.d_k = d_model // n_heads
+        self.q_proj = nn.Linear(d_model, d_model)
+        self.k_proj = nn.Linear(d_model, d_model)
+        self.v_proj = nn.Linear(d_model, d_model)
+        self.out_proj = nn.Linear(d_model, d_model)
+        self.ln = nn.LayerNorm(d_model)
+        self.ffn = nn.Sequential(
+            nn.Linear(d_model, d_model * 2),
+            nn.SiLU(),
+            nn.Linear(d_model * 2, d_model),
+        )
+        self.ln2 = nn.LayerNorm(d_model)
+
+    def forward(
+        self,
+        q_in: torch.Tensor,
+        kv_in: torch.Tensor,
+        kv_mask: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        B, Nq, _ = q_in.shape
+        Nk = kv_in.shape[1]
+        q = self.q_proj(q_in).view(B, Nq, self.n_heads, self.d_k).transpose(1, 2)
+        k = self.k_proj(kv_in).view(B, Nk, self.n_heads, self.d_k).transpose(1, 2)
+        v = self.v_proj(kv_in).view(B, Nk, self.n_heads, self.d_k).transpose(1, 2)
+
+        scores = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(self.d_k)
+        if kv_mask is not None:
+            scores = scores.masked_fill(~kv_mask[:, None, None, :], -1e9)
+        attn = torch.softmax(scores, dim=-1)
+        ctx = torch.matmul(attn, v).transpose(1, 2).contiguous().view(B, Nq, self.d_model)
+        x = self.ln(q_in + self.out_proj(ctx))
+        return self.ln2(x + self.ffn(x))
+
+
+class LatticeMeshDeploymentNet(nn.Module):
+    """
+    Autonomous Pre-Raid Spatial Mesh Placement Policy (`TEMPLATE_GEO` -> Mesh Grid).
+    Under Strict Fog of War, observes ONLY:
+      - Crucial Infrastructure Graph tokens [B, N_infra, 7]
+      - 3D Geodesic Mesh Terrain/Horizon/Coverage tokens [B, M_mesh, 18]
+      - Remaining Defense Budget & Portfolio state [B, 12]
+    Outputs joint logits [B, M_mesh * 9 + 1 (STOP)] over every candidate mesh vertex
+    and all 9 decoupled Lattice Sensor, EW, and Kinetic Shooter node types!
+    """
+
+    def __init__(self, d_model: int = 128, n_node_types: int = 9):
+        super().__init__()
+        self.n_node_types = n_node_types
+        self.infra_enc = nn.Sequential(nn.Linear(7, d_model), nn.LayerNorm(d_model), nn.SiLU())
+        self.mesh_enc = nn.Sequential(nn.Linear(18, d_model), nn.LayerNorm(d_model), nn.SiLU())
+        self.ctx_enc = nn.Sequential(nn.Linear(12, d_model), nn.LayerNorm(d_model), nn.SiLU())
+
+        self.infra_self_attn = MultiHeadSetAttention(d_model, n_heads=4)
+        self.mesh_cross_attn = MultiHeadSetAttention(d_model, n_heads=4)
+        self.mesh_self_attn = MultiHeadSetAttention(d_model, n_heads=4)
+
+        self.node_head = nn.Sequential(
+            nn.Linear(d_model * 2, d_model),
+            nn.SiLU(),
+            nn.Linear(d_model, n_node_types),
+        )
+        self.stop_head = nn.Sequential(
+            nn.Linear(d_model * 2, 64),
+            nn.SiLU(),
+            nn.Linear(64, 1),
+        )
+        self.value_head = nn.Sequential(
+            nn.Linear(d_model * 2, 64),
+            nn.SiLU(),
+            nn.Linear(64, 1),
+        )
+
