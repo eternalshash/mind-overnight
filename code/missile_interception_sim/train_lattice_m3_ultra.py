@@ -1045,3 +1045,76 @@ def run_batched_gpu_raid_episodes(
     hub_health = struct_health[:, :2].mean(dim=1, keepdim=True)  # Upstream Power + SATCOM health
     op_mult = torch.where(is_hub > 0.5, torch.ones_like(struct_health), 0.65 + 0.35 * hub_health)
     op_cap = struct_health * op_mult
+
+    surv_frac = (op_cap * intrinsic_val).sum(dim=1) / intrinsic_val.sum(dim=1)
+    # Balanced cost-exchange penalty: discourages wasting $4M+ rounds on drone bait without ever deterring existential HGV/MIRV defense!
+    cost_penalty = torch.clamp(interceptor_spend_musd / torch.clamp(init_budget * 1.4, min=120.0), max=1.5) * 0.11
+    mesh_sensor_bonus = 0.08 * torch.clamp((sentry_ridge_count + airborne_isr_count * 1.5) / 2.5, max=1.0)
+
+    reward = 3.2 * surv_frac - cost_penalty - debris_penalties + mesh_sensor_bonus
+    total_log_prob = deploy_log_probs + kw_log_probs
+    total_ent = deploy_entropy * 0.08 + kw_entropy * 0.12
+
+    val_pred = first_val_pred if first_val_pred is not None else torch.zeros(B, device=device)
+    metrics = {
+        "operational_survival_pct": float(surv_frac.mean().item() * 100.0),
+        "intercept_rate_pct": float((total_threats_killed.mean().item() / total_threats_spawned) * 100.0),
+        "mean_interceptor_spend_musd": float(interceptor_spend_musd.mean().item()),
+        "mean_attacker_cost_musd": float(attacker_raid_cost_musd.mean().item()),
+        "mean_debris_violations": float((debris_penalties / 0.14).mean().item()),
+        "mean_reward": float(reward.mean().item()),
+    }
+    return reward, total_log_prob, val_pred, total_ent, metrics
+
+
+# ==============================================================================
+# 4. END-TO-END M3 ULTRA TRAINING ORCHESTRATOR & CHECKPOINT EXPORTER
+# ==============================================================================
+
+def warmstart_policies_on_mps(
+    deploy_net: LatticeMeshDeploymentNet,
+    killweb_net: LatticeKillWebPolicyNet,
+    cat_t: Dict[str, torch.Tensor],
+    device: torch.device,
+    steps: int = 80,
+) -> None:
+    """
+    Fast 80-step differentiable warm-start on MPS so both attention networks
+    begin Stage 2 1,000,000-episode adversarial self-play from physically coherent
+    ridge/coastal/layered priors rather than uniform noise.
+    """
+    opt_w = torch.optim.AdamW(
+        list(deploy_net.parameters()) + list(killweb_net.parameters()), lr=2.2e-3, weight_decay=1e-4
+    )
+    B, N_inf, M, Na, Nt = 256, 5, 48, 10, 8
+
+    for _ in range(steps):
+        # 1. Warm-start `deploy_net` on randomized terrain/horizon meshes & portfolio states
+        inf_tok = torch.randn(B, N_inf, 7, device=device) * 0.35
+        inf_tok[:, :, 2:5] = torch.rand(B, N_inf, 3, device=device) * 0.6 + 0.35
+
+        elev = torch.rand(B, M, device=device) * 1.4
+        prom = (elev - 0.55) * 1.3
+        is_sea = (torch.rand(B, M, device=device) > 0.78).float()
+        elev = elev * (1.0 - is_sea)
+        prom = prom * (1.0 - is_sea)
+        g_hor = torch.clamp(0.2 + 0.5 * elev + 0.2 * prom, 0.1, 0.95)
+        standoff = torch.rand(B, M, device=device)
+        umb105 = torch.rand(B, M, device=device)
+        umb220 = torch.clamp(umb105 + 0.25, max=1.0)
+        min_d = torch.rand(B, M, device=device) * 1.8 + 0.08
+
+        mesh_tok = torch.stack([
+            elev, prom, g_hor, torch.full_like(elev, 0.88), torch.clamp(g_hor + 0.2, max=0.98),
+            min_d, min_d, standoff, umb105 * 0.6, umb105, umb220, is_sea,
+            torch.randn(B, M, device=device) * 0.4, torch.randn(B, M, device=device) * 0.4,
+            torch.rand(B, M, device=device), torch.rand(B, M, device=device),
+            torch.rand(B, M, device=device), torch.rand(B, M, device=device),
+        ], dim=-1)
+
+        rem_b = torch.rand(B, device=device) * 280.0 + 40.0
+        t_cnts = torch.randint(0, 3, (B, 9), device=device).float()
+        b_ctx = torch.cat([
+            (rem_b / 400.0).unsqueeze(1), (rem_b / 320.0).clamp(max=1.0).unsqueeze(1),
+            t_cnts / 6.0, torch.rand(B, 1, device=device),
+        ], dim=-1)
