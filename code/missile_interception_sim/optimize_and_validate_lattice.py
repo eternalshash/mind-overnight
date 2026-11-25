@@ -219,3 +219,50 @@ def run_full_optimization_and_validation() -> Dict[str, Any]:
     ax1.tick_params(colors="#94a3b8")
     ax1.grid(color="#1e293b", linestyle=":")
     ax1.legend(facecolor="#0f172a", edgecolor="#334155", labelcolor="white")
+
+    ax2.set_facecolor("#0b1320")
+    df_s = pd.DataFrame(stress_rows)
+    ax2.plot(df_s["total_threats"], df_s["neural_survival_pct"], "-o", color="#00f0ff", linewidth=2.4, label="Neural Lattice Kill-Web")
+    ax2.plot(df_s["total_threats"], df_s["siloed_survival_pct"], "--s", color="#f59e0b", linewidth=2.0, label="Legacy Siloed Batteries")
+    ax2.set_title("Multi-Wave Raid Saturation Stress Curve ($320M Budget)", color="white", fontsize=11, fontweight="bold")
+    ax2.set_xlabel("Total Synchronized Inbound Threats (incl. MIRVs)", color="#cbd5e1")
+    ax2.set_ylabel("Cascading Operational Survival (%)", color="#cbd5e1")
+    ax2.set_ylim(0, 105)
+    ax2.tick_params(colors="#94a3b8")
+    ax2.grid(color="#1e293b", linestyle=":")
+    ax2.legend(facecolor="#0f172a", edgecolor="#334155", labelcolor="white")
+
+    plt.tight_layout()
+    curves_png = os.path.join(BASE_DIR, "lattice_optimization_curves.png")
+    plt.savefig(curves_png, dpi=220, facecolor=fig.get_facecolor())
+    plt.close(fig)
+
+    pareto_csv = os.path.join(BASE_DIR, "lattice_optimization_pareto.csv")
+    df_b.to_csv(pareto_csv, index=False)
+
+    summary = {
+        "elapsed_seconds": round(time.time() - t0, 2),
+        "budget_pareto_frontier": budget_rows,
+        "saturation_stress_curve": stress_rows,
+        "sead_self_healing_sweep": sead_rows,
+        "submesh_ridge_micro_optimization": {
+            "mean_ridge_elevation_gain_m": micro_opt["mean_ridge_elevation_gain_m"],
+            "max_ridge_elevation_gain_m": micro_opt["max_ridge_elevation_gain_m"],
+            "discrete_mesh_survival_pct": res_base["cascading_operational_survival_pct"],
+            "micro_optimized_survival_pct": res_opt["cascading_operational_survival_pct"],
+        },
+    }
+    out_json = os.path.join(BASE_DIR, "lattice_optimization_validation.json")
+    with open(out_json, "w", encoding="utf-8") as f:
+        json.dump(summary, f, indent=2)
+
+    print("\n" + "=" * 98)
+    print(f"Saved Optimization Validation JSON : {out_json}")
+    print(f"Saved Budget Pareto CSV            : {pareto_csv}")
+    print(f"Saved Optimization Curves PNG      : {curves_png}")
+    print("=" * 98)
+    return summary
+
+
+if __name__ == "__main__":
+    run_full_optimization_and_validation()
