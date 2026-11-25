@@ -570,3 +570,46 @@ class EntityManagerCOP:
 # 5. LATTICE AUTONOMOUS TASKING API (`anduril.tasks.v2`)
 # ==============================================================================
 
+@dataclass
+class LatticeTask:
+    """
+    Structured command directive (`anduril.tasks.v2.Task`) emitted by the
+    Autonomous Neural C2 Agent to a controllable `TEMPLATE_ASSET` node.
+    """
+    task_id: str
+    task_type: TaskType
+    assignee_entity_id: str
+    target_track_entity_id: str
+    created_time_s: float
+    salvo_count: int = 1
+    engage_on_remote: bool = False
+    neural_confidence: float = 1.0
+    status: TaskStatus = TaskStatus.STATUS_SENT
+    status_reason: str = ""
+
+    def to_lattice_dict(self) -> Dict[str, Any]:
+        return {
+            "taskId": self.task_id,
+            "specification": self.task_type.value,
+            "assigneeEntityId": self.assignee_entity_id,
+            "targetTrackEntityId": self.target_track_entity_id,
+            "salvoCount": self.salvo_count,
+            "engageOnRemote": self.engage_on_remote,
+            "neuralConfidence": round(float(self.neural_confidence), 4),
+            "createdTimeSeconds": round(float(self.created_time_s), 2),
+            "status": self.status.value,
+            "statusReason": self.status_reason,
+        }
+
+
+class LatticeTaskManager:
+    """
+    Validates and records `anduril.tasks.v2` commands against the COP,
+    enforcing physical asset constraints, `taskCatalog` capability, magazine
+    availability, mesh connectivity, and Engage-on-Remote covariance gates.
+    """
+
+    def __init__(self, cop: EntityManagerCOP):
+        self.cop = cop
+        self.task_history: List[LatticeTask] = []
+
