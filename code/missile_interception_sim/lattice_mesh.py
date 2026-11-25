@@ -372,3 +372,63 @@ class CrucialInfraNode:
     blast_radius_km: float = 3.5
     upstream_ids: List[str] = field(default_factory=list)
     cascading_value: float = 0.0
+
+
+def compute_cascading_infrastructure_values(nodes: List[CrucialInfraNode]) -> List[CrucialInfraNode]:
+    """
+    Propagates downstream dependency weights upstream (2-hop damped cascade) so
+    infrastructure nodes like Power Substations and SATCOM Gateways reflect both
+    their intrinsic value AND the critical systems that depend on them.
+    """
+    by_id = {n.node_id: n for n in nodes}
+    downstream_bonus = {n.node_id: 0.0 for n in nodes}
+
+    # Pass 1: Direct dependents contribute 45% of their value to upstream providers
+    for n in nodes:
+        if n.upstream_ids:
+            share = (0.45 * n.intrinsic_value) / len(n.upstream_ids)
+            for up_id in n.upstream_ids:
+                if up_id in downstream_bonus:
+                    downstream_bonus[up_id] += share
+
+    # Pass 2: 2-hop transitive cascade (25% damping)
+    pass2_bonus = dict(downstream_bonus)
+    for n in nodes:
+        if n.upstream_ids and downstream_bonus[n.node_id] > 0:
+            share = (0.25 * downstream_bonus[n.node_id]) / len(n.upstream_ids)
+            for up_id in n.upstream_ids:
+                if up_id in pass2_bonus:
+                    pass2_bonus[up_id] += share
+
+    for n in nodes:
+        n.cascading_value = round(n.intrinsic_value + pass2_bonus[n.node_id], 2)
+    return nodes
+
+
+def evaluate_cascading_operational_health(
+    infra_entities: List[lsdk.LatticeEntity],
+) -> Tuple[float, float]:
+    """
+    Computes post-raid (structural_survival_pct, cascading_operational_survival_pct).
+    If an upstream POWER_GRID or SATCOM_C2 node is destroyed, dependent facilities
+    lose up to 35% operational capacity even if not directly hit!
+    """
+    if not infra_entities:
+        return 100.0, 100.0
+
+    health_by_id: Dict[str, float] = {}
+    for ent in infra_entities:
+        if ent.geo_infra:
+            health_by_id[ent.entity_id] = ent.geo_infra.structural_health
+
+    total_intrinsic = 0.0
+    surviving_structural = 0.0
+    surviving_operational = 0.0
+
+    for ent in infra_entities:
+        gi = ent.geo_infra
+        if gi is None:
+            continue
+        val = gi.intrinsic_value
+        total_intrinsic += val
+        s_health = gi.structural_health
