@@ -265,3 +265,21 @@ LATTICE_NODE_CATALOG: List[LatticeNodeSpec] = [
 
 NODE_BY_ID: Dict[str, LatticeNodeSpec] = {n.node_type_id: n for n in LATTICE_NODE_CATALOG}
 
+
+@dataclass(frozen=True)
+class ThreatWeaponProfile:
+    """Unified physical, EW, MIRV, and real-world cost profile for offensive threats."""
+    weapon_id: str
+    name: str
+    archetype_id: int  # 0=Drone, 1=SubsonicCruise, 2=SupersonicCruise, 3=TacticalBallistic, 4=HypersonicGlide, 5=ExoICBM_MIRV
+    unit_cost_musd: float
+    max_speed_mps: float
+    cruise_or_apogee_m: float
+    rcs_m2: float
+    maneuver_g: float
+    ew_jammer_SelfProtect: float  # [0.0 -> 1.0]
+    ew_susceptibility: float      # Susceptibility to Lattice GNSS/RF soft-kill [0.0 -> 1.0]
+    mirv_count: int = 1
+    decoy_count: int = 0
+    warhead_mass_kg: float = 400.0
+    can_target_sead: bool = False
