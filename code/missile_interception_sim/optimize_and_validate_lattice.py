@@ -181,3 +181,41 @@ def run_full_optimization_and_validation() -> Dict[str, Any]:
             "mean_hops": mesh_stat["mean_hops"],
             "operational_survival_pct": res_n["cascading_operational_survival_pct"],
         })
+
+    # 4. Continuous Sub-Mesh Ridge Micro-Optimization Validation
+    print("\n[Study 4/4] Continuous Sub-Mesh Terrain Ridge Micro-Optimization ($280M Budget):")
+    cop_base, pl_base, _ = lsim.deploy_neural_lattice_mesh(copy.deepcopy(infra), mesh, 280.0, dep, device)
+    res_base = lsim.execute_true_rk4_raid_simulation(cop_base, mesh, waves_1x, "neural_lattice", surr, kw, device, seed=101)
+
+    micro_opt = optimize_sensor_ridge_micro_offsets(pl_base, mesh.sea_azimuth_rad, search_radius_km=8.0)
+    cop_opt = copy.deepcopy(cop_base)
+    # Re-run fresh COP with micro-optimized ridge coordinates
+    cop_fresh, _, _ = lsim.deploy_neural_lattice_mesh(copy.deepcopy(infra), mesh, 280.0, dep, device)
+    opt_map = {item["entity_id"]: item for item in micro_opt["placements"]}
+    for ent in cop_fresh.get_live_assets():
+        if ent.entity_id in opt_map and ent.location:
+            inf_p = opt_map[ent.entity_id]
+            spec = lmesh.NODE_BY_ID[ent.ontology.platform_type]
+            new_terr = inf_p.get("opt_terrain_elev_m", inf_p["terrain_elev_m"])
+            ent.location.position.latitude_degrees = inf_p["opt_lat"]
+            ent.location.position.longitude_degrees = inf_p["opt_lon"]
+            ent.location.position.altitude_hae_meters = new_terr + spec.platform_alt_agl_m
+    res_opt = lsim.execute_true_rk4_raid_simulation(cop_fresh, mesh, waves_1x, "neural_lattice", surr, kw, device, seed=101)
+    print(
+        f"  Mean Ridge Elevation Gain: +{micro_opt['mean_ridge_elevation_gain_m']:.1f}m (Max +{micro_opt['max_ridge_elevation_gain_m']:.1f}m) | "
+        f"Discrete Mesh Surv: {res_base['cascading_operational_survival_pct']:.1f}% -> Micro-Optimized Surv: {res_opt['cascading_operational_survival_pct']:.1f}%"
+    )
+
+    # Render 2-panel Pareto & Saturation Optimization Plot
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14.5, 6.0), facecolor="#080d16")
+    ax1.set_facecolor("#0b1320")
+    df_b = pd.DataFrame(budget_rows)
+    ax1.plot(df_b["budget_musd"], df_b["neural_survival_pct"], "-o", color="#00e676", linewidth=2.4, label="Neural Lattice Kill-Web")
+    ax1.plot(df_b["budget_musd"], df_b["siloed_survival_pct"], "--s", color="#ef4444", linewidth=2.0, label="Legacy Siloed Batteries")
+    ax1.set_title("Defense Budget Pareto Frontier (True 3-DoF RK4)", color="white", fontsize=11, fontweight="bold")
+    ax1.set_xlabel("Defense Procurement Budget ($M USD)", color="#cbd5e1")
+    ax1.set_ylabel("Cascading Operational Survival (%)", color="#cbd5e1")
+    ax1.set_ylim(0, 105)
+    ax1.tick_params(colors="#94a3b8")
+    ax1.grid(color="#1e293b", linestyle=":")
+    ax1.legend(facecolor="#0f172a", edgecolor="#334155", labelcolor="white")
