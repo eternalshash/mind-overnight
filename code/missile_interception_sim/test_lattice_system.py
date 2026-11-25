@@ -102,3 +102,40 @@ class TestLatticeKillWebSystem(unittest.TestCase):
         budget = float(reg["default_budget_musd"])
         mesh = lmesh.generate_geodesic_spatial_mesh(infra, sea_azimuth_deg=reg["sea_azimuth_deg"])
         waves = rlw.build_multi_wave_tot_strike(infra, reg["sea_azimuth_deg"], "combined_tot_saturation")
+
+        cop_n, placements_n, spent_n = lsim.deploy_neural_lattice_mesh(
+            copy.deepcopy(infra), mesh, budget, dep, device
+        )
+        self.assertLessEqual(spent_n, budget + 1e-5)
+        self.assertGreaterEqual(len(placements_n), 4)
+
+        res_neural = lsim.execute_true_rk4_raid_simulation(
+            cop_n, mesh, waves, "neural_lattice", surr, kw, device, seed=101
+        )
+        cop_s, _, _ = lsim.deploy_baseline_defense("siloed_legacy", copy.deepcopy(infra), mesh, budget)
+        res_siloed = lsim.execute_true_rk4_raid_simulation(cop_s, mesh, waves, "siloed_greedy", seed=101)
+
+        self.assertGreater(
+            res_neural["cascading_operational_survival_pct"],
+            res_siloed["cascading_operational_survival_pct"],
+        )
+
+    def test_04_sead_self_healing_mesh_routing(self):
+        """Verify Lattice mesh stays online and re-routes when a forward sensor node is destroyed."""
+        reg = copy.deepcopy(lmesh.GLOBAL_TEST_REGIONS["baltic_nordic_shield"])
+        infra = reg["infrastructure"]
+        mesh = lmesh.generate_geodesic_spatial_mesh(infra, sea_azimuth_deg=reg["sea_azimuth_deg"])
+        surr, dep, kw, device = tlm.load_trained_lattice_models()
+
+        cop, _, _ = lsim.deploy_neural_lattice_mesh(copy.deepcopy(infra), mesh, 260.0, dep, device)
+        assets = cop.get_live_assets()
+        self.assertGreater(len(assets), 2)
+
+        # Simulate SEAD destroying the first deployed node
+        assets[0].is_live = False
+        stats = lmesh.update_self_healing_mesh_links(cop.get_live_assets(), cop.get_infrastructure_entities())
+        self.assertEqual(stats["online_nodes"], stats["total_live_nodes"])
+
+
+if __name__ == "__main__":
+    unittest.main()
