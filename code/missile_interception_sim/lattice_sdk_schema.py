@@ -613,3 +613,68 @@ class LatticeTaskManager:
         self.cop = cop
         self.task_history: List[LatticeTask] = []
 
+    def dispatch_task(
+        self,
+        task_type: TaskType,
+        assignee_id: str,
+        target_track_id: str,
+        sim_time_s: float,
+        salvo_count: int = 1,
+        local_los_available: bool = False,
+        neural_confidence: float = 1.0,
+    ) -> LatticeTask:
+        t_id = f"task-{len(self.task_history) + 1:05d}-{uuid.uuid4().hex[:6]}"
+        task = LatticeTask(
+            task_id=t_id,
+            task_type=task_type,
+            assignee_entity_id=assignee_id,
+            target_track_entity_id=target_track_id,
+            created_time_s=sim_time_s,
+            salvo_count=max(1, int(salvo_count)),
+            engage_on_remote=(not local_los_available),
+            neural_confidence=neural_confidence,
+        )
+
+        asset = self.cop.entities.get(assignee_id)
+        track = self.cop.entities.get(target_track_id)
+
+        if asset is None or not asset.is_live:
+            task.status = TaskStatus.STATUS_REJECTED
+            task.status_reason = "ASSIGNEE_OFFLINE_OR_DESTROYED"
+            self.task_history.append(task)
+            return task
+
+        if track is None or track.is_expired(sim_time_s):
+            task.status = TaskStatus.STATUS_REJECTED
+            task.status_reason = "TRACK_EXPIRED_OR_LOST"
+            self.task_history.append(task)
+            return task
+
+        if asset.task_catalog and not asset.task_catalog.supports(task_type):
+            task.status = TaskStatus.STATUS_REJECTED
+            task.status_reason = "UNSUPPORTED_BY_TASK_CATALOG"
+            self.task_history.append(task)
+            return task
+
+        if task_type == TaskType.TASK_INTERCEPT_TRACK:
+            if not asset.payloads or asset.payloads.total_remaining <= 0:
+                task.status = TaskStatus.STATUS_REJECTED
+                task.status_reason = "MAGAZINE_EXHAUSTED"
+                self.task_history.append(task)
+                return task
+
+            primary_payload = asset.payloads.payloads[0]
+            if primary_payload.cooldown_remaining_s > 0.0:
+                task.status = TaskStatus.STATUS_REJECTED
+                task.status_reason = "LAUNCHER_RELOAD_COOLDOWN"
+                self.task_history.append(task)
+                return task
+
+            # Physical airframe altitude envelope interlock (prevents firing vacuum exo-KV in dense troposphere or CIWS into space)
+            if track.location:
+                t_alt = track.location.position.altitude_hae_meters
+                if t_alt < primary_payload.min_intercept_alt_m * 0.80 or t_alt > primary_payload.max_intercept_alt_m * 1.15:
+                    task.status = TaskStatus.STATUS_REJECTED
+                    task.status_reason = "OUTSIDE_PHYSICAL_ALTITUDE_ENVELOPE"
+                    self.task_history.append(task)
+                    return task
