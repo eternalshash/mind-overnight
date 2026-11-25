@@ -441,3 +441,82 @@ class LatticeMeshDeploymentNet(nn.Module):
             nn.Linear(64, 1),
         )
 
+    def forward(
+        self,
+        infra_tok: torch.Tensor,   # [B, N_inf, 7]
+        mesh_tok: torch.Tensor,    # [B, M, 18]
+        budget_ctx: torch.Tensor,  # [B, 12]
+        action_mask: torch.Tensor, # [B, M * 9 + 1] bool (True = physically affordable & valid)
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        h_inf = self.infra_self_attn(self.infra_enc(infra_tok), self.infra_enc(infra_tok))
+        h_mesh = self.mesh_enc(mesh_tok)
+        h_mesh = self.mesh_cross_attn(h_mesh, h_inf)
+        h_mesh = self.mesh_self_attn(h_mesh, h_mesh)
+
+        h_ctx = self.ctx_enc(budget_ctx)  # [B, D]
+        ctx_exp = h_ctx.unsqueeze(1).expand(-1, h_mesh.shape[1], -1)
+        joint_in = torch.cat([h_mesh, ctx_exp], dim=-1)
+
+        mesh_node_logits = self.node_head(joint_in).reshape(h_mesh.shape[0], -1)  # [B, M*9]
+        pooled = torch.cat([h_mesh.mean(dim=1), h_ctx], dim=-1)
+        stop_logit = self.stop_head(pooled)  # [B, 1]
+
+        all_logits = torch.cat([mesh_node_logits, stop_logit], dim=-1)
+        all_logits = all_logits.masked_fill(~action_mask, -1e9)
+        state_val = self.value_head(pooled).squeeze(-1)
+        return all_logits, state_val
+
+
+class LatticeKillWebPolicyNet(nn.Module):
+    """
+    Edge-Biased Relational Cross-Attention Live Fire-Control & EW Agent.
+    Reads ONLY live `EntityManagerCOP` Track tokens, Asset tokens, and pairwise
+    surrogate kinematics; outputs pure learned task assignments (`INTERCEPT_TRACK`,
+    `JAM_SECTOR`, or `HOLD_FIRE`) + salvo count (1 vs 2).
+    """
+
+    def __init__(self, d_model: int = 128):
+        super().__init__()
+        self.d_model = d_model
+        self.trk_enc = nn.Sequential(nn.Linear(12, d_model), nn.LayerNorm(d_model), nn.SiLU())
+        self.ast_enc = nn.Sequential(nn.Linear(10, d_model), nn.LayerNorm(d_model), nn.SiLU())
+        self.edge_enc = nn.Sequential(
+            nn.Linear(6, 64),
+            nn.SiLU(),
+            nn.Linear(64, 32),
+            nn.SiLU(),
+        )
+
+        # Track-to-Track Self-Attention lets the agent perceive full wave composition & drone-bait traps!
+        self.trk_self_attn = MultiHeadSetAttention(d_model, n_heads=4)
+        self.ast_self_attn = MultiHeadSetAttention(d_model, n_heads=4)
+
+        self.q_pair = nn.Linear(d_model, 64)
+        self.k_pair = nn.Linear(d_model, 64)
+        self.pair_scorer = nn.Sequential(
+            nn.Linear(64 + 32, 64),
+            nn.SiLU(),
+            nn.Linear(64, 1),
+        )
+        self.hold_fire_head = nn.Sequential(
+            nn.Linear(d_model, 64),
+            nn.SiLU(),
+            nn.Linear(64, 1),
+        )
+        self.salvo_head = nn.Sequential(
+            nn.Linear(d_model + 32, 64),
+            nn.SiLU(),
+            nn.Linear(64, 2),
+        )
+
+    def forward(
+        self,
+        trk_tok: torch.Tensor,    # [B, Nt, 12]
+        ast_tok: torch.Tensor,    # [B, Na, 10]
+        edge_feat: torch.Tensor,  # [B, Nt, Na, 6]
+        pair_mask: torch.Tensor,  # [B, Nt, Na + 1] bool (last col = HOLD_FIRE always True)
+        trk_valid: Optional[torch.Tensor] = None,
+        ast_valid: Optional[torch.Tensor] = None,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        ht = self.trk_self_attn(self.trk_enc(trk_tok), self.trk_enc(trk_tok), kv_mask=trk_valid)
+        ha = self.ast_self_attn(self.ast_enc(ast_tok), self.ast_enc(ast_tok), kv_mask=ast_valid)
