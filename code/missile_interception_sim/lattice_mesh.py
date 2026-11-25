@@ -569,3 +569,53 @@ def compute_mesh_horizon_features_numba(
     n_infra = infra_lats.shape[0]
     feats = np.zeros((n_mesh, 12), dtype=np.float32)
     total_val = max(1.0, float(np.sum(infra_vals)))
+
+    for m in prange(n_mesh):
+        mlat = mesh_lats[m]
+        mlon = mesh_lons[m]
+        cos_lat = max(0.15, math.cos(math.radians(mlat)))
+
+        elev_m = procedural_global_terrain_elevation_m(mlat, mlon, sea_azimuth_rad)
+        is_sea = 1.0 if elev_m <= 0.5 else 0.0
+
+        # Compute local topographic prominence against 8 neighbors at 15 km radius
+        neigh_sum = 0.0
+        for a_i in range(8):
+            ang = a_i * (2.0 * math.pi / 8.0)
+            nlat = mlat + (15.0 / 111.132) * math.cos(ang)
+            nlon = mlon + (15.0 / (111.320 * cos_lat)) * math.sin(ang)
+            neigh_sum += procedural_global_terrain_elevation_m(nlat, nlon, sea_azimuth_rad)
+        prominence_m = elev_m - (neigh_sum / 8.0)
+
+        # Ray-march 12 azimuths to find true terrain-masked horizon distances
+        sum_h_ground_35m = 0.0
+        sum_h_air_35m = 0.0
+        sum_h_drone_400m = 0.0
+
+        for az_i in range(12):
+            az = az_i * (2.0 * math.pi / 12.0)
+            # Binary search / coarse march for 35m sea-skimmer from ground tower (+30m)
+            best_g35 = 8.0
+            for d_km in (15.0, 28.0, 42.0, 58.0, 78.0, 105.0, 135.0):
+                tlat = mlat + (d_km / 111.132) * math.cos(az)
+                tlon = mlon + (d_km / (111.320 * cos_lat)) * math.sin(az)
+                t_terr = procedural_global_terrain_elevation_m(tlat, tlon, sea_azimuth_rad)
+                ok, _ = check_3d_los_raycast(mlat, mlon, elev_m + 30.0, tlat, tlon, t_terr + 35.0, sea_azimuth_rad)
+                if ok:
+                    best_g35 = d_km
+                else:
+                    break
+            sum_h_ground_35m += best_g35
+
+            # Airborne 2,800m ALTIUS ISR horizon vs 35m sea-skimmer
+            best_a35 = 40.0
+            for d_km in (60.0, 95.0, 135.0, 175.0, 215.0, 240.0):
+                tlat = mlat + (d_km / 111.132) * math.cos(az)
+                tlon = mlon + (d_km / (111.320 * cos_lat)) * math.sin(az)
+                t_terr = procedural_global_terrain_elevation_m(tlat, tlon, sea_azimuth_rad)
+                ok, _ = check_3d_los_raycast(mlat, mlon, elev_m + 2800.0, tlat, tlon, t_terr + 35.0, sea_azimuth_rad)
+                if ok:
+                    best_a35 = d_km
+                else:
+                    break
+            sum_h_air_35m += best_a35
