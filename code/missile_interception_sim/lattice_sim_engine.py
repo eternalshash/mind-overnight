@@ -126,3 +126,74 @@ def deploy_neural_lattice_mesh(
 
     cat_t = tlm._build_node_catalog_tensors(device)
     cos_c = max(0.15, math.cos(math.radians(mesh.center_lat)))
+
+    # Build [1, N_inf, 7] tensor matching training scaling
+    inf_rows = []
+    for n in infra_nodes:
+        de = (n.lon - mesh.center_lon) * 111.320 * cos_c
+        dn = (n.lat - mesh.center_lat) * 111.132
+        elev_km = lmesh.procedural_global_terrain_elevation_m(n.lat, n.lon, mesh.sea_azimuth_rad) / 1000.0
+        is_hub = 1.0 if n.category in ("POWER_GRID", "SATCOM_C2") else 0.0
+        inf_rows.append([de / 150.0, dn / 150.0, n.intrinsic_value / 200.0, n.cascading_value / 250.0, n.debris_keep_out_km / 25.0, is_hub, elev_km])
+    infra_tok = torch.tensor([inf_rows], dtype=torch.float32, device=device)
+
+    M = mesh.lats.shape[0]
+    static_14 = np.concatenate(
+        [mesh.features, (mesh.rel_east_km / 200.0)[:, None], (mesh.rel_north_km / 200.0)[:, None]],
+        axis=1,
+    )
+    static_t = torch.tensor(static_14, dtype=torch.float32, device=device).unsqueeze(0)  # [1, M, 14]
+    is_sea_t = torch.tensor(mesh.features[:, 11], dtype=torch.float32, device=device).unsqueeze(0)
+
+    mesh_e_t = torch.tensor(mesh.rel_east_km, dtype=torch.float32, device=device)
+    mesh_n_t = torch.tensor(mesh.rel_north_km, dtype=torch.float32, device=device)
+    d_mesh_pair = torch.sqrt((mesh_e_t[:, None] - mesh_e_t[None, :]) ** 2 + (mesh_n_t[:, None] - mesh_n_t[None, :]) ** 2 + 1e-4)
+
+    rem_b = float(budget_musd)
+    min_cost = float(min(s.deploy_cost_musd for s in lmesh.LATTICE_NODE_CATALOG))
+    occupied = torch.zeros(1, M, dtype=torch.bool, device=device)
+    type_counts = torch.zeros(1, 9, device=device)
+    dyn_cov = torch.zeros(1, M, 4, device=device)
+
+    placements: List[Dict[str, Any]] = []
+    max_steps = 28
+
+    with torch.no_grad():
+        for step in range(max_steps):
+            if rem_b < min_cost:
+                break
+            mesh_tok = torch.cat([static_t, dyn_cov], dim=-1)
+            rem_t = torch.tensor([[rem_b / 400.0, rem_b / max(1.0, budget_musd)]], dtype=torch.float32, device=device)
+            step_t = torch.tensor([[min(1.0, step / 12.0)]], dtype=torch.float32, device=device)
+            b_ctx = torch.cat([rem_t, type_counts / 6.0, step_t], dim=-1)
+
+            affordable = cat_t["deploy_cost"].view(1, 1, 9) <= rem_b
+            terrain_ok = (is_sea_t.unsqueeze(2) < 0.5) | (cat_t["can_sea"].view(1, 1, 9) > 0.5)
+            valid_mn = affordable & terrain_ok & (~occupied.unsqueeze(2))
+            if not valid_mn.any():
+                break
+
+            allow_stop = torch.tensor([[rem_b / max(1.0, budget_musd) < 0.06]], dtype=torch.bool, device=device)
+            mask = torch.cat([valid_mn.reshape(1, M * 9), allow_stop], dim=-1)
+
+            logits, _ = deploy_net(infra_tok, mesh_tok, b_ctx, mask)
+            act = int(logits[0].argmax().item())
+            if act == M * 9:
+                break
+
+            m_idx = act // 9
+            t_idx = act % 9
+            spec = lmesh.LATTICE_NODE_CATALOG[t_idx]
+            rem_b -= spec.deploy_cost_musd
+            occupied[0, m_idx] = True
+            type_counts[0, t_idx] += 1.0
+
+            d_new = d_mesh_pair[m_idx].unsqueeze(0)
+            dyn_cov[:, :, 0] += (d_new <= spec.sensor_range_km * 0.75).float() * 0.5
+            if spec.role == "ew":
+                dyn_cov[:, :, 1] += (d_new <= 55.0).float()
+            elif spec.tier >= 3:
+                dyn_cov[:, :, 2] += (d_new <= spec.weapon_range_km).float() * 0.5
+            elif spec.tier >= 1:
+                dyn_cov[:, :, 3] += (d_new <= spec.weapon_range_km).float() * 0.5
+            dyn_cov = torch.clamp(dyn_cov, max=2.5)
