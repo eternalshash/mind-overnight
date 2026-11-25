@@ -129,3 +129,57 @@ def build_multi_wave_tot_strike(
 # 2. STATIC SPATIAL MESH & DIAGNOSTIC VISUALIZATION EXPORTER
 # ==============================================================================
 
+def render_spatial_mesh_diagnostic_plot(
+    region_title: str,
+    infra_nodes: List[lmesh.CrucialInfraNode],
+    mesh: lmesh.GeodesicSpatialMesh,
+    placements: List[Dict[str, Any]],
+    raid_result: Dict[str, Any],
+    gauntlet_df: pd.DataFrame,
+    out_path: str,
+) -> None:
+    """
+    Renders a clean 2-panel high-resolution diagnostic figure:
+      Left:  3D Terrain-Masked Geodesic Spatial Mesh, Crucial Infrastructure
+             Debris Keep-Out Perimeters, and Neural Lattice Node Placements.
+      Right: Same-Budget ($B) Post-Training Ablation Scorecard across all 4 tests.
+    """
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 7.2), facecolor="#080d16")
+
+    # Panel 1: Geodesic Spatial Mesh & Learned Lattice Deployment
+    ax1.set_facecolor("#0b1320")
+    low_hor_km = mesh.features[:, 2] * 140.0
+    sc = ax1.scatter(
+        mesh.lons, mesh.lats, c=low_hor_km, cmap="viridis", s=34, alpha=0.68,
+        edgecolors="#1e293b", linewidths=0.5, label="Geodesic Mesh (Color = 35m Horizon km)", zorder=2,
+    )
+    cbar = plt.colorbar(sc, ax=ax1, fraction=0.042, pad=0.02)
+    cbar.set_label("3D Terrain-Masked 35m Radar Horizon (km)", color="#cbd5e1", fontsize=9)
+    cbar.ax.yaxis.set_tick_params(color="#cbd5e1")
+    plt.setp(plt.getp(cbar.ax.axes, "yticklabels"), color="#cbd5e1", fontsize=8)
+
+    # Plot Crucial Infrastructure & Debris Keep-Out Rings
+    cos_c = max(0.15, math.cos(math.radians(mesh.center_lat)))
+    for inf in infra_nodes:
+        ax1.scatter(inf.lon, inf.lat, marker="*", s=240, c="#fbbf24", edgecolors="white", linewidths=1.0, zorder=6)
+        ang = np.linspace(0, 2 * np.pi, 48)
+        ko_lat = inf.lat + (inf.debris_keep_out_km / 111.132) * np.cos(ang)
+        ko_lon = inf.lon + (inf.debris_keep_out_km / (111.320 * cos_c)) * np.sin(ang)
+        ax1.plot(ko_lon, ko_lat, linestyle="--", linewidth=1.0, color="#f59e0b", alpha=0.65, zorder=4)
+        ax1.annotate(
+            inf.name[:22], (inf.lon, inf.lat), xytext=(4, 5), textcoords="offset points",
+            color="#fde68a", fontsize=7.5, fontweight="bold", zorder=7,
+        )
+
+    # Plot Learned Lattice Placements by Role
+    role_styles = {
+        "sensor": ("^", "#00f0ff", "Forward Sensor / ALTIUS ISR"),
+        "ew": ("D", "#c084fc", "Soft-Kill EW Jammer Dome"),
+        "shooter": ("s", "#10b981", "Multi-Tier Kinetic Shooter"),
+    }
+    seen_roles = set()
+    for p in placements:
+        mk, col, lbl = role_styles.get(p["role"], ("o", "#ffffff", "Node"))
+        use_lbl = lbl if p["role"] not in seen_roles else None
+        seen_roles.add(p["role"])
+        ax1.scatter(p["lon"], p["lat"], marker=mk, s=95, c=col, edgecolors="white", linewidths=0.9, label=use_lbl, zorder=8)
