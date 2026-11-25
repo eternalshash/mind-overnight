@@ -328,3 +328,76 @@ def instantiate_lattice_asset_entity(
     alt_msl = terrain_elev_m + spec.platform_alt_agl_m
     env = lsdk.Environment.ENVIRONMENT_AIR if spec.platform_alt_agl_m > 500.0 else lsdk.Environment.ENVIRONMENT_LAND
     eor = spec.engage_on_remote if engage_on_remote_override is None else engage_on_remote_override
+
+    sensors_comp = lsdk.SensorsComponent([
+        lsdk.SensorMount(
+            sensor_id=f"{entity_id}-sens",
+            sensor_type="AIRBORNE_ISR" if spec.platform_alt_agl_m > 500.0 else "RADAR_MULTI_MODE",
+            max_range_km=spec.sensor_range_km,
+            min_alt_m=5.0,
+            max_alt_m=max(50_000.0, spec.max_alt_m),
+            base_sigma_m=spec.sensor_sigma_m,
+        )
+    ])
+
+    payloads_list = []
+    tasks_supported = [lsdk.TaskType.TASK_HOLD_FIRE]
+    if spec.role == "shooter":
+        payloads_list.append(lsdk.PayloadMount(
+            payload_id=f"{entity_id}-mag",
+            weapon_name=spec.name,
+            tier=spec.tier,
+            quantity_remaining=spec.magazine_size,
+            quantity_initial=spec.magazine_size,
+            unit_shot_cost_musd=spec.shot_cost_musd,
+            max_range_km=spec.weapon_range_km,
+            min_intercept_alt_m=spec.min_alt_m,
+            max_intercept_alt_m=spec.max_alt_m,
+            avg_speed_mps=spec.interceptor_speed_mps,
+            max_g_load=spec.max_g_load,
+            kill_radius_m=spec.kill_radius_m,
+            engage_on_remote_capable=eor,
+        ))
+        tasks_supported.append(lsdk.TaskType.TASK_INTERCEPT_TRACK)
+    elif spec.role == "ew":
+        payloads_list.append(lsdk.PayloadMount(
+            payload_id=f"{entity_id}-ew",
+            weapon_name=spec.name,
+            tier=0,
+            quantity_remaining=999,
+            quantity_initial=999,
+            unit_shot_cost_musd=spec.shot_cost_musd,
+            max_range_km=spec.ew_jam_radius_km,
+            min_intercept_alt_m=spec.min_alt_m,
+            max_intercept_alt_m=spec.max_alt_m,
+            avg_speed_mps=3e8,
+            max_g_load=99.0,
+            kill_radius_m=0.0,
+            engage_on_remote_capable=True,
+        ))
+        tasks_supported.append(lsdk.TaskType.TASK_JAM_SECTOR)
+    else:
+        tasks_supported.append(lsdk.TaskType.TASK_RETASK_ISR_ORBIT)
+
+    return lsdk.LatticeEntity(
+        entity_id=entity_id,
+        is_live=True,
+        expiry_time_s=999_999.0,
+        description=spec.name,
+        provenance=lsdk.Provenance("lattice-asset-gateway", spec.node_type_id),
+        aliases=lsdk.AliasesComponent(name=spec.name, callsign=entity_id.upper()),
+        location=lsdk.LocationComponent(
+            position=lsdk.Position(lat, lon, alt_msl),
+            pos_covariance_diag_m2=(1.0, 1.0, 1.0),
+        ),
+        mil_view=lsdk.MilViewComponent(lsdk.Disposition.DISPOSITION_FRIENDLY, env),
+        ontology=lsdk.OntologyComponent(lsdk.OntologyTemplate.TEMPLATE_ASSET, spec.node_type_id),
+        sensors=sensors_comp,
+        payloads=lsdk.PayloadsComponent(payloads_list),
+        task_catalog=lsdk.TaskCatalogComponent(tasks_supported),
+        mesh_link=lsdk.MeshLinkComponent(
+            comms_range_km=spec.comms_range_km,
+            satcom_fallback=(engage_on_remote_override is not False),
+        ),
+        node_cost_musd=spec.deploy_cost_musd,
+    )
