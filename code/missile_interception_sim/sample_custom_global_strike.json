@@ -1,0 +1,98 @@
+{
+  "name": "Custom Red-Team Okinawa-Kyushu Semiconductor & Fleet Saturation Plan",
+  "sea_azimuth_deg": 285.0,
+  "defense_budget_musd": 300.0,
+  "infrastructure": [
+    {
+      "node_id": "inf-kumamoto-power",
+      "name": "Kyushu 500kV Regional Grid Substation",
+      "category": "POWER_GRID",
+      "lat": 32.81,
+      "lon": 130.78,
+      "intrinsic_value": 150.0,
+      "debris_keep_out_km": 11.0,
+      "blast_radius_km": 3.0,
+      "upstream_ids": []
+    },
+    {
+      "node_id": "inf-kumamoto-fab",
+      "name": "JASM Kumamoto Advanced Logic Semiconductor Fab",
+      "category": "SEMICONDUCTOR_FAB",
+      "lat": 32.88,
+      "lon": 130.84,
+      "intrinsic_value": 185.0,
+      "debris_keep_out_km": 16.0,
+      "blast_radius_km": 2.5,
+      "upstream_ids": ["inf-kumamoto-power"]
+    },
+    {
+      "node_id": "inf-sasebo-naval",
+      "name": "Sasebo Fleet & Amphibious Naval Base",
+      "category": "NAVAL_PORT",
+      "lat": 33.16,
+      "lon": 129.71,
+      "intrinsic_value": 165.0,
+      "debris_keep_out_km": 12.0,
+      "blast_radius_km": 3.5,
+      "upstream_ids": ["inf-kumamoto-power"]
+    },
+    {
+      "node_id": "inf-nyutabaru-c2",
+      "name": "Western Air Defense Force SATCOM & C2 Bunker",
+      "category": "SATCOM_C2",
+      "lat": 32.08,
+      "lon": 131.45,
+      "intrinsic_value": 160.0,
+      "debris_keep_out_km": 10.0,
+      "blast_radius_km": 3.5,
+      "upstream_ids": ["inf-kumamoto-power"]
+    }
+  ],
+  "strike_waves": [
+    {
+      "weapon_id": "shahed_136",
+      "count": 14,
+      "launch_lat": 33.90,
+      "launch_lon": 127.40,
+      "target_node_id": "inf-kumamoto-power",
+      "tot_arrival_window_s": 280.0,
+      "ew_jamming_boost": 0.15
+    },
+    {
+      "weapon_id": "lancet_3",
+      "count": 4,
+      "launch_lat": 33.45,
+      "launch_lon": 128.90,
+      "target_node_id": "SEAD_RADAR",
+      "tot_arrival_window_s": 275.0,
+      "ew_jamming_boost": 0.30
+    },
+    {
+      "weapon_id": "kalibr_3m54",
+      "count": 5,
+      "launch_lat": 31.80,
+      "launch_lon": 126.80,
+      "target_node_id": "inf-sasebo-naval",
+      "tot_arrival_window_s": 315.0,
+      "ew_jamming_boost": 0.25
+    },
+    {
+      "weapon_id": "df_17",
+      "count": 3,
+      "launch_lat": 30.50,
+      "launch_lon": 121.20,
+      "target_node_id": "inf-kumamoto-fab",
+      "tot_arrival_window_s": 320.0,
+      "ew_jamming_boost": 0.35
+    },
+    {
+      "weapon_id": "df_21d",
+      "count": 3,
+      "launch_lat": 29.80,
+      "launch_lon": 121.50,
+      "target_node_id": "inf-nyutabaru-c2",
+      "tot_arrival_window_s": 322.0,
+      "ew_jamming_boost": 0.30
+    }
+  ]
+}
