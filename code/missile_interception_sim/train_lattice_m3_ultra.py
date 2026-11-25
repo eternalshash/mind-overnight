@@ -1420,3 +1420,75 @@ def train_all_models(
             adversarial_difficulty=1.0,
             deterministic=True,
         )
+
+    torch.save(deploy_net.state_dict(), dep_path)
+    torch.save(killweb_net.state_dict(), kw_path)
+
+    telemetry_out = {
+        "device": str(device),
+        "cpu_cores_used": os.cpu_count(),
+        "stage1_rk4_surrogate": stage1_stats,
+        "stage2_adversarial_self_play": {
+            "total_raid_episodes": n_updates * raid_batch_size,
+            "total_simulated_raid_threats": n_updates * raid_batch_size * 16,
+            "elapsed_seconds": round(rl_elapsed_s, 3),
+            "episodes_per_second": round((n_updates * raid_batch_size) / max(1e-6, rl_elapsed_s), 1),
+            "final_deterministic_eval": {k: round(v, 3) for k, v in eval_metrics.items()},
+            "training_curve": history_log,
+        },
+    }
+    with open(telem_path, "w", encoding="utf-8") as f:
+        json.dump(telemetry_out, f, indent=2)
+
+    print("=" * 94)
+    print(f"SAVED TRAINED NEURAL WEIGHTS -> {MODEL_DIR}")
+    print(
+        f"Deterministic Eval (Max Difficulty) -> Operational Survival: "
+        f"{eval_metrics['operational_survival_pct']:.2f}% | Intercept Rate: {eval_metrics['intercept_rate_pct']:.2f}%"
+    )
+    print("=" * 94)
+    return telemetry_out
+
+
+def load_trained_lattice_models(
+    model_dir: str = MODEL_DIR,
+    device: Optional[torch.device] = None,
+) -> Tuple[LatticeKinematicSurrogateNet, LatticeMeshDeploymentNet, LatticeKillWebPolicyNet, torch.device]:
+    if device is None:
+        device = get_compute_device(prefer_mps=True)
+    surr = LatticeKinematicSurrogateNet().to(device)
+    dep = LatticeMeshDeploymentNet().to(device)
+    kw = LatticeKillWebPolicyNet().to(device)
+
+    surr.load_state_dict(torch.load(os.path.join(model_dir, "lattice_surrogate_mps.pt"), map_location=device, weights_only=True))
+    dep.load_state_dict(torch.load(os.path.join(model_dir, "lattice_deployment_mps.pt"), map_location=device, weights_only=True))
+    kw.load_state_dict(torch.load(os.path.join(model_dir, "lattice_killweb_mps.pt"), map_location=device, weights_only=True))
+
+    surr.eval()
+    dep.eval()
+    kw.eval()
+    return surr, dep, kw, device
+
+
+def main():
+    parser = argparse.ArgumentParser(description="M3 Ultra Lattice 2M-Physics + 1M-Raid Neural Trainer")
+    parser.add_argument("--physics-runs", type=int, default=2_000_000)
+    parser.add_argument("--raid-episodes", type=int, default=1_000_000)
+    parser.add_argument("--batch-size", type=int, default=2048)
+    parser.add_argument("--surrogate-epochs", type=int, default=14)
+    parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--seed", type=int, default=42)
+    args = parser.parse_args()
+
+    train_all_models(
+        physics_runs=args.physics_runs,
+        raid_episodes=args.raid_episodes,
+        raid_batch_size=args.batch_size,
+        surrogate_epochs=args.surrogate_epochs,
+        resume=args.resume,
+        seed=args.seed,
+    )
+
+
+if __name__ == "__main__":
+    main()
