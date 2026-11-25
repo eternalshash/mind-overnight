@@ -1125,3 +1125,69 @@ def _run_single_true_rk4_terminal_duel(
         rz = float(rng.normal(0.0, handoff * 0.65))
         vy = -ry / t_term + float(rng.normal(0.0, 14.0))
         vz = -rz / t_term + float(rng.normal(0.0, 12.0))
+
+        am_y, am_z = 0.0, 0.0
+        tau_ap = 0.11 + 0.05 * th.ew_jam
+        if spec.tier <= 2:
+            g_avail = spec.max_g_load * 9.80665
+        else:
+            g_avail = spec.max_g_load * 9.80665 * max(0.20, min(1.0, math.exp(-max(0.0, alt_m - 22000.0) / 14000.0)))
+
+        min_sq = rx * rx + ry * ry + rz * rz
+        ph1 = float(rng.uniform(0.0, 6.28))
+        ph2 = float(rng.uniform(0.0, 6.28))
+
+        # Aerodynamic target weave vanishes in exo-atmospheric vacuum (> 55 km)
+        aero_man_scale = math.exp(-max(0.0, alt_m - 55_000.0) / 16_000.0)
+        eff_man_g = th.weapon_profile.maneuver_g * aero_man_scale
+
+        for s in range(steps):
+            if rx >= 0.0:
+                break
+            tc = s * dt
+            at_y = eff_man_g * 9.80665 * math.sin(2.9 * tc + ph1)
+            at_z = eff_man_g * 9.80665 * 0.7 * math.cos(2.4 * tc + ph2)
+
+            t_go = max(2.2 * dt, -rx / vx_close)
+            zem_y = ry + vy * t_go - 0.18 * at_y * t_go * t_go
+            zem_z = rz + vz * t_go - 0.18 * at_z * t_go * t_go
+            cy_cmd = -4.2 * zem_y / (t_go * t_go)
+            cz_cmd = -4.2 * zem_z / (t_go * t_go)
+
+            cmag = math.hypot(cy_cmd, cz_cmd)
+            if cmag > g_avail:
+                cy_cmd *= g_avail / cmag
+                cz_cmd *= g_avail / cmag
+
+            am_y_mid = am_y + 0.5 * dt * (cy_cmd - am_y) / tau_ap
+            am_z_mid = am_z + 0.5 * dt * (cz_cmd - am_z) / tau_ap
+            ray = am_y_mid - at_y
+            raz = am_z_mid - at_z
+
+            drx = vx_close * dt
+            dry = vy * dt + 0.5 * ray * dt * dt
+            drz = vz * dt + 0.5 * raz * dt * dt
+            dr_sq = drx * drx + dry * dry + drz * drz
+            if dr_sq > 1e-8:
+                tau = max(0.0, min(1.0, -(rx * drx + ry * dry + rz * drz) / dr_sq))
+                csq = (rx + tau * drx) ** 2 + (ry + tau * dry) ** 2 + (rz + tau * drz) ** 2
+                if csq < min_sq:
+                    min_sq = csq
+
+            rx += drx
+            ry += dry
+            rz += drz
+            vy += ray * dt
+            vz += raz * dt
+            am_y += dt * (cy_cmd - am_y_mid) / tau_ap
+            am_z += dt * (cz_cmd - am_z_mid) / tau_ap
+
+        cpa = math.sqrt(min_sq)
+        if cpa < best_cpa_m:
+            best_cpa_m = cpa
+        if cpa <= spec.kill_radius_m * 1.15:
+            killed_any = True
+
+    fall_t = math.sqrt(2.0 * min(60_000.0, alt_m) / 9.80665)
+    deb_km = min(30.0, (vt * 0.30 * fall_t * math.exp(-alt_m / 45000.0)) * 1e-3)
+    return killed_any, best_cpa_m, deb_km
