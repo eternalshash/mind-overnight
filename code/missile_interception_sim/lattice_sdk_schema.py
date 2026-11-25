@@ -310,3 +310,56 @@ class TrackedByComponent:
 class TaskCatalogComponent:
     """Declares which Lattice `TaskType` commands an Asset can accept."""
     supported_tasks: List[TaskType] = field(default_factory=list)
+
+    def supports(self, task_type: TaskType) -> bool:
+        return task_type in self.supported_tasks
+
+    def to_lattice_dict(self) -> Dict[str, Any]:
+        return {"supportedTasks": [t.value for t in self.supported_tasks]}
+
+
+@dataclass
+class MeshLinkComponent:
+    """RF / SATCOM tactical mesh networking & self-healing routing state."""
+    comms_range_km: float = 280.0
+    satcom_fallback: bool = True
+    connected_peer_ids: List[str] = field(default_factory=list)
+    hop_count_to_c2: int = 1
+    link_latency_ms: float = 12.0
+    is_online_in_mesh: bool = True
+
+    def to_lattice_dict(self) -> Dict[str, Any]:
+        return {
+            "commsRangeKm": self.comms_range_km,
+            "connectedPeerCount": len(self.connected_peer_ids),
+            "hopCountToC2": self.hop_count_to_c2,
+            "linkLatencyMs": round(self.link_latency_ms, 1),
+            "isOnlineInMesh": self.is_online_in_mesh,
+        }
+
+
+@dataclass
+class GeoInfrastructureComponent:
+    """Crucial architecture / High-Value Asset metadata & cascading dependency state."""
+    infra_category: str  # "POWER_GRID", "SATCOM_C2", "COMMAND_BUNKER", "SEMICONDUCTOR_FAB", "NAVAL_PORT", "AIRBASE", "METRO"
+    intrinsic_value: float
+    cascading_systemic_value: float
+    debris_keep_out_km: float
+    blast_radius_km: float
+    upstream_dependencies: List[str] = field(default_factory=list)
+    structural_health: float = 1.0  # [0.0 -> 1.0]
+    operational_capacity: float = 1.0  # Includes upstream cascade losses
+    debris_collateral_hits: int = 0
+    leaker_direct_hits: int = 0
+
+    def to_lattice_dict(self) -> Dict[str, Any]:
+        return {
+            "infraCategory": self.infra_category,
+            "intrinsicValue": self.intrinsic_value,
+            "cascadingSystemicValue": round(self.cascading_systemic_value, 2),
+            "debrisKeepOutKm": self.debris_keep_out_km,
+            "structuralHealth": round(self.structural_health, 3),
+            "operationalCapacity": round(self.operational_capacity, 3),
+            "debrisCollateralHits": self.debris_collateral_hits,
+            "leakerDirectHits": self.leaker_direct_hits,
+        }
