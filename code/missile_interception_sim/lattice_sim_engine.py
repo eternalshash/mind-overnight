@@ -701,3 +701,94 @@ def execute_true_rk4_raid_simulation(
 
                 spec = lmesh.NODE_BY_ID[chosen_asset.ontology.platform_type]
                 has_local = local_los_matrix.get((raw_uid, chosen_asset.entity_id), False)
+
+                if spec.role == "ew":
+                    t_res = task_mgr.dispatch_task(
+                        lsdk.TaskType.TASK_JAM_SECTOR, chosen_asset.entity_id, trk_ent.entity_id,
+                        sim_t, salvo_count=1, local_los_available=True, neural_confidence=conf,
+                    )
+                    if t_res.status == lsdk.TaskStatus.STATUS_EXECUTING:
+                        interceptor_spend_musd += spec.shot_cost_musd
+                        if trk_ent.tracked_by:
+                            trk_ent.tracked_by.ew_jam_attempted = True
+                        d_km = lmesh.haversine_km(
+                            chosen_asset.location.position.latitude_degrees,
+                            chosen_asset.location.position.longitude_degrees,
+                            th_obj.lat, th_obj.lon,
+                        )
+                        p_soft_kill = th_obj.weapon_profile.ew_susceptibility * max(0.0, 1.15 - d_km / 55.0)
+                        if float(rng.random()) < p_soft_kill:
+                            th_obj.is_neutralized = True
+                            th_obj.neutralized_by = f"{chosen_asset.entity_id} (EW Soft-Kill)"
+                            ew_soft_kills += 1
+                            cop.delete_entity(trk_ent.entity_id)
+                            intercept_events.append({
+                                "time_s": round(sim_t, 1), "threat_uid": raw_uid,
+                                "weapon": th_obj.weapon_profile.name, "effector": spec.name,
+                                "mode": "EW_SOFT_KILL", "cpa_m": 0.0, "alt_km": round(th_obj.alt_msl_m * 1e-3, 2),
+                                "engage_on_remote": False, "debris_violation": False,
+                            })
+                        else:
+                            # Threat survived soft-kill via INS backup, but its offensive RF jammer is suppressed
+                            # and kinetic shooters remain free (`assigned_interceptors_in_flight == 0`) to kill it!
+                            th_obj.ew_jam = max(0.0, th_obj.ew_jam * 0.55)
+                else:
+                    # Siloed baseline physically cannot Engage-on-Remote without local LOS!
+                    if fire_control_mode == "siloed_greedy" and not has_local:
+                        continue
+                    t_res = task_mgr.dispatch_task(
+                        lsdk.TaskType.TASK_INTERCEPT_TRACK, chosen_asset.entity_id, trk_ent.entity_id,
+                        sim_t, salvo_count=salvo_cnt, local_los_available=has_local, neural_confidence=conf,
+                    )
+                    if t_res.status == lsdk.TaskStatus.STATUS_EXECUTING:
+                        interceptor_spend_musd += t_res.salvo_count * spec.shot_cost_musd
+                        ap = chosen_asset.location.position
+                        d_km = lmesh.haversine_km(ap.latitude_degrees, ap.longitude_degrees, th_obj.lat, th_obj.lon)
+                        slant_m = math.hypot(d_km * 1000.0, th_obj.alt_msl_m - ap.altitude_hae_meters)
+                        fly_s = 1.6 + slant_m / max(250.0, spec.interceptor_speed_mps + th_obj.weapon_profile.max_speed_mps * 0.45)
+                        in_flight_interceptors.append(ActiveInterceptorBody(
+                            int_id=f"INT-{len(in_flight_interceptors)+1:04d}",
+                            task_id=t_res.task_id,
+                            shooter_entity_id=chosen_asset.entity_id,
+                            shooter_spec=spec,
+                            target_uid=raw_uid,
+                            engage_on_remote=t_res.engage_on_remote,
+                            launch_time_s=sim_t,
+                            predicted_hit_time_s=sim_t + fly_s,
+                            lat=ap.latitude_degrees,
+                            lon=ap.longitude_degrees,
+                            alt_msl_m=ap.altitude_hae_meters,
+                            salvo_size=t_res.salvo_count,
+                        ))
+
+        # 4. Resolve True 3-DoF RK4 Terminal Interceptions & Sub-Step CPA
+        th_map = {th.uid: th for th in threats}
+        for ib in in_flight_interceptors:
+            if ib.resolved or sim_t < ib.predicted_hit_time_s:
+                continue
+            ib.resolved = True
+            th_obj = th_map.get(ib.target_uid)
+            trk_ent = cop.entities.get(f"trk-{ib.target_uid}")
+            if th_obj is None or th_obj.is_neutralized or th_obj.has_impacted:
+                continue
+
+            # Run true 48-step 3-DoF RK4 terminal engagement between `ib` and `th_obj`!
+            sigma_m = trk_ent.location.position_sigma_m if (trk_ent and trk_ent.location) else 95.0
+            killed, cpa_m, deb_km = _run_single_true_rk4_terminal_duel(
+                ib.shooter_spec, th_obj, sigma_m, ib.salvo_size, rng
+            )
+            if killed:
+                th_obj.is_neutralized = True
+                th_obj.neutralized_by = ib.shooter_entity_id
+                cop.delete_entity(f"trk-{ib.target_uid}")
+
+                # Check if kinetic intercept occurred inside any Crucial Infrastructure Debris Keep-Out Zone!
+                deb_viol = False
+                for inf_e in infra_by_id.values():
+                    ip = inf_e.location.position
+                    d_inf = lmesh.haversine_km(th_obj.lat, th_obj.lon, ip.latitude_degrees, ip.longitude_degrees)
+                    if inf_e.geo_infra and d_inf < (inf_e.geo_infra.debris_keep_out_km + deb_km * 0.25) and th_obj.alt_msl_m < 35_000.0:
+                        deb_viol = True
+                        debris_collateral_events += 1
+                        inf_e.geo_infra.debris_collateral_hits += 1
+                        inf_e.geo_infra.structural_health = max(0.0, inf_e.geo_infra.structural_health - 0.12)
