@@ -49,9 +49,10 @@ This repo is a collection of a caffeinated mind. It includes various investment 
       * **`components/`** — Modular React UI components including scorecards, pitch visuals, and defender tables.
   * **`futbolV1/`** — Statistical analysis scripts and datasets analyzing European soccer players against active defenders.
   * **`general programming/`** — Foundational Java object-oriented programming exercises and algorithm implementations.
-  * **`missile_interception_sim/`** — Multi-phase kinetic trajectory simulations and 3D visual models of theater ballistic missile defense.
-    * Analytical physics engine (`physics_engine.py`), GNC guidance algorithms (`gnc_engine.py`), defensive multi-battery allocation (`defense_system.py`), and saturation swarm modeling (`attack_sim.py`).
-    * Desktop PySide interface (`desktop_gui.py`, `run_desktop.py`) with weapons catalog, mapping utilities, and interactive web twins.
+  * **`missile_interception_sim/`** — Multi-phase kinetic trajectory simulations, 3D visual models, and an **Anduril Lattice–inspired Autonomous Spatial Mesh & Kill-Web Engine** for global air and missile defense:
+    * Analytical WGS84 physics engine (`physics_engine.py`), GNC guidance/EW algorithms (`gnc_engine.py`), multi-tier fire control (`defense_system.py`), and Theater Warfare asset vulnerability & Auto-Shield relocation (`theater_vulnerability.py`).
+    * **Lattice SDK COP & Autonomous Neural Kill-Web (`lattice_sdk_schema.py`, `lattice_mesh.py`, `train_lattice_m3_ultra.py`, `lattice_sim_engine.py`, `run_lattice_wargame.py`):** Compositional `anduril.entitymanager.v1` / `tasks.v2` Common Operational Picture with Kalman multi-sensor covariance intersection, 32-core 3D terrain-masked geodesic spatial meshes, cascading crucial infrastructure graphs, and Apple Metal (`MPS`) neural deployment & Engage-on-Remote fire-control models trained across 2M+ 3-DoF RK4 trajectories and 1M+ multi-wave global raid episodes.
+    * Desktop C2 & Dash interfaces (`desktop_gui.py`, `app.py`, `run_desktop.py`) with 28+ verified real-world weapon systems (`weapons_catalog.json`) and interactive web twins.
   * **`Modeling.Prac/`** — Statistical and financial data modeling workspace.
   * **`rust_v1/`** — Systems programming practice and learning exercises in Rust.
     * **`hello/`** — Cargo project exploring Rust syntax, ownership, and memory safety.
