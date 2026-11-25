@@ -967,3 +967,81 @@ def run_batched_gpu_raid_episodes(
                 eff_pk, eff_tint / 150.0, (est_tti.unsqueeze(2) - eff_tint) / 120.0, debris_safe,
                 (cat_t["shot_cost"][placed_type] / 25.0).unsqueeze(1).expand_as(eff_pk), is_eor_pair,
             ], dim=-1)
+
+            # Physical envelope mask (matching `lattice_sim_engine.py` exact physical hardware interlocks!)
+            can_act_type = (cat_t["is_shooter"][placed_type] > 0.5) | (cat_t["is_ew"][placed_type] > 0.5)
+            w_rng_pair = cat_t["weapon_range"][placed_type].unsqueeze(1)
+            alt_ok = (t_alts.unsqueeze(2) >= s_min_a * 0.80) & (t_alts.unsqueeze(2) <= s_max_a * 1.15)
+            ew_ok = (~is_ew_pair) | (~ew_tried.unsqueeze(2))
+            eor_ok = (~(is_eor_pair > 0.5)) | (peer_online.unsqueeze(1) & (pos_sigma.unsqueeze(2) <= 85.0))
+            phys_ok = (
+                visible_now.unsqueeze(2)
+                & node_alive.unsqueeze(1)
+                & can_act_type.unsqueeze(1)
+                & (node_mags.unsqueeze(1) >= 1.0)
+                & (slant_pair <= w_rng_pair * 1.05)
+                & alt_ok
+                & ew_ok
+                & eor_ok
+            )
+            hold_col = torch.ones(B, Nt, 1, dtype=torch.bool, device=device)
+            pair_mask = torch.cat([phys_ok, hold_col], dim=-1)
+
+            act_logits, salvo_logits = killweb_net(trk_tok, ast_tok, edge_feat, pair_mask, trk_valid=visible_now, ast_valid=node_alive)
+            act_probs = torch.softmax(act_logits, dim=-1)
+            act_lprobs = torch.log_softmax(act_logits, dim=-1)
+            salvo_probs = torch.softmax(salvo_logits, dim=-1)
+            salvo_lprobs = torch.log_softmax(salvo_logits, dim=-1)
+
+            if deterministic:
+                chosen_a = act_logits.argmax(dim=-1)
+                chosen_s = salvo_logits.argmax(dim=-1)
+            else:
+                chosen_a = torch.multinomial(act_probs.reshape(B * Nt, -1), 1).reshape(B, Nt)
+                chosen_s = torch.multinomial(salvo_probs.reshape(B * Nt, 2), 1).reshape(B, Nt)
+
+            vis_f = visible_now.float()
+            kw_log_probs = kw_log_probs + (torch.gather(act_lprobs, 2, chosen_a.unsqueeze(2)).squeeze(2) * vis_f).sum(dim=1)
+            kw_log_probs = kw_log_probs + (torch.gather(salvo_lprobs, 2, chosen_s.unsqueeze(2)).squeeze(2) * vis_f).sum(dim=1)
+            kw_entropy = kw_entropy - ((act_probs * torch.clamp(act_lprobs, min=-20.0)).sum(dim=-1) * vis_f).mean(dim=1)
+
+            for k in range(Nt):
+                a_k = chosen_a[:, k]
+                fired = visible_now[:, k] & (a_k < max_placements)
+                safe_idx = torch.clamp(a_k, max=max_placements - 1)
+
+                avail_m = node_mags[batch_idx, safe_idx]
+                req_rounds = chosen_s[:, k].float() + 1.0
+                is_ew_sel = cat_t["is_ew"][placed_type[batch_idx, safe_idx]] > 0.5
+                actual_rounds = torch.where(fired, torch.minimum(avail_m, torch.where(is_ew_sel, torch.ones_like(req_rounds), req_rounds)), torch.zeros_like(req_rounds))
+
+                node_mags[batch_idx, safe_idx] = torch.where(fired & (~is_ew_sel), avail_m - actual_rounds, avail_m)
+                ew_tried[:, k] = ew_tried[:, k] | (fired & is_ew_sel)
+
+                unit_sc = cat_t["shot_cost"][placed_type[batch_idx, safe_idx]]
+                interceptor_spend_musd = interceptor_spend_musd + actual_rounds * unit_sc
+
+                pk_single = eff_pk[batch_idx, k, safe_idx]
+                tint_sel = eff_tint[batch_idx, k, safe_idx]
+                tti_k = est_tti[:, k]
+                in_time = fired & (actual_rounds >= 1.0) & (tint_sel < tti_k * 0.98)
+                pk_salvo = torch.where(in_time, 1.0 - (1.0 - pk_single) ** actual_rounds, torch.zeros_like(pk_single))
+
+                killed = torch.rand(B, device=device) < pk_salvo
+                total_threats_killed = total_threats_killed + killed.float()
+                track_alive[:, k] = track_alive[:, k] & (~killed)
+
+                deb_flag = debris_safe[batch_idx, k, safe_idx] < 0.0
+                debris_penalties = debris_penalties + (killed & deb_flag & (~is_ew_sel)).float() * 0.14
+
+        # Apply leaker damage for any threat still alive after both outer & inner engagement ticks!
+        for k in range(Nt):
+            leaked = track_alive[:, k]
+            t_inf = tgt_idx[:, k]
+            infra_damage[batch_idx, t_inf] = torch.clamp(infra_damage[batch_idx, t_inf] + leaked.float() * t_dmg[:, k], max=1.0)
+
+    # 5. Compute Cascading Crucial Infrastructure Survival & Composite Lattice Objective
+    struct_health = 1.0 - infra_damage  # [B, N_inf]
+    hub_health = struct_health[:, :2].mean(dim=1, keepdim=True)  # Upstream Power + SATCOM health
+    op_mult = torch.where(is_hub > 0.5, torch.ones_like(struct_health), 0.65 + 0.35 * hub_health)
+    op_cap = struct_health * op_mult
