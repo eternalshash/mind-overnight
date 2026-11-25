@@ -155,3 +155,55 @@ class LocationComponent:
     def position_sigma_m(self) -> float:
         """RMS 3D positional uncertainty in meters (fire-control quality metric)."""
         return math.sqrt(max(1e-3, sum(self.pos_covariance_diag_m2) / 3.0))
+
+    @property
+    def is_fire_control_quality(self) -> bool:
+        """Engage-on-Remote requires RMS track uncertainty <= 85 m."""
+        return self.position_sigma_m <= 85.0
+
+    def to_lattice_dict(self) -> Dict[str, Any]:
+        return {
+            "position": self.position.to_lattice_dict(),
+            "velocityEnu": self.velocity_enu.to_lattice_dict(),
+            "positionErrorCovarianceM2": [round(x, 2) for x in self.pos_covariance_diag_m2],
+            "rmsPositionSigmaM": round(self.position_sigma_m, 2),
+        }
+
+
+@dataclass
+class MilViewComponent:
+    """Military disposition and domain classification."""
+    disposition: Disposition
+    environment: Environment
+
+    def to_lattice_dict(self) -> Dict[str, str]:
+        return {
+            "disposition": self.disposition.value,
+            "environment": self.environment.value,
+        }
+
+
+@dataclass
+class OntologyComponent:
+    """High-level entity template and platform ontology."""
+    template: OntologyTemplate
+    platform_type: str = "GENERIC"
+
+    def to_lattice_dict(self) -> Dict[str, str]:
+        return {
+            "template": self.template.value,
+            "platformType": self.platform_type,
+        }
+
+
+@dataclass
+class SensorMount:
+    """Individual onboard sensor specification inside `SensorsComponent`."""
+    sensor_id: str
+    sensor_type: str  # "RADAR_X_BAND", "RADAR_S_BAND", "EO_IR", "AIRBORNE_ISR", "SPACE_IR"
+    max_range_km: float
+    min_alt_m: float = 10.0
+    max_alt_m: float = 100_000.0
+    base_sigma_m: float = 45.0
+    operational: bool = True
+    jamming_load: float = 0.0  # [0.0 -> 2.0+]
