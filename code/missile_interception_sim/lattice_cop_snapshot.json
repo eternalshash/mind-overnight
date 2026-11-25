@@ -1,0 +1,1173 @@
+{
+  "schema": "anduril.entitymanager.v1.EntitySnapshot",
+  "simTimeSeconds": 3626.0,
+  "liveEntityCount": 17,
+  "entities": [
+    {
+      "entityId": "inf-taipower-grid",
+      "description": "Crucial Infrastructure: Lungtan Ultra-High-Voltage Power Grid Hub",
+      "isLive": true,
+      "expiryTime": "2026-12-06T13:46:39+00:00",
+      "provenance": {
+        "integrationName": "lattice-geo-registry",
+        "dataType": "CrucialInfrastructure",
+        "sourceUpdateTime": "2026-11-25T00:00:00+00:00"
+      },
+      "aliases": {
+        "name": "Lungtan Ultra-High-Voltage Power Grid Hub"
+      },
+      "milView": {
+        "disposition": "DISPOSITION_FRIENDLY",
+        "environment": "ENVIRONMENT_LAND"
+      },
+      "location": {
+        "position": {
+          "latitudeDegrees": 24.86,
+          "longitudeDegrees": 121.21,
+          "altitudeHaeMeters": 15.0
+        },
+        "velocityEnu": {
+          "e": 0.0,
+          "n": 0.0,
+          "u": 0.0
+        },
+        "positionErrorCovarianceM2": [
+          2500.0,
+          2500.0,
+          3600.0
+        ],
+        "rmsPositionSigmaM": 53.54
+      },
+      "ontology": {
+        "template": "TEMPLATE_GEO",
+        "platformType": "POWER_GRID"
+      },
+      "geoInfrastructure": {
+        "infraCategory": "POWER_GRID",
+        "intrinsicValue": 145.0,
+        "cascadingSystemicValue": 333.44,
+        "debrisKeepOutKm": 10.0,
+        "structuralHealth": 0.0,
+        "operationalCapacity": 0.0,
+        "debrisCollateralHits": 2,
+        "leakerDirectHits": 1
+      }
+    },
+    {
+      "entityId": "inf-satcom-taipei",
+      "description": "Crucial Infrastructure: Yangmingshan SATCOM & Submarine Cable Gateway",
+      "isLive": true,
+      "expiryTime": "2026-12-06T13:46:39+00:00",
+      "provenance": {
+        "integrationName": "lattice-geo-registry",
+        "dataType": "CrucialInfrastructure",
+        "sourceUpdateTime": "2026-11-25T00:00:00+00:00"
+      },
+      "aliases": {
+        "name": "Yangmingshan SATCOM & Submarine Cable Gateway"
+      },
+      "milView": {
+        "disposition": "DISPOSITION_FRIENDLY",
+        "environment": "ENVIRONMENT_LAND"
+      },
+      "location": {
+        "position": {
+          "latitudeDegrees": 25.16,
+          "longitudeDegrees": 121.56,
+          "altitudeHaeMeters": 15.0
+        },
+        "velocityEnu": {
+          "e": 0.0,
+          "n": 0.0,
+          "u": 0.0
+        },
+        "positionErrorCovarianceM2": [
+          2500.0,
+          2500.0,
+          3600.0
+        ],
+        "rmsPositionSigmaM": 53.54
+      },
+      "ontology": {
+        "template": "TEMPLATE_GEO",
+        "platformType": "SATCOM_C2"
+      },
+      "geoInfrastructure": {
+        "infraCategory": "SATCOM_C2",
+        "intrinsicValue": 140.0,
+        "cascadingSystemicValue": 254.75,
+        "debrisKeepOutKm": 10.0,
+        "structuralHealth": 0.0,
+        "operationalCapacity": 0.0,
+        "debrisCollateralHits": 0,
+        "leakerDirectHits": 2
+      }
+    },
+    {
+      "entityId": "inf-tsmc-hsinchu",
+      "description": "Crucial Infrastructure: Hsinchu 2nm Extreme-UV Semiconductor Megafab",
+      "isLive": true,
+      "expiryTime": "2026-12-06T13:46:39+00:00",
+      "provenance": {
+        "integrationName": "lattice-geo-registry",
+        "dataType": "CrucialInfrastructure",
+        "sourceUpdateTime": "2026-11-25T00:00:00+00:00"
+      },
+      "aliases": {
+        "name": "Hsinchu 2nm Extreme-UV Semiconductor Megafab"
+      },
+      "milView": {
+        "disposition": "DISPOSITION_FRIENDLY",
+        "environment": "ENVIRONMENT_LAND"
+      },
+      "location": {
+        "position": {
+          "latitudeDegrees": 24.78,
+          "longitudeDegrees": 121.01,
+          "altitudeHaeMeters": 15.0
+        },
+        "velocityEnu": {
+          "e": 0.0,
+          "n": 0.0,
+          "u": 0.0
+        },
+        "positionErrorCovarianceM2": [
+          2500.0,
+          2500.0,
+          3600.0
+        ],
+        "rmsPositionSigmaM": 53.54
+      },
+      "ontology": {
+        "template": "TEMPLATE_GEO",
+        "platformType": "SEMICONDUCTOR_FAB"
+      },
+      "geoInfrastructure": {
+        "infraCategory": "SEMICONDUCTOR_FAB",
+        "intrinsicValue": 180.0,
+        "cascadingSystemicValue": 180.0,
+        "debrisKeepOutKm": 16.0,
+        "structuralHealth": 0.76,
+        "operationalCapacity": 0.494,
+        "debrisCollateralHits": 2,
+        "leakerDirectHits": 0
+      }
+    },
+    {
+      "entityId": "inf-hengshan-bunker",
+      "description": "Crucial Infrastructure: Heng Shan Joint C2 Command Complex",
+      "isLive": true,
+      "expiryTime": "2026-12-06T13:46:39+00:00",
+      "provenance": {
+        "integrationName": "lattice-geo-registry",
+        "dataType": "CrucialInfrastructure",
+        "sourceUpdateTime": "2026-11-25T00:00:00+00:00"
+      },
+      "aliases": {
+        "name": "Heng Shan Joint C2 Command Complex"
+      },
+      "milView": {
+        "disposition": "DISPOSITION_FRIENDLY",
+        "environment": "ENVIRONMENT_LAND"
+      },
+      "location": {
+        "position": {
+          "latitudeDegrees": 25.08,
+          "longitudeDegrees": 121.53,
+          "altitudeHaeMeters": 15.0
+        },
+        "velocityEnu": {
+          "e": 0.0,
+          "n": 0.0,
+          "u": 0.0
+        },
+        "positionErrorCovarianceM2": [
+          2500.0,
+          2500.0,
+          3600.0
+        ],
+        "rmsPositionSigmaM": 53.54
+      },
+      "ontology": {
+        "template": "TEMPLATE_GEO",
+        "platformType": "COMMAND_BUNKER"
+      },
+      "geoInfrastructure": {
+        "infraCategory": "COMMAND_BUNKER",
+        "intrinsicValue": 165.0,
+        "cascadingSystemicValue": 165.0,
+        "debrisKeepOutKm": 8.0,
+        "structuralHealth": 0.303,
+        "operationalCapacity": 0.197,
+        "debrisCollateralHits": 0,
+        "leakerDirectHits": 1
+      }
+    },
+    {
+      "entityId": "inf-keelung-naval",
+      "description": "Crucial Infrastructure: Keelung Strategic Naval & Logistics Port",
+      "isLive": true,
+      "expiryTime": "2026-12-06T13:46:39+00:00",
+      "provenance": {
+        "integrationName": "lattice-geo-registry",
+        "dataType": "CrucialInfrastructure",
+        "sourceUpdateTime": "2026-11-25T00:00:00+00:00"
+      },
+      "aliases": {
+        "name": "Keelung Strategic Naval & Logistics Port"
+      },
+      "milView": {
+        "disposition": "DISPOSITION_FRIENDLY",
+        "environment": "ENVIRONMENT_LAND"
+      },
+      "location": {
+        "position": {
+          "latitudeDegrees": 25.14,
+          "longitudeDegrees": 121.74,
+          "altitudeHaeMeters": 15.0
+        },
+        "velocityEnu": {
+          "e": 0.0,
+          "n": 0.0,
+          "u": 0.0
+        },
+        "positionErrorCovarianceM2": [
+          2500.0,
+          2500.0,
+          3600.0
+        ],
+        "rmsPositionSigmaM": 53.54
+      },
+      "ontology": {
+        "template": "TEMPLATE_GEO",
+        "platformType": "NAVAL_PORT"
+      },
+      "geoInfrastructure": {
+        "infraCategory": "NAVAL_PORT",
+        "intrinsicValue": 125.0,
+        "cascadingSystemicValue": 125.0,
+        "debrisKeepOutKm": 11.0,
+        "structuralHealth": 1.0,
+        "operationalCapacity": 0.65,
+        "debrisCollateralHits": 0,
+        "leakerDirectHits": 0
+      }
+    },
+    {
+      "entityId": "asset-altius_600-01",
+      "description": "ALTIUS-600 Airborne ISR Mesh Picket (4-Ship Orbit)",
+      "isLive": true,
+      "expiryTime": "2026-12-06T13:46:39+00:00",
+      "provenance": {
+        "integrationName": "lattice-asset-gateway",
+        "dataType": "altius_600_isr_picket",
+        "sourceUpdateTime": "2026-11-25T00:00:00+00:00"
+      },
+      "aliases": {
+        "name": "ALTIUS-600 Airborne ISR Mesh Picket (4-Ship Orbit)",
+        "callsign": "ASSET-ALTIUS_600-01"
+      },
+      "milView": {
+        "disposition": "DISPOSITION_FRIENDLY",
+        "environment": "ENVIRONMENT_AIR"
+      },
+      "location": {
+        "position": {
+          "latitudeDegrees": 24.801006,
+          "longitudeDegrees": 121.451538,
+          "altitudeHaeMeters": 2800.0
+        },
+        "velocityEnu": {
+          "e": 0.0,
+          "n": 0.0,
+          "u": 0.0
+        },
+        "positionErrorCovarianceM2": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "rmsPositionSigmaM": 1.0
+      },
+      "ontology": {
+        "template": "TEMPLATE_ASSET",
+        "platformType": "altius_600_isr_picket"
+      },
+      "sensors": {
+        "sensors": [
+          {
+            "sensorId": "asset-altius_600-01-sens",
+            "sensorType": "AIRBORNE_ISR",
+            "maxRangeKm": 240.0,
+            "operational": true,
+            "jammingLoad": 0.0
+          }
+        ]
+      },
+      "payloads": {
+        "payloads": []
+      },
+      "taskCatalog": {
+        "supportedTasks": [
+          "HOLD_FIRE",
+          "RETASK_ISR_ORBIT"
+        ]
+      },
+      "meshLink": {
+        "commsRangeKm": 420.0,
+        "connectedPeerCount": 11,
+        "hopCountToC2": 1,
+        "linkLatencyMs": 6.0,
+        "isOnlineInMesh": true
+      }
+    },
+    {
+      "entityId": "asset-thaad_batt-02",
+      "description": "THAAD Upper-Tier + AN/TPY-2 X-Band Battery",
+      "isLive": true,
+      "expiryTime": "2026-12-06T13:46:39+00:00",
+      "provenance": {
+        "integrationName": "lattice-asset-gateway",
+        "dataType": "thaad_battery",
+        "sourceUpdateTime": "2026-11-25T00:00:00+00:00"
+      },
+      "aliases": {
+        "name": "THAAD Upper-Tier + AN/TPY-2 X-Band Battery",
+        "callsign": "ASSET-THAAD_BATT-02"
+      },
+      "milView": {
+        "disposition": "DISPOSITION_FRIENDLY",
+        "environment": "ENVIRONMENT_LAND"
+      },
+      "location": {
+        "position": {
+          "latitudeDegrees": 25.281192,
+          "longitudeDegrees": 121.303118,
+          "altitudeHaeMeters": 78.22
+        },
+        "velocityEnu": {
+          "e": 0.0,
+          "n": 0.0,
+          "u": 0.0
+        },
+        "positionErrorCovarianceM2": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "rmsPositionSigmaM": 1.0
+      },
+      "ontology": {
+        "template": "TEMPLATE_ASSET",
+        "platformType": "thaad_battery"
+      },
+      "sensors": {
+        "sensors": [
+          {
+            "sensorId": "asset-thaad_batt-02-sens",
+            "sensorType": "RADAR_MULTI_MODE",
+            "maxRangeKm": 850.0,
+            "operational": true,
+            "jammingLoad": 0.0
+          }
+        ]
+      },
+      "payloads": {
+        "payloads": [
+          {
+            "payloadId": "asset-thaad_batt-02-mag",
+            "weaponName": "THAAD Upper-Tier + AN/TPY-2 X-Band Battery",
+            "tier": 2,
+            "quantityRemaining": 8,
+            "quantityInitial": 24,
+            "unitShotCostMusd": 12.0,
+            "engageOnRemoteCapable": true
+          }
+        ]
+      },
+      "taskCatalog": {
+        "supportedTasks": [
+          "HOLD_FIRE",
+          "INTERCEPT_TRACK"
+        ]
+      },
+      "meshLink": {
+        "commsRangeKm": 550.0,
+        "connectedPeerCount": 11,
+        "hopCountToC2": 1,
+        "linkLatencyMs": 6.0,
+        "isOnlineInMesh": true
+      }
+    },
+    {
+      "entityId": "asset-patriot_pa-03",
+      "description": "MIM-104 Patriot PAC-3 MSE IBCS/Lattice Battery",
+      "isLive": true,
+      "expiryTime": "2026-12-06T13:46:39+00:00",
+      "provenance": {
+        "integrationName": "lattice-asset-gateway",
+        "dataType": "patriot_pac3_mse",
+        "sourceUpdateTime": "2026-11-25T00:00:00+00:00"
+      },
+      "aliases": {
+        "name": "MIM-104 Patriot PAC-3 MSE IBCS/Lattice Battery",
+        "callsign": "ASSET-PATRIOT_PA-03"
+      },
+      "milView": {
+        "disposition": "DISPOSITION_FRIENDLY",
+        "environment": "ENVIRONMENT_LAND"
+      },
+      "location": {
+        "position": {
+          "latitudeDegrees": 25.058994,
+          "longitudeDegrees": 121.088462,
+          "altitudeHaeMeters": 103.96
+        },
+        "velocityEnu": {
+          "e": 0.0,
+          "n": 0.0,
+          "u": 0.0
+        },
+        "positionErrorCovarianceM2": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "rmsPositionSigmaM": 1.0
+      },
+      "ontology": {
+        "template": "TEMPLATE_ASSET",
+        "platformType": "patriot_pac3_mse"
+      },
+      "sensors": {
+        "sensors": [
+          {
+            "sensorId": "asset-patriot_pa-03-sens",
+            "sensorType": "RADAR_MULTI_MODE",
+            "maxRangeKm": 210.0,
+            "operational": true,
+            "jammingLoad": 0.0
+          }
+        ]
+      },
+      "payloads": {
+        "payloads": [
+          {
+            "payloadId": "asset-patriot_pa-03-mag",
+            "weaponName": "MIM-104 Patriot PAC-3 MSE IBCS/Lattice Battery",
+            "tier": 3,
+            "quantityRemaining": 0,
+            "quantityInitial": 32,
+            "unitShotCostMusd": 4.0,
+            "engageOnRemoteCapable": true
+          }
+        ]
+      },
+      "taskCatalog": {
+        "supportedTasks": [
+          "HOLD_FIRE",
+          "INTERCEPT_TRACK"
+        ]
+      },
+      "meshLink": {
+        "commsRangeKm": 380.0,
+        "connectedPeerCount": 11,
+        "hopCountToC2": 1,
+        "linkLatencyMs": 6.0,
+        "isOnlineInMesh": true
+      }
+    },
+    {
+      "entityId": "asset-lattice_se-04",
+      "description": "Lattice Autonomous Sentry Radar/EO Tower",
+      "isLive": true,
+      "expiryTime": "2026-12-06T13:46:39+00:00",
+      "provenance": {
+        "integrationName": "lattice-asset-gateway",
+        "dataType": "lattice_sentry_tower",
+        "sourceUpdateTime": "2026-11-25T00:00:00+00:00"
+      },
+      "aliases": {
+        "name": "Lattice Autonomous Sentry Radar/EO Tower",
+        "callsign": "ASSET-LATTICE_SE-04"
+      },
+      "milView": {
+        "disposition": "DISPOSITION_FRIENDLY",
+        "environment": "ENVIRONMENT_LAND"
+      },
+      "location": {
+        "position": {
+          "latitudeDegrees": 25.061192,
+          "longitudeDegrees": 120.983118,
+          "altitudeHaeMeters": 185.37
+        },
+        "velocityEnu": {
+          "e": 0.0,
+          "n": 0.0,
+          "u": 0.0
+        },
+        "positionErrorCovarianceM2": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "rmsPositionSigmaM": 1.0
+      },
+      "ontology": {
+        "template": "TEMPLATE_ASSET",
+        "platformType": "lattice_sentry_tower"
+      },
+      "sensors": {
+        "sensors": [
+          {
+            "sensorId": "asset-lattice_se-04-sens",
+            "sensorType": "RADAR_MULTI_MODE",
+            "maxRangeKm": 165.0,
+            "operational": true,
+            "jammingLoad": 0.0
+          }
+        ]
+      },
+      "payloads": {
+        "payloads": []
+      },
+      "taskCatalog": {
+        "supportedTasks": [
+          "HOLD_FIRE",
+          "RETASK_ISR_ORBIT"
+        ]
+      },
+      "meshLink": {
+        "commsRangeKm": 320.0,
+        "connectedPeerCount": 11,
+        "hopCountToC2": 1,
+        "linkLatencyMs": 6.0,
+        "isOnlineInMesh": true
+      }
+    },
+    {
+      "entityId": "asset-iron_dome_-05",
+      "description": "Iron Dome Tamir / NASAMS Multi-Canister Battery",
+      "isLive": true,
+      "expiryTime": "2026-12-06T13:46:39+00:00",
+      "provenance": {
+        "integrationName": "lattice-asset-gateway",
+        "dataType": "iron_dome_tamir_battery",
+        "sourceUpdateTime": "2026-11-25T00:00:00+00:00"
+      },
+      "aliases": {
+        "name": "Iron Dome Tamir / NASAMS Multi-Canister Battery",
+        "callsign": "ASSET-IRON_DOME_-05"
+      },
+      "milView": {
+        "disposition": "DISPOSITION_FRIENDLY",
+        "environment": "ENVIRONMENT_LAND"
+      },
+      "location": {
+        "position": {
+          "latitudeDegrees": 24.811167,
+          "longitudeDegrees": 120.875564,
+          "altitudeHaeMeters": 50.22
+        },
+        "velocityEnu": {
+          "e": 0.0,
+          "n": 0.0,
+          "u": 0.0
+        },
+        "positionErrorCovarianceM2": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "rmsPositionSigmaM": 1.0
+      },
+      "ontology": {
+        "template": "TEMPLATE_ASSET",
+        "platformType": "iron_dome_tamir_battery"
+      },
+      "sensors": {
+        "sensors": [
+          {
+            "sensorId": "asset-iron_dome_-05-sens",
+            "sensorType": "RADAR_MULTI_MODE",
+            "maxRangeKm": 110.0,
+            "operational": true,
+            "jammingLoad": 0.0
+          }
+        ]
+      },
+      "payloads": {
+        "payloads": [
+          {
+            "payloadId": "asset-iron_dome_-05-mag",
+            "weaponName": "Iron Dome Tamir / NASAMS Multi-Canister Battery",
+            "tier": 4,
+            "quantityRemaining": 40,
+            "quantityInitial": 40,
+            "unitShotCostMusd": 0.12,
+            "engageOnRemoteCapable": true
+          }
+        ]
+      },
+      "taskCatalog": {
+        "supportedTasks": [
+          "HOLD_FIRE",
+          "INTERCEPT_TRACK"
+        ]
+      },
+      "meshLink": {
+        "commsRangeKm": 280.0,
+        "connectedPeerCount": 11,
+        "hopCountToC2": 1,
+        "linkLatencyMs": 6.0,
+        "isOnlineInMesh": true
+      }
+    },
+    {
+      "entityId": "asset-iron_dome_-06",
+      "description": "Iron Dome Tamir / NASAMS Multi-Canister Battery",
+      "isLive": true,
+      "expiryTime": "2026-12-06T13:46:39+00:00",
+      "provenance": {
+        "integrationName": "lattice-asset-gateway",
+        "dataType": "iron_dome_tamir_battery",
+        "sourceUpdateTime": "2026-11-25T00:00:00+00:00"
+      },
+      "aliases": {
+        "name": "Iron Dome Tamir / NASAMS Multi-Canister Battery",
+        "callsign": "ASSET-IRON_DOME_-06"
+      },
+      "milView": {
+        "disposition": "DISPOSITION_FRIENDLY",
+        "environment": "ENVIRONMENT_LAND"
+      },
+      "location": {
+        "position": {
+          "latitudeDegrees": 25.361192,
+          "longitudeDegrees": 121.333118,
+          "altitudeHaeMeters": 83.25
+        },
+        "velocityEnu": {
+          "e": 0.0,
+          "n": 0.0,
+          "u": 0.0
+        },
+        "positionErrorCovarianceM2": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "rmsPositionSigmaM": 1.0
+      },
+      "ontology": {
+        "template": "TEMPLATE_ASSET",
+        "platformType": "iron_dome_tamir_battery"
+      },
+      "sensors": {
+        "sensors": [
+          {
+            "sensorId": "asset-iron_dome_-06-sens",
+            "sensorType": "RADAR_MULTI_MODE",
+            "maxRangeKm": 110.0,
+            "operational": true,
+            "jammingLoad": 0.0
+          }
+        ]
+      },
+      "payloads": {
+        "payloads": [
+          {
+            "payloadId": "asset-iron_dome_-06-mag",
+            "weaponName": "Iron Dome Tamir / NASAMS Multi-Canister Battery",
+            "tier": 4,
+            "quantityRemaining": 38,
+            "quantityInitial": 40,
+            "unitShotCostMusd": 0.12,
+            "engageOnRemoteCapable": true
+          }
+        ]
+      },
+      "taskCatalog": {
+        "supportedTasks": [
+          "HOLD_FIRE",
+          "INTERCEPT_TRACK"
+        ]
+      },
+      "meshLink": {
+        "commsRangeKm": 280.0,
+        "connectedPeerCount": 11,
+        "hopCountToC2": 1,
+        "linkLatencyMs": 6.0,
+        "isOnlineInMesh": true
+      }
+    },
+    {
+      "entityId": "asset-lattice_ew-07",
+      "description": "Lattice Pulsar Autonomous EW / GNSS-RF Jammer Dome",
+      "isLive": true,
+      "expiryTime": "2026-12-06T13:46:39+00:00",
+      "provenance": {
+        "integrationName": "lattice-asset-gateway",
+        "dataType": "lattice_ew_jammer",
+        "sourceUpdateTime": "2026-11-25T00:00:00+00:00"
+      },
+      "aliases": {
+        "name": "Lattice Pulsar Autonomous EW / GNSS-RF Jammer Dome",
+        "callsign": "ASSET-LATTICE_EW-07"
+      },
+      "milView": {
+        "disposition": "DISPOSITION_FRIENDLY",
+        "environment": "ENVIRONMENT_LAND"
+      },
+      "location": {
+        "position": {
+          "latitudeDegrees": 24.680051,
+          "longitudeDegrees": 120.789108,
+          "altitudeHaeMeters": 40.9
+        },
+        "velocityEnu": {
+          "e": 0.0,
+          "n": 0.0,
+          "u": 0.0
+        },
+        "positionErrorCovarianceM2": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "rmsPositionSigmaM": 1.0
+      },
+      "ontology": {
+        "template": "TEMPLATE_ASSET",
+        "platformType": "lattice_ew_jammer"
+      },
+      "sensors": {
+        "sensors": [
+          {
+            "sensorId": "asset-lattice_ew-07-sens",
+            "sensorType": "RADAR_MULTI_MODE",
+            "maxRangeKm": 95.0,
+            "operational": true,
+            "jammingLoad": 0.0
+          }
+        ]
+      },
+      "payloads": {
+        "payloads": [
+          {
+            "payloadId": "asset-lattice_ew-07-ew",
+            "weaponName": "Lattice Pulsar Autonomous EW / GNSS-RF Jammer Dome",
+            "tier": 0,
+            "quantityRemaining": 999,
+            "quantityInitial": 999,
+            "unitShotCostMusd": 0.001,
+            "engageOnRemoteCapable": true
+          }
+        ]
+      },
+      "taskCatalog": {
+        "supportedTasks": [
+          "HOLD_FIRE",
+          "JAM_SECTOR"
+        ]
+      },
+      "meshLink": {
+        "commsRangeKm": 300.0,
+        "connectedPeerCount": 11,
+        "hopCountToC2": 1,
+        "linkLatencyMs": 6.0,
+        "isOnlineInMesh": true
+      }
+    },
+    {
+      "entityId": "asset-sm3_block_-08",
+      "description": "Aegis SM-3 Block IIA / GBI Exo-Midcourse Complex",
+      "isLive": true,
+      "expiryTime": "2026-12-06T13:46:39+00:00",
+      "provenance": {
+        "integrationName": "lattice-asset-gateway",
+        "dataType": "sm3_block_iia_complex",
+        "sourceUpdateTime": "2026-11-25T00:00:00+00:00"
+      },
+      "aliases": {
+        "name": "Aegis SM-3 Block IIA / GBI Exo-Midcourse Complex",
+        "callsign": "ASSET-SM3_BLOCK_-08"
+      },
+      "milView": {
+        "disposition": "DISPOSITION_FRIENDLY",
+        "environment": "ENVIRONMENT_LAND"
+      },
+      "location": {
+        "position": {
+          "latitudeDegrees": 25.704119,
+          "longitudeDegrees": 122.364544,
+          "altitudeHaeMeters": 30.0
+        },
+        "velocityEnu": {
+          "e": 0.0,
+          "n": 0.0,
+          "u": 0.0
+        },
+        "positionErrorCovarianceM2": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "rmsPositionSigmaM": 1.0
+      },
+      "ontology": {
+        "template": "TEMPLATE_ASSET",
+        "platformType": "sm3_block_iia_complex"
+      },
+      "sensors": {
+        "sensors": [
+          {
+            "sensorId": "asset-sm3_block_-08-sens",
+            "sensorType": "RADAR_MULTI_MODE",
+            "maxRangeKm": 1400.0,
+            "operational": true,
+            "jammingLoad": 0.0
+          }
+        ]
+      },
+      "payloads": {
+        "payloads": [
+          {
+            "payloadId": "asset-sm3_block_-08-mag",
+            "weaponName": "Aegis SM-3 Block IIA / GBI Exo-Midcourse Complex",
+            "tier": 1,
+            "quantityRemaining": 14,
+            "quantityInitial": 20,
+            "unitShotCostMusd": 24.0,
+            "engageOnRemoteCapable": true
+          }
+        ]
+      },
+      "taskCatalog": {
+        "supportedTasks": [
+          "HOLD_FIRE",
+          "INTERCEPT_TRACK"
+        ]
+      },
+      "meshLink": {
+        "commsRangeKm": 900.0,
+        "connectedPeerCount": 11,
+        "hopCountToC2": 1,
+        "linkLatencyMs": 6.0,
+        "isOnlineInMesh": true
+      }
+    },
+    {
+      "entityId": "asset-iron_dome_-09",
+      "description": "Iron Dome Tamir / NASAMS Multi-Canister Battery",
+      "isLive": true,
+      "expiryTime": "2026-12-06T13:46:39+00:00",
+      "provenance": {
+        "integrationName": "lattice-asset-gateway",
+        "dataType": "iron_dome_tamir_battery",
+        "sourceUpdateTime": "2026-11-25T00:00:00+00:00"
+      },
+      "aliases": {
+        "name": "Iron Dome Tamir / NASAMS Multi-Canister Battery",
+        "callsign": "ASSET-IRON_DOME_-09"
+      },
+      "milView": {
+        "disposition": "DISPOSITION_FRIENDLY",
+        "environment": "ENVIRONMENT_LAND"
+      },
+      "location": {
+        "position": {
+          "latitudeDegrees": 24.267868,
+          "longitudeDegrees": 120.380941,
+          "altitudeHaeMeters": 204.8
+        },
+        "velocityEnu": {
+          "e": 0.0,
+          "n": 0.0,
+          "u": 0.0
+        },
+        "positionErrorCovarianceM2": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "rmsPositionSigmaM": 1.0
+      },
+      "ontology": {
+        "template": "TEMPLATE_ASSET",
+        "platformType": "iron_dome_tamir_battery"
+      },
+      "sensors": {
+        "sensors": [
+          {
+            "sensorId": "asset-iron_dome_-09-sens",
+            "sensorType": "RADAR_MULTI_MODE",
+            "maxRangeKm": 110.0,
+            "operational": true,
+            "jammingLoad": 0.0
+          }
+        ]
+      },
+      "payloads": {
+        "payloads": [
+          {
+            "payloadId": "asset-iron_dome_-09-mag",
+            "weaponName": "Iron Dome Tamir / NASAMS Multi-Canister Battery",
+            "tier": 4,
+            "quantityRemaining": 40,
+            "quantityInitial": 40,
+            "unitShotCostMusd": 0.12,
+            "engageOnRemoteCapable": true
+          }
+        ]
+      },
+      "taskCatalog": {
+        "supportedTasks": [
+          "HOLD_FIRE",
+          "INTERCEPT_TRACK"
+        ]
+      },
+      "meshLink": {
+        "commsRangeKm": 280.0,
+        "connectedPeerCount": 11,
+        "hopCountToC2": 1,
+        "linkLatencyMs": 6.0,
+        "isOnlineInMesh": true
+      }
+    },
+    {
+      "entityId": "asset-lattice_ew-10",
+      "description": "Lattice Pulsar Autonomous EW / GNSS-RF Jammer Dome",
+      "isLive": true,
+      "expiryTime": "2026-12-06T13:46:39+00:00",
+      "provenance": {
+        "integrationName": "lattice-asset-gateway",
+        "dataType": "lattice_ew_jammer",
+        "sourceUpdateTime": "2026-11-25T00:00:00+00:00"
+      },
+      "aliases": {
+        "name": "Lattice Pulsar Autonomous EW / GNSS-RF Jammer Dome",
+        "callsign": "ASSET-LATTICE_EW-10"
+      },
+      "milView": {
+        "disposition": "DISPOSITION_FRIENDLY",
+        "environment": "ENVIRONMENT_LAND"
+      },
+      "location": {
+        "position": {
+          "latitudeDegrees": 25.597878,
+          "longitudeDegrees": 121.372743,
+          "altitudeHaeMeters": 168.36
+        },
+        "velocityEnu": {
+          "e": 0.0,
+          "n": 0.0,
+          "u": 0.0
+        },
+        "positionErrorCovarianceM2": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "rmsPositionSigmaM": 1.0
+      },
+      "ontology": {
+        "template": "TEMPLATE_ASSET",
+        "platformType": "lattice_ew_jammer"
+      },
+      "sensors": {
+        "sensors": [
+          {
+            "sensorId": "asset-lattice_ew-10-sens",
+            "sensorType": "RADAR_MULTI_MODE",
+            "maxRangeKm": 95.0,
+            "operational": true,
+            "jammingLoad": 0.0
+          }
+        ]
+      },
+      "payloads": {
+        "payloads": [
+          {
+            "payloadId": "asset-lattice_ew-10-ew",
+            "weaponName": "Lattice Pulsar Autonomous EW / GNSS-RF Jammer Dome",
+            "tier": 0,
+            "quantityRemaining": 999,
+            "quantityInitial": 999,
+            "unitShotCostMusd": 0.001,
+            "engageOnRemoteCapable": true
+          }
+        ]
+      },
+      "taskCatalog": {
+        "supportedTasks": [
+          "HOLD_FIRE",
+          "JAM_SECTOR"
+        ]
+      },
+      "meshLink": {
+        "commsRangeKm": 300.0,
+        "connectedPeerCount": 11,
+        "hopCountToC2": 1,
+        "linkLatencyMs": 6.0,
+        "isOnlineInMesh": true
+      }
+    },
+    {
+      "entityId": "asset-iron_dome_-11",
+      "description": "Iron Dome Tamir / NASAMS Multi-Canister Battery",
+      "isLive": true,
+      "expiryTime": "2026-12-06T13:46:39+00:00",
+      "provenance": {
+        "integrationName": "lattice-asset-gateway",
+        "dataType": "iron_dome_tamir_battery",
+        "sourceUpdateTime": "2026-11-25T00:00:00+00:00"
+      },
+      "aliases": {
+        "name": "Iron Dome Tamir / NASAMS Multi-Canister Battery",
+        "callsign": "ASSET-IRON_DOME_-11"
+      },
+      "milView": {
+        "disposition": "DISPOSITION_FRIENDLY",
+        "environment": "ENVIRONMENT_LAND"
+      },
+      "location": {
+        "position": {
+          "latitudeDegrees": 24.985993,
+          "longitudeDegrees": 120.698819,
+          "altitudeHaeMeters": 278.34
+        },
+        "velocityEnu": {
+          "e": 0.0,
+          "n": 0.0,
+          "u": 0.0
+        },
+        "positionErrorCovarianceM2": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "rmsPositionSigmaM": 1.0
+      },
+      "ontology": {
+        "template": "TEMPLATE_ASSET",
+        "platformType": "iron_dome_tamir_battery"
+      },
+      "sensors": {
+        "sensors": [
+          {
+            "sensorId": "asset-iron_dome_-11-sens",
+            "sensorType": "RADAR_MULTI_MODE",
+            "maxRangeKm": 110.0,
+            "operational": true,
+            "jammingLoad": 0.0
+          }
+        ]
+      },
+      "payloads": {
+        "payloads": [
+          {
+            "payloadId": "asset-iron_dome_-11-mag",
+            "weaponName": "Iron Dome Tamir / NASAMS Multi-Canister Battery",
+            "tier": 4,
+            "quantityRemaining": 22,
+            "quantityInitial": 40,
+            "unitShotCostMusd": 0.12,
+            "engageOnRemoteCapable": true
+          }
+        ]
+      },
+      "taskCatalog": {
+        "supportedTasks": [
+          "HOLD_FIRE",
+          "INTERCEPT_TRACK"
+        ]
+      },
+      "meshLink": {
+        "commsRangeKm": 280.0,
+        "connectedPeerCount": 11,
+        "hopCountToC2": 1,
+        "linkLatencyMs": 6.0,
+        "isOnlineInMesh": true
+      }
+    },
+    {
+      "entityId": "asset-lattice_ew-12",
+      "description": "Lattice Pulsar Autonomous EW / GNSS-RF Jammer Dome",
+      "isLive": true,
+      "expiryTime": "2026-12-06T13:46:39+00:00",
+      "provenance": {
+        "integrationName": "lattice-asset-gateway",
+        "dataType": "lattice_ew_jammer",
+        "sourceUpdateTime": "2026-11-25T00:00:00+00:00"
+      },
+      "aliases": {
+        "name": "Lattice Pulsar Autonomous EW / GNSS-RF Jammer Dome",
+        "callsign": "ASSET-LATTICE_EW-12"
+      },
+      "milView": {
+        "disposition": "DISPOSITION_FRIENDLY",
+        "environment": "ENVIRONMENT_LAND"
+      },
+      "location": {
+        "position": {
+          "latitudeDegrees": 24.981192,
+          "longitudeDegrees": 120.783118,
+          "altitudeHaeMeters": 231.86
+        },
+        "velocityEnu": {
+          "e": 0.0,
+          "n": 0.0,
+          "u": 0.0
+        },
+        "positionErrorCovarianceM2": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "rmsPositionSigmaM": 1.0
+      },
+      "ontology": {
+        "template": "TEMPLATE_ASSET",
+        "platformType": "lattice_ew_jammer"
+      },
+      "sensors": {
+        "sensors": [
+          {
+            "sensorId": "asset-lattice_ew-12-sens",
+            "sensorType": "RADAR_MULTI_MODE",
+            "maxRangeKm": 95.0,
+            "operational": true,
+            "jammingLoad": 0.0
+          }
+        ]
+      },
+      "payloads": {
+        "payloads": [
+          {
+            "payloadId": "asset-lattice_ew-12-ew",
+            "weaponName": "Lattice Pulsar Autonomous EW / GNSS-RF Jammer Dome",
+            "tier": 0,
+            "quantityRemaining": 999,
+            "quantityInitial": 999,
+            "unitShotCostMusd": 0.001,
+            "engageOnRemoteCapable": true
+          }
+        ]
+      },
+      "taskCatalog": {
+        "supportedTasks": [
+          "HOLD_FIRE",
+          "JAM_SECTOR"
+        ]
+      },
+      "meshLink": {
+        "commsRangeKm": 300.0,
+        "connectedPeerCount": 11,
+        "hopCountToC2": 1,
+        "linkLatencyMs": 6.0,
+        "isOnlineInMesh": true
+      }
+    }
+  ]
+}
