@@ -619,3 +619,64 @@ def compute_mesh_horizon_features_numba(
                 else:
                     break
             sum_h_air_35m += best_a35
+
+            # Ground tower (+30m) vs 400m drone swarm
+            best_d400 = 15.0
+            for d_km in (25.0, 45.0, 70.0, 95.0, 125.0, 155.0):
+                tlat = mlat + (d_km / 111.132) * math.cos(az)
+                tlon = mlon + (d_km / (111.320 * cos_lat)) * math.sin(az)
+                t_terr = procedural_global_terrain_elevation_m(tlat, tlon, sea_azimuth_rad)
+                ok, _ = check_3d_los_raycast(mlat, mlon, elev_m + 30.0, tlat, tlon, t_terr + 400.0, sea_azimuth_rad)
+                if ok:
+                    best_d400 = d_km
+                else:
+                    break
+            sum_h_drone_400m += best_d400
+
+        # Infrastructure coupling & Debris Keep-Out standoff metrics
+        min_d_infra = 1e9
+        w_dist_sum = 0.0
+        inside_keepout_penalty = 0.0
+        umb_45 = 0.0
+        umb_105 = 0.0
+        umb_220 = 0.0
+
+        for j in range(n_infra):
+            dphi = math.radians(infra_lats[j] - mlat)
+            dlam = math.radians(infra_lons[j] - mlon)
+            a = math.sin(dphi * 0.5) ** 2 + math.cos(math.radians(mlat)) * math.cos(math.radians(infra_lats[j])) * math.sin(dlam * 0.5) ** 2
+            dkm = EARTH_RADIUS_KM * 2.0 * math.atan2(math.sqrt(a), math.sqrt(max(0.0, 1.0 - a)))
+
+            if dkm < min_d_infra:
+                min_d_infra = dkm
+            v = infra_vals[j]
+            w_dist_sum += v * dkm
+            if dkm < infra_keepout_km[j]:
+                inside_keepout_penalty = max(inside_keepout_penalty, 1.0 - (dkm / max(1.0, infra_keepout_km[j])))
+            if dkm <= 48.0:
+                umb_45 += v
+            if dkm <= 105.0:
+                umb_105 += v
+            if dkm <= 220.0:
+                umb_220 += v
+
+        # Optimal kinetic shooter standoff peaks outside debris keep-out (16-55 km)
+        if min_d_infra < 8.0:
+            standoff_score = 0.20 * (1.0 - inside_keepout_penalty)
+        elif min_d_infra <= 65.0:
+            standoff_score = 1.0 - 0.35 * abs(min_d_infra - 32.0) / 33.0
+        else:
+            standoff_score = max(0.10, math.exp(-(min_d_infra - 65.0) / 110.0))
+
+        feats[m, 0] = elev_m / 1000.0
+        feats[m, 1] = max(-1.0, min(1.5, prominence_m / 450.0))
+        feats[m, 2] = (sum_h_ground_35m / 12.0) / 140.0
+        feats[m, 3] = (sum_h_air_35m / 12.0) / 240.0
+        feats[m, 4] = (sum_h_drone_400m / 12.0) / 160.0
+        feats[m, 5] = min(3.0, min_d_infra / 100.0)
+        feats[m, 6] = min(3.0, (w_dist_sum / total_val) / 100.0)
+        feats[m, 7] = standoff_score
+        feats[m, 8] = umb_45 / total_val
+        feats[m, 9] = umb_105 / total_val
+        feats[m, 10] = umb_220 / total_val
+        feats[m, 11] = is_sea
