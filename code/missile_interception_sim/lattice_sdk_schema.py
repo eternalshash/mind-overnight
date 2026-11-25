@@ -363,3 +363,42 @@ class GeoInfrastructureComponent:
             "debrisCollateralHits": self.debris_collateral_hits,
             "leakerDirectHits": self.leaker_direct_hits,
         }
+
+
+# ==============================================================================
+# 3. COMPOSITIONAL LATTICE ENTITY & ENTITY MANAGER COP
+# ==============================================================================
+
+@dataclass
+class LatticeEntity:
+    """
+    Core interoperable Lattice COP Entity (`anduril.entitymanager.v1.Entity`).
+    Acts as a composable bag of optional components with explicit `expiry_time_s`
+    so lost-LOS tracks coast with growing covariance and automatically expire.
+    """
+    entity_id: str
+    is_live: bool = True
+    created_time_s: float = 0.0
+    expiry_time_s: float = 3600.0
+    description: str = ""
+    provenance: Optional[Provenance] = None
+    aliases: Optional[AliasesComponent] = None
+    location: Optional[LocationComponent] = None
+    mil_view: Optional[MilViewComponent] = None
+    ontology: Optional[OntologyComponent] = None
+    sensors: Optional[SensorsComponent] = None
+    payloads: Optional[PayloadsComponent] = None
+    tracked_by: Optional[TrackedByComponent] = None
+    task_catalog: Optional[TaskCatalogComponent] = None
+    mesh_link: Optional[MeshLinkComponent] = None
+    geo_infra: Optional[GeoInfrastructureComponent] = None
+    node_cost_musd: float = 0.0
+
+    def is_expired(self, sim_time_s: float) -> bool:
+        return (not self.is_live) or (sim_time_s > self.expiry_time_s)
+
+    def to_lattice_json(self, epoch_dt: Optional[datetime] = None) -> Dict[str, Any]:
+        """Serializes entity to canonical Lattice SDK camelCase JSON format."""
+        if epoch_dt is None:
+            epoch_dt = datetime(2026, 11, 25, 0, 0, 0, tzinfo=timezone.utc)
+        exp_iso = (epoch_dt + timedelta(seconds=float(self.expiry_time_s))).isoformat()
