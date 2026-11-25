@@ -197,3 +197,93 @@ def deploy_neural_lattice_mesh(
             elif spec.tier >= 1:
                 dyn_cov[:, :, 3] += (d_new <= spec.weapon_range_km).float() * 0.5
             dyn_cov = torch.clamp(dyn_cov, max=2.5)
+
+            lat = float(mesh.lats[m_idx])
+            lon = float(mesh.lons[m_idx])
+            terr_m = lmesh.procedural_global_terrain_elevation_m(lat, lon, mesh.sea_azimuth_rad)
+            ent_id = f"asset-{spec.node_type_id[:10]}-{len(placements)+1:02d}"
+            ent = instantiate_lattice_asset_entity(ent_id, spec, lat, lon, terr_m)
+            cop.publish_entity(ent)
+            placements.append({
+                "entity_id": ent_id,
+                "node_type_id": spec.node_type_id,
+                "name": spec.name,
+                "role": spec.role,
+                "tier": spec.tier,
+                "lat": round(lat, 5),
+                "lon": round(lon, 5),
+                "terrain_elev_m": round(terr_m, 1),
+                "deploy_cost_musd": spec.deploy_cost_musd,
+                "mesh_vertex_idx": m_idx,
+            })
+
+    lmesh.update_self_healing_mesh_links(cop.get_live_assets(), cop.get_infrastructure_entities())
+    spent = round(budget_musd - rem_b, 2)
+    return cop, placements, spent
+
+
+def deploy_baseline_defense(
+    mode: str,
+    infra_nodes: List[lmesh.CrucialInfraNode],
+    mesh: lmesh.GeodesicSpatialMesh,
+    budget_musd: float,
+) -> Tuple[lsdk.EntityManagerCOP, List[Dict[str, Any]], float]:
+    """
+    Deploys fair same-budget ($B) comparison baselines:
+      - `siloed_legacy`: Co-located traditional SAM/CIWS batteries directly on HVAs
+        (NO forward Lattice Sentry radars, NO airborne ALTIUS ISR, NO Engage-on-Remote!).
+      - `heuristic_ring`: Fixed geometric ring rule around center.
+    """
+    cop = lsdk.EntityManagerCOP()
+    register_infrastructure_on_cop(cop, infra_nodes)
+    rem_b = float(budget_musd)
+    placements: List[Dict[str, Any]] = []
+
+    if mode == "siloed_legacy":
+        # Legacy doctrine buys heavy co-located batteries right near HVAs (often inside debris keep-out!)
+        order = ["thaad_battery", "patriot_pac3_mse", "iron_dome_tamir_battery", "patriot_pac3_mse", "skynex_ahead_ciws", "sm3_block_iia_complex"]
+        idx = 0
+        while rem_b >= 7.5 and idx < 24:
+            spec = lmesh.NODE_BY_ID[order[idx % len(order)]]
+            if spec.deploy_cost_musd > rem_b:
+                idx += 1
+                if idx > 30:
+                    break
+                continue
+            tgt_inf = infra_nodes[idx % len(infra_nodes)]
+            lat = tgt_inf.lat + 0.03 * math.cos(idx * 1.7)
+            lon = tgt_inf.lon + 0.03 * math.sin(idx * 1.7)
+            terr_m = lmesh.procedural_global_terrain_elevation_m(lat, lon, mesh.sea_azimuth_rad)
+            ent_id = f"siloed-{spec.node_type_id[:8]}-{len(placements)+1:02d}"
+            ent = instantiate_lattice_asset_entity(ent_id, spec, lat, lon, terr_m, engage_on_remote_override=False)
+            cop.publish_entity(ent)
+            rem_b -= spec.deploy_cost_musd
+            placements.append({
+                "entity_id": ent_id, "node_type_id": spec.node_type_id, "name": spec.name,
+                "role": spec.role, "tier": spec.tier, "lat": round(lat, 5), "lon": round(lon, 5),
+                "terrain_elev_m": round(terr_m, 1), "deploy_cost_musd": spec.deploy_cost_musd,
+            })
+            idx += 1
+    else:
+        # Heuristic uniform ring around center
+        order = ["thaad_battery", "patriot_pac3_mse", "roadrunner_m_nest", "iron_dome_tamir_battery", "lattice_sentry_tower", "skynex_ahead_ciws"]
+        land_indices = [i for i in range(len(mesh.lats)) if mesh.features[i, 11] < 0.5]
+        idx = 0
+        while rem_b >= 2.0 and idx < 26 and land_indices:
+            spec = lmesh.NODE_BY_ID[order[idx % len(order)]]
+            if spec.deploy_cost_musd > rem_b:
+                idx += 1
+                continue
+            m_i = land_indices[(idx * 7) % len(land_indices)]
+            lat, lon = float(mesh.lats[m_i]), float(mesh.lons[m_i])
+            terr_m = lmesh.procedural_global_terrain_elevation_m(lat, lon, mesh.sea_azimuth_rad)
+            ent_id = f"ring-{spec.node_type_id[:8]}-{len(placements)+1:02d}"
+            ent = instantiate_lattice_asset_entity(ent_id, spec, lat, lon, terr_m, engage_on_remote_override=True)
+            cop.publish_entity(ent)
+            rem_b -= spec.deploy_cost_musd
+            placements.append({
+                "entity_id": ent_id, "node_type_id": spec.node_type_id, "name": spec.name,
+                "role": spec.role, "tier": spec.tier, "lat": round(lat, 5), "lon": round(lon, 5),
+                "terrain_elev_m": round(terr_m, 1), "deploy_cost_musd": spec.deploy_cost_musd,
+            })
+            idx += 1
