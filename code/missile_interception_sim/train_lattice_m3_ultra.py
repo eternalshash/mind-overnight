@@ -1262,3 +1262,81 @@ def train_all_models(
         opt_s = torch.optim.AdamW(surrogate_net.parameters(), lr=2.5e-3, weight_decay=1e-4)
         sched_s = torch.optim.lr_scheduler.CosineAnnealingLR(opt_s, T_max=surrogate_epochs, eta_min=1e-4)
         bs_s = 16384
+
+        print(f"[Stage 1.3] Training LatticeKinematicSurrogateNet on {str(device).upper()} ({surrogate_epochs} epochs)...")
+        t_s0 = time.time()
+        for ep in range(1, surrogate_epochs + 1):
+            surrogate_net.train()
+            perm = torch.randperm(n_trn)
+            ep_loss = 0.0
+            n_b = 0
+            for start in range(0, n_trn, bs_s):
+                idx = perm[start:start + bs_s]
+                xb = X_trn[idx].to(device, non_blocking=True)
+                yb = Y_trn[idx].to(device, non_blocking=True)
+
+                pk_p, cpa_p, tint_p, deb_p = surrogate_net(xb)
+                loss_pk = F.mse_loss(pk_p, yb[:, 0]) * 6.0
+                loss_cpa = F.smooth_l1_loss(torch.log1p(cpa_p), torch.log1p(yb[:, 1]))
+                loss_t = F.smooth_l1_loss(tint_p / 100.0, yb[:, 2] / 100.0)
+                loss_d = F.smooth_l1_loss(deb_p / 10.0, yb[:, 3] / 10.0)
+                loss = loss_pk + loss_cpa + loss_t + 0.5 * loss_d
+
+                opt_s.zero_grad()
+                loss.backward()
+                opt_s.step()
+                ep_loss += float(loss.item())
+                n_b += 1
+            sched_s.step()
+
+            if ep in (1, surrogate_epochs // 2, surrogate_epochs):
+                surrogate_net.eval()
+                with torch.no_grad():
+                    v_pk, v_cpa, v_t, _ = surrogate_net(X_val)
+                    pk_mae = float(torch.abs(v_pk - Y_val[:, 0]).mean().item())
+                    t_mae = float(torch.abs(v_t - Y_val[:, 2]).mean().item())
+                print(
+                    f"            Epoch {ep:2d}/{surrogate_epochs} | Loss: {ep_loss / max(1, n_b):.5f} "
+                    f"| Val Pk MAE: {pk_mae:.4f} | Val T_int MAE: {t_mae:.2f}s"
+                )
+
+        surrogate_train_s = time.time() - t_s0
+        torch.save(surrogate_net.state_dict(), surr_path)
+        stage1_stats = {
+            "physics_runs": physics_runs,
+            "rk4_total_steps": physics_runs * 40,
+            "physics_gen_seconds": round(t_phys, 3),
+            "physics_throughput_per_sec": round(physics_runs / t_phys, 1),
+            "surrogate_train_seconds": round(surrogate_train_s, 3),
+            "val_pk_mae": round(pk_mae, 5),
+            "val_tint_mae_s": round(t_mae, 3),
+        }
+        del X_trn, Y_trn, X_val, Y_val, X_np, Y_np
+
+    surrogate_net.eval()
+    for p in surrogate_net.parameters():
+        p.requires_grad_(False)
+
+    # --------------------------------------------------------------------------
+    # STAGE 2: METAL MPS ADVERSARIAL CURRICULUM SELF-PLAY (1,000,000+ EPISODES)
+    # --------------------------------------------------------------------------
+    deploy_net = LatticeMeshDeploymentNet().to(device)
+    killweb_net = LatticeKillWebPolicyNet().to(device)
+
+    if resume and os.path.exists(dep_path) and os.path.exists(kw_path):
+        print(f"[Stage 2] Resuming existing policy weights from {MODEL_DIR}")
+        deploy_net.load_state_dict(torch.load(dep_path, map_location=device, weights_only=True))
+        killweb_net.load_state_dict(torch.load(kw_path, map_location=device, weights_only=True))
+
+    cat_t = _build_node_catalog_tensors(device)
+    if not (resume and os.path.exists(dep_path) and os.path.exists(kw_path)):
+        print("\n[Stage 2.0] Running 80-step Differentiable Tactical Warm-Start on MPS...")
+        t_ws = time.time()
+        warmstart_policies_on_mps(deploy_net, killweb_net, cat_t, device, steps=80)
+        print(f"            Warm-Start completed in {time.time() - t_ws:.2f}s.")
+
+    params = list(deploy_net.parameters()) + list(killweb_net.parameters())
+    opt_rl = torch.optim.AdamW(params, lr=3.5e-4, weight_decay=1e-4)
+
+    n_updates = max(1, math.ceil(raid_episodes / raid_batch_size))
+    sched_rl = torch.optim.lr_scheduler.CosineAnnealingLR(opt_rl, T_max=n_updates, eta_min=1.5e-4)
