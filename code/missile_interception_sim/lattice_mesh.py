@@ -262,3 +262,6 @@ LATTICE_NODE_CATALOG: List[LatticeNodeSpec] = [
         engage_on_remote=True,
     ),
 ]
+
+NODE_BY_ID: Dict[str, LatticeNodeSpec] = {n.node_type_id: n for n in LATTICE_NODE_CATALOG}
+
