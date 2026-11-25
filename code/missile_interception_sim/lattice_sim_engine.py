@@ -62,3 +62,67 @@ class StrikeWaveSpec:
 
 
 @dataclass
+class ActiveThreatBody:
+    """True ground-truth 3-DoF physical state (HIDDEN from AI until sensor LOS!)."""
+    uid: str
+    weapon_profile: lmesh.ThreatWeaponProfile
+    launch_lat: float
+    launch_lon: float
+    target_lat: float
+    target_lon: float
+    target_id: str
+    is_sead_hunter: bool
+    launch_time_s: float
+    impact_time_s: float
+    ew_jam: float
+    is_decoy: bool = False
+    mirv_has_split: bool = False
+    is_active: bool = False
+    is_neutralized: bool = False
+    has_impacted: bool = False
+    neutralized_by: str = ""
+    lat: float = 0.0
+    lon: float = 0.0
+    alt_msl_m: float = 0.0
+    vel_enu: Tuple[float, float, float] = (0.0, 0.0, 0.0)
+    history_latlon: List[Tuple[float, float, float]] = field(default_factory=list)
+
+
+@dataclass
+class ActiveInterceptorBody:
+    """In-flight kinetic interceptor launched via a Lattice `INTERCEPT_TRACK` task."""
+    int_id: str
+    task_id: str
+    shooter_entity_id: str
+    shooter_spec: lmesh.LatticeNodeSpec
+    target_uid: str
+    engage_on_remote: bool
+    launch_time_s: float
+    predicted_hit_time_s: float
+    lat: float
+    lon: float
+    alt_msl_m: float
+    salvo_size: int
+    resolved: bool = False
+
+
+# ==============================================================================
+# 2. PRE-RAID DEPLOYMENT: PURE LEARNED NEURAL MESH vs. BASELINES
+# ==============================================================================
+
+def deploy_neural_lattice_mesh(
+    infra_nodes: List[lmesh.CrucialInfraNode],
+    mesh: lmesh.GeodesicSpatialMesh,
+    budget_musd: float,
+    deploy_net: tlm.LatticeMeshDeploymentNet,
+    device: torch.device,
+) -> Tuple[lsdk.EntityManagerCOP, List[Dict[str, Any]], float]:
+    """
+    Executes `LatticeMeshDeploymentNet` under Strict Fog of War (zero threat data!)
+    to place decoupled Sensors, EW Domes, and Multi-Tier Shooters onto `mesh`.
+    """
+    cop = lsdk.EntityManagerCOP()
+    register_infrastructure_on_cop(cop, infra_nodes)
+
+    cat_t = tlm._build_node_catalog_tensors(device)
+    cos_c = max(0.15, math.cos(math.radians(mesh.center_lat)))
