@@ -402,3 +402,72 @@ class LatticeEntity:
         if epoch_dt is None:
             epoch_dt = datetime(2026, 11, 25, 0, 0, 0, tzinfo=timezone.utc)
         exp_iso = (epoch_dt + timedelta(seconds=float(self.expiry_time_s))).isoformat()
+
+        payload: Dict[str, Any] = {
+            "entityId": self.entity_id,
+            "description": self.description,
+            "isLive": self.is_live,
+            "expiryTime": exp_iso,
+        }
+        if self.provenance:
+            payload["provenance"] = self.provenance.to_lattice_dict(epoch_dt)
+        if self.aliases:
+            payload["aliases"] = self.aliases.to_lattice_dict()
+        if self.mil_view:
+            payload["milView"] = self.mil_view.to_lattice_dict()
+        if self.location:
+            payload["location"] = self.location.to_lattice_dict()
+        if self.ontology:
+            payload["ontology"] = self.ontology.to_lattice_dict()
+        if self.sensors:
+            payload["sensors"] = self.sensors.to_lattice_dict()
+        if self.payloads:
+            payload["payloads"] = self.payloads.to_lattice_dict()
+        if self.tracked_by:
+            payload["trackedBy"] = self.tracked_by.to_lattice_dict()
+        if self.task_catalog:
+            payload["taskCatalog"] = self.task_catalog.to_lattice_dict()
+        if self.mesh_link:
+            payload["meshLink"] = self.mesh_link.to_lattice_dict()
+        if self.geo_infra:
+            payload["geoInfrastructure"] = self.geo_infra.to_lattice_dict()
+        return payload
+
+
+# ==============================================================================
+# 4. MULTI-SENSOR COVARIANCE INTERSECTION / KALMAN FUSION & COP MANAGER
+# ==============================================================================
+
+def fuse_sensor_measurements(
+    true_lat: float,
+    true_lon: float,
+    true_alt_m: float,
+    true_vel_enu: Tuple[float, float, float],
+    detecting_sensors: List[Tuple[str, float]],
+    prior_location: Optional[LocationComponent],
+    dt_s: float,
+    rng: np.random.Generator,
+) -> Tuple[Position, VelocityEnu, Tuple[float, float, float]]:
+    """
+    Fuses noisy sensor observations using inverse-variance Kalman / Covariance
+    Intersection weighting:
+      - 1 coarse long-range radar -> high positional uncertainty (~95-160 m)
+      - 2+ triangulated Lattice mesh sensors -> tight fire-control uncertainty (<40 m),
+        unlocking Engage-on-Remote for rear shooters!
+    """
+    if not detecting_sensors:
+        # Track coasting without active LOS: dead-reckon ENU & inflate covariance
+        if prior_location is not None:
+            v = prior_location.velocity_enu
+            lat_rad = math.radians(prior_location.position.latitude_degrees)
+            dlat = (v.n * dt_s) / 111_132.0
+            dlon = (v.e * dt_s) / max(1000.0, 111_320.0 * math.cos(lat_rad))
+            new_pos = Position(
+                latitude_degrees=prior_location.position.latitude_degrees + dlat,
+                longitude_degrees=prior_location.position.longitude_degrees + dlon,
+                altitude_hae_meters=max(0.0, prior_location.position.altitude_hae_meters + v.u * dt_s),
+            )
+            growth = (38.0 * dt_s) ** 2
+            c0, c1, c2 = prior_location.pos_covariance_diag_m2
+            return new_pos, v, (c0 + growth, c1 + growth, c2 + growth * 1.2)
+        return Position(true_lat, true_lon, true_alt_m), VelocityEnu(*true_vel_enu), (9000.0, 9000.0, 9000.0)
