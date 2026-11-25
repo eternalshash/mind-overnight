@@ -504,3 +504,68 @@ def check_3d_los_raycast(
     ground_dist_m = EARTH_RADIUS_M * c
     alt_diff_m = t_alt_msl_m - s_alt_msl_m
     slant_km = math.sqrt(ground_dist_m * ground_dist_m + alt_diff_m * alt_diff_m) * 1e-3
+
+    if ground_dist_m < 1500.0:
+        return True, slant_km
+
+    # 1. Smooth 4/3-Earth radar horizon upper bound
+    max_smooth_horizon_m = math.sqrt(2.0 * EFFECTIVE_RADAR_EARTH_RADIUS_M * max(1.0, s_alt_msl_m)) + math.sqrt(
+        2.0 * EFFECTIVE_RADAR_EARTH_RADIUS_M * max(1.0, t_alt_msl_m)
+    )
+    if ground_dist_m > max_smooth_horizon_m:
+        return False, slant_km
+
+    # 2. High exo-atmospheric threats (> 65 km) above local elevation mask (> 2.5 deg) clear terrestrial ridges
+    if t_alt_msl_m > 65_000.0:
+        elev_angle = math.atan2(t_alt_msl_m - s_alt_msl_m - (ground_dist_m ** 2) / (2.0 * EFFECTIVE_RADAR_EARTH_RADIUS_M), ground_dist_m)
+        if elev_angle > 0.042:  # > 2.4 degrees above horizon
+            return True, slant_km
+
+    # 3. Ray-march 10 intermediate terrain ridge samples along the geodesic chord
+    n_samples = 10
+    for k in range(1, n_samples):
+        u = float(k) / float(n_samples)
+        m_lat = s_lat + (t_lat - s_lat) * u
+        m_lon = s_lon + (t_lon - s_lon) * u
+        terrain_h = procedural_global_terrain_elevation_m(m_lat, m_lon, sea_azimuth_rad)
+        # Earth bulge drop at fraction u along chord of length D: D^2 * u * (1 - u) / (2 * R_eff)
+        earth_bulge_m = (ground_dist_m * ground_dist_m * u * (1.0 - u)) / (2.0 * EFFECTIVE_RADAR_EARTH_RADIUS_M)
+        ray_h_msl = s_alt_msl_m + (t_alt_msl_m - s_alt_msl_m) * u - earth_bulge_m
+        if ray_h_msl < terrain_h + 6.0:
+            return False, slant_km
+
+    return True, slant_km
+
+
+@njit(parallel=True, fastmath=True)
+def compute_mesh_horizon_features_numba(
+    mesh_lats: np.ndarray,
+    mesh_lons: np.ndarray,
+    infra_lats: np.ndarray,
+    infra_lons: np.ndarray,
+    infra_vals: np.ndarray,
+    infra_keepout_km: np.ndarray,
+    sea_azimuth_rad: float,
+) -> np.ndarray:
+    """
+    32-Core Parallel Spatial Mesh Evaluator!
+    For every candidate vertex on the geodesic mesh, ray-casts across 16 azimuths
+    and 3 threat altitude bands (35m sea-skimmer, 400m drone, 35km HGV) to compute
+    a rich 12-feature geometric & topographic descriptor tensor:
+      [0]  terrain_elev_km          (elevation MSL in km)
+      [1]  ridge_prominence_norm    (height above surrounding 15km ring -> high ground bonus!)
+      [2]  ground_low_horizon_km    (360-deg mean LOS horizon vs 35m sea-skimming cruise from 30m tower)
+      [3]  airborne_low_horizon_km  (360-deg mean LOS horizon vs 35m cruise from 2.8km ALTIUS orbit)
+      [4]  drone_alt_horizon_km     (360-deg mean LOS horizon vs 400m drone swarm)
+      [5]  min_dist_to_infra_km     (distance to nearest crucial infrastructure node)
+      [6]  weighted_dist_infra_km   (systemic-value-weighted distance to infrastructure cluster)
+      [7]  debris_standoff_score    (0 if inside debris keep-out zone, peaks at 18-55 km forward standoff!)
+      [8]  umbrella_30km_val_share  (share of systemic value within 45 km SHORAD/EW umbrella)
+      [9]  umbrella_100km_val_share (share of systemic value within 105 km PAC-3/Roadrunner umbrella)
+      [10] umbrella_220km_val_share (share of systemic value within 220 km THAAD upper-tier umbrella)
+      [11] is_maritime_cell         (1.0 if over water / coastal surf, 0.0 if inland solid ground)
+    """
+    n_mesh = mesh_lats.shape[0]
+    n_infra = infra_lats.shape[0]
+    feats = np.zeros((n_mesh, 12), dtype=np.float32)
+    total_val = max(1.0, float(np.sum(infra_vals)))
