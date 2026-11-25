@@ -926,3 +926,67 @@ def _neural_killweb_step(
             if d < min_d:
                 min_d = d
                 best_inf = inf
+
+        est_tti = (min_d * 1000.0) / spd
+        cval = best_inf.geo_infra.cascading_systemic_value if best_inf.geo_infra else 150.0
+        ko_km = best_inf.geo_infra.debris_keep_out_km if best_inf.geo_infra else 12.0
+        sigma = tr.location.position_sigma_m
+        cust_cnt = float(tr.tracked_by.sensor_count) if tr.tracked_by else 1.0
+        in_fl = float(tr.tracked_by.assigned_interceptors_in_flight) if tr.tracked_by else 0.0
+
+        trk_rows.append([
+            de / 500.0, dn / 500.0, p.altitude_hae_meters / 200_000.0,
+            math.log1p(p.altitude_hae_meters) / 15.0, spd / 7500.0, v.u / 3000.0,
+            est_tti / 300.0, cval / 250.0, min_d / 500.0, sigma / 150.0, cust_cnt / 4.0, in_fl / 3.0,
+        ])
+        trk_meta.append((p.latitude_degrees, p.longitude_degrees, p.altitude_hae_meters, spd, est_tti, min_d, ko_km, sigma, tr.entity_id.replace("trk-", "", 1)))
+
+    ast_rows = []
+    ast_specs: List[lmesh.LatticeNodeSpec] = []
+    for a in assets:
+        ap = a.location.position
+        spec = lmesh.NODE_BY_ID[a.ontology.platform_type]
+        ast_specs.append(spec)
+        de = (ap.longitude_degrees - mesh.center_lon) * 111.320 * cos_c
+        dn = (ap.latitude_degrees - mesh.center_lat) * 111.132
+        rem = float(a.payloads.total_remaining)
+        online = 1.0 if (a.mesh_link and a.mesh_link.is_online_in_mesh) else 0.0
+        ast_rows.append([
+            de / 500.0, dn / 500.0, 1.0 if spec.role == "ew" else 0.0, float(spec.tier) / 5.0,
+            a.payloads.magazine_fraction, math.log1p(rem) / 4.5, spec.shot_cost_musd / 25.0,
+            spec.weapon_range_km / 1200.0, spec.interceptor_speed_mps / 4500.0, online,
+        ])
+
+    # Pairwise surrogate inputs [1, Nt, Na, 14]
+    surr_np = np.zeros((1, Nt, Na, 14), dtype=np.float32)
+    phys_mask = np.zeros((1, Nt, Na + 1), dtype=bool)
+    phys_mask[0, :, Na] = True  # HOLD_FIRE always valid
+    d_km_mat = np.zeros((Nt, Na), dtype=np.float32)
+
+    for i in range(Nt):
+        tlat, tlon, talt, tspd, etti, d_hva, ko_km, sig, raw_uid = trk_meta[i]
+        # Observable kinematic maneuver proxy (no hidden weapon_id!)
+        est_man_g = 20.0 if (tspd > 1500.0 and talt < 65_000.0) else (8.0 if tspd > 600.0 else 3.5)
+        for j in range(Na):
+            a = assets[j]
+            spec = ast_specs[j]
+            ap = a.location.position
+            dkm = lmesh.haversine_km(tlat, tlon, ap.latitude_degrees, ap.longitude_degrees)
+            d_km_mat[i, j] = dkm
+            slant_km = math.hypot(dkm, max(0.0, talt - ap.altitude_hae_meters) * 1e-3)
+            has_loc = local_los_matrix.get((raw_uid, a.entity_id), False)
+            is_eor = 0.0 if has_loc else 1.0
+
+            if talt < spec.min_alt_m:
+                a_env = -min(1.0, (spec.min_alt_m - talt) / max(50.0, spec.min_alt_m))
+            elif talt > spec.max_alt_m:
+                a_env = -min(1.0, (talt - spec.max_alt_m) / max(1000.0, spec.max_alt_m * 0.35))
+            else:
+                a_env = 1.0
+
+            surr_np[0, i, j] = [
+                slant_km / 1000.0, dkm / 1000.0, talt / 200_000.0, math.log1p(talt) / 15.0,
+                tspd / 7500.0, 0.78, est_man_g / 30.0, 0.25,
+                spec.interceptor_speed_mps / 4500.0, spec.max_g_load / 40.0,
+                spec.weapon_range_km / 1200.0, a_env, sig / 150.0, is_eor,
+            ]
