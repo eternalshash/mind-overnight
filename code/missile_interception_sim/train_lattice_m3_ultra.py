@@ -583,3 +583,85 @@ def _build_node_catalog_tensors(device: torch.device) -> Dict[str, torch.Tensor]
     }
 
 
+def run_batched_gpu_raid_episodes(
+    batch_size: int,
+    deploy_net: LatticeMeshDeploymentNet,
+    killweb_net: LatticeKillWebPolicyNet,
+    surrogate_net: LatticeKinematicSurrogateNet,
+    cat_t: Dict[str, torch.Tensor],
+    device: torch.device,
+    adversarial_difficulty: float = 0.5,
+    deterministic: bool = False,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, Dict[str, float]]:
+    """
+    Simulates `batch_size` (e.g., 1,024) complete Global Theater Raid episodes
+    simultaneously on the Apple Metal `MPS` GPU under Strict Fog of War:
+      1. Samples randomized global Crucial Infrastructure clusters & 3D terrain meshes
+         (distinct from `GLOBAL_TEST_REGIONS` so held-out regions remain 100% unseen!).
+      2. `deploy_net` sequentially places Sensors, EW Domes, and Multi-Tier Shooters
+         under randomized Defense Budgets ($140M - $380M) with ZERO threat knowledge.
+      3. Generates adversarial multi-wave Time-on-Target raids:
+         - Wave 1: Drone swarm bait + SEAD anti-radar strikes (degrading/killing exposed radars!)
+         - Wave 2: Low-altitude 35m stealth sea-skimming & supersonic cruise missiles
+         - Wave 3: Quasi-ballistic weave + Mach 9-11 HGV + Exo-ICBM MIRV warheads!
+      4. `killweb_net` executes pure learned multi-wave fire-control & EW assignments.
+      5. Computes exact survival reward, debris standoff penalties, & cost-exchange!
+    """
+    B = batch_size
+    N_inf = 5
+    M = 48  # Candidate geodesic mesh vertices per batched global theater
+    max_placements = 12
+
+    # 1. Sample randomized Crucial Infrastructure graphs [B, N_inf]
+    inf_r = torch.rand(B, N_inf, device=device) * 48.0 + 6.0
+    inf_ang = torch.rand(B, N_inf, device=device) * (2.0 * math.pi)
+    inf_e = inf_r * torch.sin(inf_ang)
+    inf_n = inf_r * torch.cos(inf_ang)
+    inf_e[:, 0], inf_n[:, 0] = 0.0, 0.0  # Central Power/C2 anchor
+
+    is_hub = torch.zeros(B, N_inf, device=device)
+    is_hub[:, :2] = 1.0  # Nodes 0 & 1 are upstream POWER_GRID & SATCOM_C2
+    intrinsic_val = torch.rand(B, N_inf, device=device) * 70.0 + 115.0
+    cascade_val = intrinsic_val + is_hub * 55.0
+    keepout_km = torch.rand(B, N_inf, device=device) * 8.0 + 9.0
+    inf_elev_km = torch.rand(B, N_inf, device=device) * 0.45
+
+    infra_tok = torch.stack([
+        inf_e / 150.0,
+        inf_n / 150.0,
+        intrinsic_val / 200.0,
+        cascade_val / 250.0,
+        keepout_km / 25.0,
+        is_hub,
+        inf_elev_km,
+    ], dim=-1)  # [B, N_inf, 7]
+
+    # 2. Sample 3D Geodesic Mesh rings [B, M] around infrastructure
+    ring_radii = torch.tensor(
+        [16.0] * 8 + [34.0] * 12 + [68.0] * 12 + [125.0] * 10 + [185.0] * 6,
+        dtype=torch.float32, device=device
+    ).unsqueeze(0).expand(B, -1)
+    base_angles = torch.linspace(0.0, 2.0 * math.pi * (1.0 - 1.0 / M), M, device=device).unsqueeze(0)
+    mesh_ang = base_angles + torch.rand(B, M, device=device) * 0.35
+    mesh_e = ring_radii * torch.sin(mesh_ang)
+    mesh_n = ring_radii * torch.cos(mesh_ang)
+
+    sea_az = torch.rand(B, 1, device=device) * (2.0 * math.pi)
+    coastal_proj = torch.cos(mesh_ang - sea_az)
+    is_sea = ((coastal_proj > 0.35) & (ring_radii > 45.0)).float()
+    elev_km = (1.0 - is_sea) * (0.25 + 1.35 * torch.rand(B, M, device=device))
+    prominence = (1.0 - is_sea) * (elev_km - 0.55) * 1.4
+
+    # 3D Terrain-masked low-altitude vs airborne horizon features on the mesh
+    g_low_hor_norm = torch.clamp(0.18 + 0.48 * elev_km + 0.22 * prominence + 0.15 * is_sea, 0.08, 0.95)
+    air_low_hor_norm = torch.full((B, M), 0.88, device=device)
+    drone_hor_norm = torch.clamp(g_low_hor_norm + 0.22, 0.15, 0.98)
+
+    # Distances from mesh cells to infrastructure [B, M, N_inf]
+    dm_inf = torch.sqrt(
+        (mesh_e.unsqueeze(2) - inf_e.unsqueeze(1)) ** 2
+        + (mesh_n.unsqueeze(2) - inf_n.unsqueeze(1)) ** 2 + 1e-4
+    )
+    min_d_inf = dm_inf.min(dim=2).values
+    tot_cval = cascade_val.sum(dim=1, keepdim=True)
+    w_dist_inf = (dm_inf * cascade_val.unsqueeze(1)).sum(dim=2) / tot_cval
