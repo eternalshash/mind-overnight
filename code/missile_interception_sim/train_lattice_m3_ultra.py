@@ -1192,3 +1192,73 @@ def warmstart_policies_on_mps(
         loss_kw = F.cross_entropy(act_l.reshape(B * Nt, -1), tgt_a.reshape(B * Nt)) + 0.5 * F.cross_entropy(
             sal_l.reshape(B * Nt, 2), tgt_s.reshape(B * Nt)
         )
+
+        opt_w.zero_grad()
+        (loss_d + loss_kw).backward()
+        opt_w.step()
+
+
+def train_all_models(
+    physics_runs: int = 2_000_000,
+    raid_episodes: int = 1_000_000,
+    raid_batch_size: int = 2048,
+    surrogate_epochs: int = 14,
+    resume: bool = False,
+    seed: int = 42,
+) -> Dict[str, Any]:
+    os.makedirs(MODEL_DIR, exist_ok=True)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+
+    device = get_compute_device(prefer_mps=True)
+    surr_path = os.path.join(MODEL_DIR, "lattice_surrogate_mps.pt")
+    dep_path = os.path.join(MODEL_DIR, "lattice_deployment_mps.pt")
+    kw_path = os.path.join(MODEL_DIR, "lattice_killweb_mps.pt")
+    telem_path = os.path.join(MODEL_DIR, "training_telemetry.json")
+
+    print("=" * 94)
+    print("ANDURIL LATTICE-CLASS SPATIAL MESH & AUTONOMOUS KILL-WEB TRAINING PIPELINE (M3 ULTRA)")
+    print(f"Compute Device     : {device} (PyTorch {torch.__version__} | CPU Threads: {os.cpu_count()})")
+    print(f"Stage 1 Physics    : {physics_runs:,} 3-DoF RK4 + APN/ZEM + EW/Debris Engagements (All 32 Cores)")
+    print(f"Stage 2 Self-Play  : {raid_episodes:,} Multi-Wave Global Raid Episodes on {str(device).upper()}")
+    print("=" * 94)
+
+    # --------------------------------------------------------------------------
+    # STAGE 1: 32-CORE NUMBA RK4 DATASET + SURROGATE TRAINING ON MPS
+    # --------------------------------------------------------------------------
+    surrogate_net = LatticeKinematicSurrogateNet().to(device)
+    threat_mat, shooter_mat = _build_catalog_arrays_for_numba()
+
+    if resume and os.path.exists(surr_path):
+        print(f"[Stage 1] Resuming existing surrogate weights from {surr_path}")
+        surrogate_net.load_state_dict(torch.load(surr_path, map_location=device, weights_only=True))
+        stage1_stats = {"resumed": True}
+    else:
+        print("[Stage 1.1] Compiling 32-core Numba 3-DoF RK4 + EW kernel...")
+        t_jit = time.time()
+        _ = generate_rk4_engagement_dataset_numba(64, threat_mat, shooter_mat, rk4_steps=40, seed=seed)
+        print(f"            JIT compiled in {time.time() - t_jit:.2f}s.")
+
+        print(f"[Stage 1.2] Generating {physics_runs:,} 3-DoF RK4 engagements across all {os.cpu_count()} CPU cores...")
+        t0 = time.time()
+        X_np, Y_np = generate_rk4_engagement_dataset_numba(
+            physics_runs, threat_mat, shooter_mat, rk4_steps=40, seed=seed
+        )
+        t_phys = max(1e-6, time.time() - t0)
+        print(
+            f"            Generated {physics_runs:,} RK4 trajectories ({physics_runs * 40:,} RK4 steps) "
+            f"in {t_phys:.2f}s ({physics_runs / t_phys:,.0f} engagements/sec)!"
+        )
+
+        # Split 90% train / 10% held-out validation
+        n_val = min(200_000, physics_runs // 10)
+        n_trn = physics_runs - n_val
+
+        X_trn = torch.from_numpy(X_np[:n_trn])
+        Y_trn = torch.from_numpy(Y_np[:n_trn])
+        X_val = torch.from_numpy(X_np[n_trn:]).to(device)
+        Y_val = torch.from_numpy(Y_np[n_trn:]).to(device)
+
+        opt_s = torch.optim.AdamW(surrogate_net.parameters(), lr=2.5e-3, weight_decay=1e-4)
+        sched_s = torch.optim.lr_scheduler.CosineAnnealingLR(opt_s, T_max=surrogate_epochs, eta_min=1e-4)
+        bs_s = 16384
