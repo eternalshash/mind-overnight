@@ -744,3 +744,55 @@ def generate_geodesic_spatial_mesh(
             pts_lon.append(c_lon + d_e / (111.320 * cos_c))
             pts_e.append(d_e)
             pts_n.append(d_n)
+
+    lats_arr = np.array(pts_lat, dtype=np.float64)
+    lons_arr = np.array(pts_lon, dtype=np.float64)
+    e_arr = np.array(pts_e, dtype=np.float32)
+    n_arr = np.array(pts_n, dtype=np.float32)
+
+    infra_lats = np.array([n.lat for n in infra_nodes], dtype=np.float64)
+    infra_lons = np.array([n.lon for n in infra_nodes], dtype=np.float64)
+    infra_keepout = np.array([n.debris_keep_out_km for n in infra_nodes], dtype=np.float64)
+    sea_rad = math.radians(sea_azimuth_deg)
+
+    feats = compute_mesh_horizon_features_numba(
+        lats_arr, lons_arr, infra_lats, infra_lons, vals, infra_keepout, sea_rad
+    )
+    return GeodesicSpatialMesh(
+        center_lat=c_lat,
+        center_lon=c_lon,
+        sea_azimuth_rad=sea_rad,
+        lats=lats_arr,
+        lons=lons_arr,
+        rel_east_km=e_arr,
+        rel_north_km=n_arr,
+        features=feats,
+    )
+
+
+def update_self_healing_mesh_links(
+    asset_entities: List[lsdk.LatticeEntity],
+    infra_entities: List[lsdk.LatticeEntity],
+) -> Dict[str, Any]:
+    """
+    Computes dynamic RF/SATCOM mesh connectivity (`MeshLinkComponent`) across
+    surviving friendly Sensor, EW, and Shooter nodes via Breadth-First Search
+    anchored to C2 / SATCOM infrastructure. If SEAD destroys a relay node,
+    surviving nodes automatically re-route over alternate RF hops or SATCOM fallback!
+    """
+    live_assets = [a for a in asset_entities if a.is_live and a.location is not None]
+    if not live_assets:
+        return {"online_nodes": 0, "mean_hops": 0.0, "redundancy_degree": 0.0}
+
+    # Check if primary SATCOM_C2 / COMMAND_BUNKER infrastructure is operational
+    satcom_health = 1.0
+    c2_anchors: List[Tuple[float, float]] = []
+    for inf in infra_entities:
+        if inf.geo_infra and inf.location:
+            if inf.geo_infra.infra_category in ("SATCOM_C2", "COMMAND_BUNKER"):
+                c2_anchors.append((inf.location.position.latitude_degrees, inf.location.position.longitude_degrees))
+                satcom_health = min(satcom_health, inf.geo_infra.structural_health)
+
+    if not c2_anchors and infra_entities and infra_entities[0].location:
+        p = infra_entities[0].location.position
+        c2_anchors.append((p.latitude_degrees, p.longitude_degrees))
