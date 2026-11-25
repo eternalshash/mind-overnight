@@ -432,3 +432,75 @@ def evaluate_cascading_operational_health(
         val = gi.intrinsic_value
         total_intrinsic += val
         s_health = gi.structural_health
+
+        if gi.upstream_dependencies:
+            up_healths = [health_by_id.get(uid, 1.0) for uid in gi.upstream_dependencies]
+            mean_up = sum(up_healths) / len(up_healths)
+            # 65% autonomous backup / 35% grid-coupled capacity
+            cascade_mult = 0.65 + 0.35 * mean_up
+        else:
+            cascade_mult = 1.0
+
+        gi.operational_capacity = max(0.0, min(1.0, s_health * cascade_mult))
+        surviving_structural += val * s_health
+        surviving_operational += val * gi.operational_capacity
+
+    denom = max(1e-6, total_intrinsic)
+    return 100.0 * surviving_structural / denom, 100.0 * surviving_operational / denom
+
+
+# ==============================================================================
+# 3. 32-CORE NUMBA 3D TERRAIN ELEVATION & HORIZON RAYCASTING ENGINE
+# ==============================================================================
+
+@njit(fastmath=True)
+def procedural_global_terrain_elevation_m(lat_deg: float, lon_deg: float, sea_azimuth_rad: float) -> float:
+    """
+    Deterministic multi-scale 3D topographic & coastal elevation model (meters MSL)
+    for any global coordinate:
+      - Models coastal ocean basins (0 m MSL) along the maritime approach sector
+      - Models coastal foothills, river valleys, and mountain ridgelines (up to ~2,100 m)
+        inland so sensor placement on ridges vs valleys genuinely creates 3D radar
+        shadowing for low-altitude cruise missiles and drone swarms!
+    """
+    lat_r = math.radians(lat_deg)
+    lon_r = math.radians(lon_deg)
+
+    # Multi-harmonic deterministic continental relief
+    ridge_1 = math.sin(lat_r * 47.0 + lon_r * 31.0) * math.cos(lat_r * 29.0 - lon_r * 53.0)
+    ridge_2 = 0.55 * math.sin(lat_r * 113.0 - lon_r * 89.0)
+    ridge_3 = 0.30 * math.cos(lat_r * 211.0 + lon_r * 173.0)
+
+    # Directional maritime gradient relative to local sea approach bearing
+    proj_sea = math.cos(lat_r) * math.cos(lon_r * 12.0 - sea_azimuth_rad)
+    raw = 380.0 + 620.0 * ridge_1 + 340.0 * ridge_2 + 190.0 * ridge_3 - 260.0 * proj_sea
+    if raw <= 0.0:
+        return 0.0  # Maritime / sea surface (0 m MSL)
+    return min(2400.0, raw)
+
+
+@njit(fastmath=True)
+def check_3d_los_raycast(
+    s_lat: float,
+    s_lon: float,
+    s_alt_msl_m: float,
+    t_lat: float,
+    t_lon: float,
+    t_alt_msl_m: float,
+    sea_azimuth_rad: float,
+) -> Tuple[bool, float]:
+    """
+    Checks 3D Line-of-Sight between a Sensor at (s_lat, s_lon, s_alt_msl_m) and
+    a Threat at (t_lat, t_lon, t_alt_msl_m) over curved 4/3-refraction WGS84 Earth
+    PLUS intermediate 3D terrain ridge obstructions!
+    Returns: (has_los, slant_range_km)
+    """
+    phi1 = math.radians(s_lat)
+    phi2 = math.radians(t_lat)
+    dphi = phi2 - phi1
+    dlam = math.radians(t_lon - s_lon)
+    a = math.sin(dphi * 0.5) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlam * 0.5) ** 2
+    c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(max(0.0, 1.0 - a)))
+    ground_dist_m = EARTH_RADIUS_M * c
+    alt_diff_m = t_alt_msl_m - s_alt_msl_m
+    slant_km = math.sqrt(ground_dist_m * ground_dist_m + alt_diff_m * alt_diff_m) * 1e-3
