@@ -1118,3 +1118,77 @@ def warmstart_policies_on_mps(
             (rem_b / 400.0).unsqueeze(1), (rem_b / 320.0).clamp(max=1.0).unsqueeze(1),
             t_cnts / 6.0, torch.rand(B, 1, device=device),
         ], dim=-1)
+
+        affordable = cat_t["deploy_cost"].view(1, 1, 9) <= rem_b.view(B, 1, 1)
+        terrain_ok = (is_sea.unsqueeze(2) < 0.5) | (cat_t["can_sea"].view(1, 1, 9) > 0.5)
+        valid_mn = affordable & terrain_ok
+        mask_d = torch.cat([valid_mn.reshape(B, M * 9), (rem_b < 18.0).unsqueeze(1)], dim=-1)
+        mask_d[:, -1] = mask_d[:, -1] | (~valid_mn.view(B, -1).any(dim=1))
+
+        # Geometric utility score per (mesh_vertex, node_type) for warm-start teacher
+        # 0:Sentry(ridge), 1:ALTIUS(sea/outer), 2:EW(inner), 3:Skynex, 4:Roadrunner, 5:Tamir, 6:PAC3, 7:THAAD, 8:SM3
+        scores_mn = torch.zeros(B, M, 9, device=device)
+        scores_mn[:, :, 0] = 1.9 * g_hor + 1.0 * prom + 0.6 * min_d - 1.3 * t_cnts[:, 0:1]
+        scores_mn[:, :, 1] = 2.1 * is_sea + 1.2 * min_d - 1.4 * t_cnts[:, 1:2]
+        scores_mn[:, :, 2] = 1.7 * (1.0 - torch.clamp(min_d, max=1.0)) + 0.8 * standoff - 1.0 * t_cnts[:, 2:3]
+        scores_mn[:, :, 3] = 1.1 * (1.0 - torch.clamp(min_d, max=1.0)) - 1.0 * t_cnts[:, 3:4]
+        scores_mn[:, :, 4] = 1.9 * standoff + 1.2 * umb105 - 0.70 * t_cnts[:, 4:5]
+        scores_mn[:, :, 5] = 1.6 * standoff + 1.1 * umb105 - 0.85 * t_cnts[:, 5:6]
+        scores_mn[:, :, 6] = 1.8 * standoff + 1.4 * umb105 - 0.65 * t_cnts[:, 6:7]
+        scores_mn[:, :, 7] = 1.6 * standoff + 1.5 * umb220 - 1.05 * t_cnts[:, 7:8]
+        scores_mn[:, :, 8] = 1.5 * umb220 + 0.7 * is_sea - 1.25 * t_cnts[:, 8:9]
+        scores_mn = scores_mn.masked_fill(~valid_mn, -1e9)
+        target_d = scores_mn.reshape(B, M * 9).argmax(dim=-1)
+        has_v = valid_mn.view(B, -1).any(dim=1)
+        target_d = torch.where(has_v, target_d, torch.full_like(target_d, M * 9))
+
+        logits_d, _ = deploy_net(infra_tok=inf_tok, mesh_tok=mesh_tok, budget_ctx=b_ctx, action_mask=mask_d)
+        loss_d = F.cross_entropy(logits_d, target_d)
+
+        # 2. Warm-start `killweb_net` on HOLD_FIRE magazine rationing vs drones + aggressive existential intercept!
+        t_spd = torch.rand(B, Nt, device=device)  # [0..1] * 7500 m/s
+        t_alt = torch.exp(torch.rand(B, Nt, device=device) * 12.5) - 1.0
+        trk_tok = torch.zeros(B, Nt, 12, device=device)
+        trk_tok[:, :, 2] = t_alt / 200_000.0
+        trk_tok[:, :, 3] = torch.log1p(t_alt) / 15.0
+        trk_tok[:, :, 4] = t_spd
+        trk_tok[:, :, 6] = torch.where(t_spd < 0.05, torch.rand(B, Nt, device=device) * 1.5 + 0.5, torch.rand(B, Nt, device=device) * 0.4 + 0.05)
+        trk_tok[:, :, 7] = 0.75
+        trk_tok[:, :, 8] = torch.rand(B, Nt, device=device) * 0.5 + 0.05
+
+        a_types = torch.randint(0, 9, (B, Na), device=device)
+        ast_tok = torch.stack([
+            torch.zeros(B, Na, device=device), torch.zeros(B, Na, device=device),
+            cat_t["is_ew"][a_types], cat_t["tier"][a_types] / 5.0,
+            torch.full((B, Na), 0.8, device=device), torch.full((B, Na), 0.7, device=device),
+            cat_t["shot_cost"][a_types] / 25.0, cat_t["weapon_range"][a_types] / 1200.0,
+            cat_t["speed"][a_types] / 4500.0, torch.ones(B, Na, device=device),
+        ], dim=-1)
+
+        pk_e = torch.rand(B, Nt, Na, device=device) * 0.85 + 0.10
+        deb_ok = torch.where(torch.rand(B, Nt, Na, device=device) > 0.2, 1.0, -1.0)
+        scost_e = (cat_t["shot_cost"][a_types] / 25.0).unsqueeze(1).expand(B, Nt, Na)
+        edge_f = torch.stack([
+            pk_e, torch.full_like(pk_e, 0.25), torch.full_like(pk_e, 0.35),
+            deb_ok, scost_e, torch.zeros_like(pk_e),
+        ], dim=-1)
+
+        s_min = cat_t["min_alt"][a_types].unsqueeze(1)
+        s_max = cat_t["max_alt"][a_types].unsqueeze(1)
+        alt_valid = (t_alt.unsqueeze(2) >= s_min * 0.80) & (t_alt.unsqueeze(2) <= s_max * 1.15)
+        can_fire = ((cat_t["is_shooter"][a_types] > 0.5) | (cat_t["is_ew"][a_types] > 0.5)).unsqueeze(1) & alt_valid
+        pmask = torch.cat([can_fire, torch.ones(B, Nt, 1, dtype=torch.bool, device=device)], dim=-1)
+
+        # If slow drone (t_spd < 0.05) AND far out (tti > 0.7) AND only expensive shooters ($4M+, scost_e > 0.12) reach -> HOLD_FIRE!
+        slow_drone = (t_spd < 0.05).float().unsqueeze(2)
+        fast_existential = (t_spd >= 0.18).float().unsqueeze(2)
+        pair_util = (2.6 + 1.2 * fast_existential) * pk_e + 0.45 * deb_ok - scost_e * (0.15 * (1.0 - fast_existential) + 9.5 * slow_drone)
+        pair_util = pair_util.masked_fill(~can_fire, -1e9)
+        best_u, best_j = pair_util.max(dim=-1)
+        tgt_a = torch.where(best_u > 0.35, best_j, torch.full_like(best_j, Na))
+        tgt_s = (t_spd >= 0.16).long()
+
+        act_l, sal_l = killweb_net(trk_tok, ast_tok, edge_f, pmask)
+        loss_kw = F.cross_entropy(act_l.reshape(B * Nt, -1), tgt_a.reshape(B * Nt)) + 0.5 * F.cross_entropy(
+            sal_l.reshape(B * Nt, 2), tgt_s.reshape(B * Nt)
+        )
