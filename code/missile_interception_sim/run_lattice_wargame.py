@@ -86,3 +86,46 @@ def build_multi_wave_tot_strike(
     l_tbm_tel = offset_coord(520.0, +5.0)
     l_hgv_brigade = offset_coord(920.0, -15.0)
     l_icbm_field = offset_coord(2400.0, +18.0)
+
+    if preset_style == "sead_and_jamming_surge":
+        return [
+            # Wave 1 (ToT = 260s): Anti-radar SEAD hunters + Drone bait with heavy EW jamming!
+            lsim.StrikeWaveSpec("lancet_3", 4 * scale, l_drone_1[0], l_drone_1[1], "SEAD_RADAR", tot_arrival_window_s=240.0, ew_jamming_boost=0.35),
+            lsim.StrikeWaveSpec("kh_47m2_kinzhal", 2 * scale, l_bomber_stealth[0], l_bomber_stealth[1], "SEAD_RADAR", tot_arrival_window_s=245.0, ew_jamming_boost=0.40),
+            lsim.StrikeWaveSpec("shahed_136", 10 * scale, l_drone_2[0], l_drone_2[1], ids[0], tot_arrival_window_s=255.0, ew_jamming_boost=0.25),
+            # Wave 2 (ToT = 315s): Post-SEAD sea-skimming cruise + Iskander + DF-17 HGV follow-up!
+            lsim.StrikeWaveSpec("storm_shadow", 4 * scale, l_bomber_stealth[0], l_bomber_stealth[1], ids[1 % len(ids)], tot_arrival_window_s=310.0, ew_jamming_boost=0.35),
+            lsim.StrikeWaveSpec("kalibr_3m54", 4 * scale, l_sub_cruise[0], l_sub_cruise[1], ids[2 % len(ids)], tot_arrival_window_s=315.0, ew_jamming_boost=0.30),
+            lsim.StrikeWaveSpec("iskander_m", 3 * scale, l_tbm_tel[0], l_tbm_tel[1], ids[0], tot_arrival_window_s=320.0, ew_jamming_boost=0.35),
+            lsim.StrikeWaveSpec("df_17", 2 * scale, l_hgv_brigade[0], l_hgv_brigade[1], ids[3 % len(ids)], tot_arrival_window_s=322.0, ew_jamming_boost=0.30),
+        ]
+
+    if preset_style == "drone_bait_cost_trap":
+        return [
+            # Wave 1 (ToT = 280s): 28 cheap drones ($0.035M-$0.08M) designed to empty $4M-$24M SAM tubes!
+            lsim.StrikeWaveSpec("shahed_136", 16 * scale, l_drone_1[0], l_drone_1[1], ids[0], tot_arrival_window_s=275.0),
+            lsim.StrikeWaveSpec("anduril_bolt_m", 8 * scale, l_drone_2[0], l_drone_2[1], ids[1 % len(ids)], tot_arrival_window_s=280.0),
+            lsim.StrikeWaveSpec("switchblade_600", 4 * scale, l_drone_1[0], l_drone_1[1], ids[2 % len(ids)], tot_arrival_window_s=282.0),
+            # Wave 2 (ToT = 345s): High-end hypersonic, supersonic ramjet & MIRV decapitation strike 60s later!
+            lsim.StrikeWaveSpec("brahmos", 4 * scale, l_sub_cruise[0], l_sub_cruise[1], ids[2 % len(ids)], tot_arrival_window_s=340.0),
+            lsim.StrikeWaveSpec("3m22_zircon", 3 * scale, l_sub_cruise[0], l_sub_cruise[1], ids[0], tot_arrival_window_s=345.0),
+            lsim.StrikeWaveSpec("df_17", 3 * scale, l_hgv_brigade[0], l_hgv_brigade[1], ids[1 % len(ids)], tot_arrival_window_s=348.0),
+            lsim.StrikeWaveSpec("minuteman_iii", 1 * scale, l_icbm_field[0], l_icbm_field[1], ids[3 % len(ids)], tot_arrival_window_s=352.0),
+        ]
+
+    # Default `combined_tot_saturation`: Full-spectrum synchronized Time-on-Target strike!
+    return [
+        lsim.StrikeWaveSpec("shahed_136", 10 * scale, l_drone_1[0], l_drone_1[1], ids[0], tot_arrival_window_s=290.0),
+        lsim.StrikeWaveSpec("anduril_barracuda_500", 4 * scale, l_drone_2[0], l_drone_2[1], ids[1 % len(ids)], tot_arrival_window_s=295.0),
+        lsim.StrikeWaveSpec("bgm_109_tomahawk", 4 * scale, l_sub_cruise[0], l_sub_cruise[1], ids[2 % len(ids)], tot_arrival_window_s=300.0),
+        lsim.StrikeWaveSpec("brahmos", 3 * scale, l_sub_cruise[0], l_sub_cruise[1], ids[3 % len(ids)], tot_arrival_window_s=305.0),
+        lsim.StrikeWaveSpec("iskander_m", 3 * scale, l_tbm_tel[0], l_tbm_tel[1], ids[0], tot_arrival_window_s=310.0),
+        lsim.StrikeWaveSpec("df_17", 2 * scale, l_hgv_brigade[0], l_hgv_brigade[1], ids[2 % len(ids)], tot_arrival_window_s=312.0),
+        lsim.StrikeWaveSpec("minuteman_iii", 1 * scale, l_icbm_field[0], l_icbm_field[1], ids[1 % len(ids)], tot_arrival_window_s=318.0),
+    ]
+
+
+# ==============================================================================
+# 2. STATIC SPATIAL MESH & DIAGNOSTIC VISUALIZATION EXPORTER
+# ==============================================================================
+
