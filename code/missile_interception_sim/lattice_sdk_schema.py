@@ -207,3 +207,54 @@ class SensorMount:
     base_sigma_m: float = 45.0
     operational: bool = True
     jamming_load: float = 0.0  # [0.0 -> 2.0+]
+
+
+@dataclass
+class SensorsComponent:
+    """Collection of sensors mounted on a controllable Lattice Asset."""
+    sensors: List[SensorMount] = field(default_factory=list)
+
+    def to_lattice_dict(self) -> Dict[str, Any]:
+        return {
+            "sensors": [
+                {
+                    "sensorId": s.sensor_id,
+                    "sensorType": s.sensor_type,
+                    "maxRangeKm": s.max_range_km,
+                    "operational": s.operational,
+                    "jammingLoad": round(s.jamming_load, 3),
+                }
+                for s in self.sensors
+            ]
+        }
+
+
+@dataclass
+class PayloadMount:
+    """Kinetic effector or soft-kill EW payload inside `PayloadsComponent`."""
+    payload_id: str
+    weapon_name: str
+    tier: int  # 0=SoftKill EW, 1=Exo(GBI/SM3), 2=Upper(THAAD), 3=Mid(PAC3/S400), 4=SHORAD(Roadrunner/Tamir), 5=CIWS
+    quantity_remaining: int
+    quantity_initial: int
+    unit_shot_cost_musd: float
+    max_range_km: float
+    min_intercept_alt_m: float
+    max_intercept_alt_m: float
+    avg_speed_mps: float
+    max_g_load: float
+    kill_radius_m: float
+    engage_on_remote_capable: bool = True
+    cooldown_remaining_s: float = 0.0
+
+
+@dataclass
+class PayloadsComponent:
+    """Equipped kinetic magazines or EW emitters on a Lattice Asset."""
+    payloads: List[PayloadMount] = field(default_factory=list)
+
+    @property
+    def total_remaining(self) -> int:
+        return sum(p.quantity_remaining for p in self.payloads)
+
+    @property
