@@ -662,3 +662,42 @@ def execute_true_rk4_raid_simulation(
                 if existing.tracked_by:
                     existing.tracked_by.sensor_entity_ids = set()
                     existing.tracked_by.is_coasting = True
+
+        cop.sweep_expired(sim_t)
+
+        # 3. Autonomous Fire Control & EW Tasking Decision Step
+        live_tracks = cop.get_live_tracks(sim_t)
+        actionable_tracks = [
+            tr for tr in live_tracks
+            if tr.tracked_by and tr.tracked_by.assigned_interceptors_in_flight == 0
+        ]
+        # Order actionable tracks by highest closing speed / urgency so hypersonic & MIRV threats are serviced immediately
+        actionable_tracks.sort(
+            key=lambda tr: -(tr.location.velocity_enu.speed_mps if tr.location else 0.0)
+        )
+        combat_assets = [
+            a for a in cop.get_live_assets()
+            if a.payloads and len(a.payloads.payloads) > 0
+        ]
+
+        if actionable_tracks and combat_assets:
+            if fire_control_mode == "neural_lattice":
+                decisions = _neural_killweb_step(
+                    actionable_tracks, combat_assets, list(infra_by_id.values()),
+                    mesh, local_los_matrix, surrogate_net, killweb_net, device,
+                )
+            else:
+                decisions = _baseline_greedy_step(
+                    fire_control_mode, actionable_tracks, combat_assets,
+                    list(infra_by_id.values()), local_los_matrix,
+                )
+
+            th_by_uid = {th.uid: th for th in threats}
+            for trk_ent, chosen_asset, salvo_cnt, conf in decisions:
+                raw_uid = trk_ent.entity_id.replace("trk-", "", 1)
+                th_obj = th_by_uid.get(raw_uid)
+                if th_obj is None or th_obj.is_neutralized:
+                    continue
+
+                spec = lmesh.NODE_BY_ID[chosen_asset.ontology.platform_type]
+                has_local = local_los_matrix.get((raw_uid, chosen_asset.entity_id), False)
