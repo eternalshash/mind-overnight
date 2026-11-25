@@ -317,3 +317,58 @@ def build_threat_arsenal() -> Dict[str, ThreatWeaponProfile]:
         "minuteman_iii":         (5, 45.00, 0.05,  8.0, 0.40, 0.00, 3, 4, False),
         "rs_28_sarmat":          (5, 75.00, 0.06, 10.0, 0.60, 0.00, 6, 6, False),
     }
+
+    arsenal: Dict[str, ThreatWeaponProfile] = {}
+    for item in raw_items:
+        wid = item["id"]
+        role = item.get("role", "attacker")
+        if role not in ("attacker", "dual_role") and wid not in enrichment:
+            continue
+        if wid not in enrichment:
+            continue
+        arch, cost, rcs, mg, ew_j, ew_s, mirv, decoys, sead = enrichment[wid]
+        max_mps = float(item["max_speed_kmh"]) / 3.6
+        if item.get("apogee_km") is not None:
+            alt_m = float(item["apogee_km"]) * 1000.0
+        else:
+            alt_m = float(item.get("cruise_alt_m") or 200.0)
+        arsenal[wid] = ThreatWeaponProfile(
+            weapon_id=wid,
+            name=item["name"],
+            archetype_id=arch,
+            unit_cost_musd=cost,
+            max_speed_mps=max_mps,
+            cruise_or_apogee_m=alt_m,
+            rcs_m2=rcs,
+            maneuver_g=mg,
+            ew_jammer_SelfProtect=ew_j,
+            ew_susceptibility=ew_s,
+            mirv_count=mirv,
+            decoy_count=decoys,
+            warhead_mass_kg=float(item.get("warhead_mass_kg", 300.0)),
+            can_target_sead=sead,
+        )
+    return arsenal
+
+
+THREAT_ARSENAL: Dict[str, ThreatWeaponProfile] = build_threat_arsenal()
+THREAT_IDS_ORDERED: List[str] = list(THREAT_ARSENAL.keys())
+
+
+# ==============================================================================
+# 2. CASCADING CRUCIAL INFRASTRUCTURE DEPENDENCY GRAPH
+# ==============================================================================
+
+@dataclass
+class CrucialInfraNode:
+    """Single critical infrastructure node in a theater or global region."""
+    node_id: str
+    name: str
+    category: str  # "POWER_GRID", "SATCOM_C2", "COMMAND_BUNKER", "SEMICONDUCTOR_FAB", "NAVAL_PORT", "AIRBASE", "METRO"
+    lat: float
+    lon: float
+    intrinsic_value: float
+    debris_keep_out_km: float = 12.0
+    blast_radius_km: float = 3.5
+    upstream_ids: List[str] = field(default_factory=list)
+    cascading_value: float = 0.0
