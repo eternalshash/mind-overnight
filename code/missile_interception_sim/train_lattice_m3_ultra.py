@@ -888,3 +888,82 @@ def run_batched_gpu_raid_episodes(
             can_see = node_alive.unsqueeze(1) & (d_trk_ast <= torch.minimum(ast_s_rng, ridge_cap))
             space_cue = (t_alts > 55_000.0).float()
             custody_cnt = can_see.float().sum(dim=2) + space_cue
+
+            # On inner tick, unspotted sea-skimmers pop up late at 13 km (risking debris keep-out!)
+            late_popup = (custody_cnt < 0.5) & (sub_idx == 1)
+            cur_det_km = torch.where(late_popup, torch.full_like(cur_det_km, 13.0), cur_det_km)
+            trk_e = tgt_e + cur_det_km * torch.sin(ing_ang)
+            trk_n = tgt_n + cur_det_km * torch.cos(ing_ang)
+            d_trk_ast = torch.sqrt(
+                (trk_e.unsqueeze(2) - placed_e.unsqueeze(1)) ** 2
+                + (trk_n.unsqueeze(2) - placed_n.unsqueeze(1)) ** 2 + 1e-4
+            )
+            visible_now = track_alive & ((custody_cnt >= 0.5) | late_popup)
+            custody_eff = torch.clamp(custody_cnt, min=1.0)
+            pos_sigma = torch.where(
+                custody_cnt >= 2.0,
+                torch.full_like(custody_eff, 22.0),
+                torch.where(late_popup, torch.full_like(custody_eff, 82.0), torch.full_like(custody_eff, 46.0)),
+            )
+            est_tti = (cur_det_km * 1000.0) / t_speeds
+
+            vel_u = torch.where(arch_ids >= 3, -t_speeds * 0.35, torch.zeros_like(t_speeds))
+            trk_tok = torch.stack([
+                trk_e / 500.0, trk_n / 500.0, t_alts / 200_000.0, torch.log1p(t_alts) / 15.0,
+                t_speeds / 7500.0, vel_u / 3000.0, est_tti / 300.0, tgt_cval / 250.0,
+                cur_det_km / 500.0, pos_sigma / 150.0, custody_eff / 4.0, torch.zeros_like(custody_eff),
+            ], dim=-1)
+
+            ast_tok = torch.stack([
+                placed_e / 500.0, placed_n / 500.0, cat_t["is_ew"][placed_type], cat_t["tier"][placed_type] / 5.0,
+                node_mags / node_init_mags, torch.log1p(node_mags) / 4.5, cat_t["shot_cost"][placed_type] / 25.0,
+                cat_t["weapon_range"][placed_type] / 1200.0, cat_t["speed"][placed_type] / 4500.0,
+                (node_alive & peer_online).float(),
+            ], dim=-1)
+
+            slant_pair = torch.sqrt(d_trk_ast ** 2 + (t_alts.unsqueeze(2) * 1e-3) ** 2)
+            s_min_a = cat_t["min_alt"][placed_type].unsqueeze(1)
+            s_max_a = cat_t["max_alt"][placed_type].unsqueeze(1)
+            alt_env = torch.where(
+                t_alts.unsqueeze(2) < s_min_a,
+                -torch.clamp((s_min_a - t_alts.unsqueeze(2)) / torch.clamp(s_min_a, min=50.0), max=1.0),
+                torch.where(
+                    t_alts.unsqueeze(2) > s_max_a,
+                    -torch.clamp((t_alts.unsqueeze(2) - s_max_a) / torch.clamp(s_max_a * 0.35, min=1000.0), max=1.0),
+                    torch.ones_like(slant_pair),
+                ),
+            )
+            is_eor_pair = (~can_see).float()
+
+            surr_in = torch.stack([
+                slant_pair / 1000.0, d_trk_ast / 1000.0,
+                (t_alts / 200_000.0).unsqueeze(2).expand_as(slant_pair),
+                (torch.log1p(t_alts) / 15.0).unsqueeze(2).expand_as(slant_pair),
+                (t_speeds / 7500.0).unsqueeze(2).expand_as(slant_pair),
+                torch.full_like(slant_pair, 0.78),
+                (t_man_g / 30.0).unsqueeze(2).expand_as(slant_pair),
+                t_ew_jam.unsqueeze(2).expand_as(slant_pair),
+                (cat_t["speed"][placed_type] / 4500.0).unsqueeze(1).expand_as(slant_pair),
+                (cat_t["max_g"][placed_type] / 40.0).unsqueeze(1).expand_as(slant_pair),
+                (cat_t["weapon_range"][placed_type] / 1200.0).unsqueeze(1).expand_as(slant_pair),
+                alt_env,
+                (pos_sigma / 150.0).unsqueeze(2).expand_as(slant_pair),
+                is_eor_pair,
+            ], dim=-1)
+
+            with torch.no_grad():
+                s_pk, _, s_tint, s_deb = surrogate_net(surr_in)
+
+            is_ew_pair = (cat_t["is_ew"][placed_type] > 0.5).unsqueeze(1).expand_as(slant_pair)
+            ew_pk = t_ew_susc.unsqueeze(2) * torch.clamp(1.2 - d_trk_ast / 55.0, min=0.0, max=1.0)
+            eff_pk = torch.where(is_ew_pair, ew_pk, s_pk)
+            eff_tint = torch.where(is_ew_pair, torch.full_like(s_tint, 3.0), s_tint)
+
+            int_frac = torch.clamp(1.0 - eff_tint / torch.clamp(est_tti.unsqueeze(2), min=1.0), 0.0, 1.0)
+            int_dist_hva = cur_det_km.unsqueeze(2) * int_frac
+            debris_safe = torch.where(int_dist_hva >= (tgt_ko.unsqueeze(2) + s_deb * 0.35), torch.ones_like(eff_pk), -torch.ones_like(eff_pk))
+
+            edge_feat = torch.stack([
+                eff_pk, eff_tint / 150.0, (est_tti.unsqueeze(2) - eff_tint) / 120.0, debris_safe,
+                (cat_t["shot_cost"][placed_type] / 25.0).unsqueeze(1).expand_as(eff_pk), is_eor_pair,
+            ], dim=-1)
