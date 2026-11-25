@@ -518,3 +518,55 @@ class EntityManagerCOP:
     def __init__(self, track_coast_timeout_s: float = 12.0):
         self.entities: Dict[str, LatticeEntity] = {}
         self.track_coast_timeout_s = track_coast_timeout_s
+
+    def publish_entity(self, entity: LatticeEntity) -> None:
+        self.entities[entity.entity_id] = entity
+
+    def delete_entity(self, entity_id: str) -> None:
+        if entity_id in self.entities:
+            self.entities[entity_id].is_live = False
+
+    def sweep_expired(self, sim_time_s: float) -> List[str]:
+        """Expires stale tracks that lost sensor LOS past `expiry_time_s`."""
+        expired_ids: List[str] = []
+        for eid, ent in self.entities.items():
+            if ent.is_live and ent.ontology and ent.ontology.template == OntologyTemplate.TEMPLATE_TRACK:
+                if sim_time_s > ent.expiry_time_s:
+                    ent.is_live = False
+                    expired_ids.append(eid)
+        return expired_ids
+
+    def get_live_tracks(self, sim_time_s: float) -> List[LatticeEntity]:
+        self.sweep_expired(sim_time_s)
+        return [
+            e for e in self.entities.values()
+            if e.is_live and e.ontology and e.ontology.template == OntologyTemplate.TEMPLATE_TRACK
+        ]
+
+    def get_live_assets(self) -> List[LatticeEntity]:
+        return [
+            e for e in self.entities.values()
+            if e.is_live and e.ontology and e.ontology.template == OntologyTemplate.TEMPLATE_ASSET
+        ]
+
+    def get_infrastructure_entities(self) -> List[LatticeEntity]:
+        return [
+            e for e in self.entities.values()
+            if e.ontology and e.ontology.template == OntologyTemplate.TEMPLATE_GEO and e.geo_infra is not None
+        ]
+
+    def export_cop_snapshot(self, sim_time_s: float) -> Dict[str, Any]:
+        self.sweep_expired(sim_time_s)
+        epoch_dt = datetime(2026, 11, 25, 0, 0, 0, tzinfo=timezone.utc)
+        return {
+            "schema": "anduril.entitymanager.v1.EntitySnapshot",
+            "simTimeSeconds": round(sim_time_s, 2),
+            "liveEntityCount": sum(1 for e in self.entities.values() if e.is_live),
+            "entities": [e.to_lattice_json(epoch_dt) for e in self.entities.values() if e.is_live],
+        }
+
+
+# ==============================================================================
+# 5. LATTICE AUTONOMOUS TASKING API (`anduril.tasks.v2`)
+# ==============================================================================
+
