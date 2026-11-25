@@ -183,3 +183,43 @@ def render_spatial_mesh_diagnostic_plot(
         use_lbl = lbl if p["role"] not in seen_roles else None
         seen_roles.add(p["role"])
         ax1.scatter(p["lon"], p["lat"], marker=mk, s=95, c=col, edgecolors="white", linewidths=0.9, label=use_lbl, zorder=8)
+
+    # Plot Intercept Detonation Points
+    int_ev = [e for e in raid_result.get("intercept_events", []) if "int_lat" in e]
+    if int_ev:
+        ax1.scatter(
+            [e["int_lon"] for e in int_ev], [e["int_lat"] for e in int_ev],
+            marker="x", s=55, c="#fde047", linewidths=1.5, label="3-DoF RK4 Intercepts", zorder=9,
+        )
+
+    ax1.set_title(f"Learned Lattice Spatial Mesh Deployment\n{region_title}", color="white", fontsize=11, fontweight="bold")
+    ax1.set_xlabel("Longitude (deg)", color="#cbd5e1", fontsize=9.5)
+    ax1.set_ylabel("Latitude (deg)", color="#cbd5e1", fontsize=9.5)
+    ax1.tick_params(colors="#94a3b8", labelsize=8.5)
+    ax1.grid(color="#1e293b", linestyle=":", linewidth=0.7)
+    ax1.legend(loc="lower left", facecolor="#0f172a", edgecolor="#334155", labelcolor="white", fontsize=7.8)
+
+    # Panel 2: Quantitative Post-Training Gauntlet Comparison
+    ax2.set_facecolor("#0b1320")
+    if not gauntlet_df.empty:
+        piv = gauntlet_df.pivot(index="scenario", columns="architecture", values="cascading_operational_survival_pct")
+        cols_order = [c for c in ["Neural Lattice Kill-Web", "Heuristic Ring Mesh", "Legacy Siloed Batteries"] if c in piv.columns]
+        piv = piv[cols_order]
+        x = np.arange(len(piv.index))
+        width = 0.25
+        palette = ["#00e676", "#38bdf8", "#ef4444"]
+        for i, col_name in enumerate(cols_order):
+            vals = piv[col_name].values
+            bars = ax2.bar(x + (i - 1) * width, vals, width=width, color=palette[i], label=col_name, edgecolor="#0f172a")
+            for b in bars:
+                h = b.get_height()
+                ax2.text(b.get_x() + b.get_width() / 2.0, h + 1.2, f"{h:.0f}%", ha="center", va="bottom", color="#e2e8f0", fontsize=7.5)
+
+        ax2.set_xticks(x)
+        ax2.set_xticklabels([s.replace("_", "\n") for s in piv.index], color="#cbd5e1", fontsize=8.5)
+        ax2.set_ylim(0, 112)
+        ax2.set_ylabel("Cascading Infrastructure Operational Survival (%)", color="#cbd5e1", fontsize=9.5)
+        ax2.set_title("True 3-DoF RK4 Post-Training Gauntlet (Same $B Budget)", color="white", fontsize=11, fontweight="bold")
+        ax2.tick_params(colors="#94a3b8", labelsize=8.5)
+        ax2.grid(axis="y", color="#1e293b", linestyle=":", linewidth=0.7)
+        ax2.legend(loc="upper right", facecolor="#0f172a", edgecolor="#334155", labelcolor="white", fontsize=8.5)
