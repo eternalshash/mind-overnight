@@ -224,3 +224,71 @@ def generate_rk4_engagement_dataset_numba(
             burn_through_factor = min(1.0, (-rx) / 4500.0)
             glint_y = ew_jam * 18.0 * burn_through_factor * math.sin(9.5 * t_cur)
             glint_z = ew_jam * 15.0 * burn_through_factor * math.cos(8.3 * t_cur)
+
+            # Augmented ZEM Optimal Guidance command
+            t_go = max(2.2 * dt, -rx / vx_close)
+            zem_y = (ry + glint_y) + vy * t_go - 0.5 * at_y * t_go * t_go * 0.35
+            zem_z = (rz + glint_z) + vz * t_go - 0.5 * at_z * t_go * t_go * 0.35
+            cmd_y = -nav_N * zem_y / (t_go * t_go)
+            cmd_z = -nav_N * zem_z / (t_go * t_go)
+
+            cmd_mag = math.sqrt(cmd_y * cmd_y + cmd_z * cmd_z)
+            if cmd_mag > g_avail:
+                sc = g_avail / cmd_mag
+                cmd_y *= sc
+                cmd_z *= sc
+
+            # RK2/RK4 midpoint integration of autopilot lag + relative kinematics
+            dam_y1 = (cmd_y - am_y) / tau_ap
+            dam_z1 = (cmd_z - am_z) / tau_ap
+            am_y_mid = am_y + 0.5 * dt * dam_y1
+            am_z_mid = am_z + 0.5 * dt * dam_z1
+
+            rel_ay = am_y_mid - at_y
+            rel_az = am_z_mid - at_z
+
+            drx = vx_close * dt
+            dry = vy * dt + 0.5 * rel_ay * dt * dt
+            drz = vz * dt + 0.5 * rel_az * dt * dt
+
+            # Continuous quadratic sub-timestep CPA interpolation
+            dr_sq = drx * drx + dry * dry + drz * drz
+            if dr_sq > 1e-8:
+                tau_cpa = -(rx * drx + ry * dry + rz * drz) / dr_sq
+                if tau_cpa < 0.0:
+                    tau_cpa = 0.0
+                elif tau_cpa > 1.0:
+                    tau_cpa = 1.0
+                cx = rx + tau_cpa * drx
+                cy = ry + tau_cpa * dry
+                cz = rz + tau_cpa * drz
+                c_sq = cx * cx + cy * cy + cz * cz
+                if c_sq < min_dist_sq:
+                    min_dist_sq = c_sq
+
+            rx += drx
+            ry += dry
+            rz += drz
+            vy += rel_ay * dt
+            vz += rel_az * dt
+            am_y += dt * (cmd_y - am_y_mid) / tau_ap
+            am_z += dt * (cmd_z - am_z_mid) / tau_ap
+
+        cpa_m = math.sqrt(min_dist_sq)
+
+        # Apply physical range & altitude envelope gates to true kill probability
+        range_ratio = slant_km / max(1.0, s_range_km)
+        if range_ratio > 1.12 or alt_env < -0.15 or closing_cos < -0.25:
+            pk = 0.01 * math.exp(-max(0.0, range_ratio - 1.0) * 4.0)
+            cpa_m = max(cpa_m, 120.0 * max(1.0, range_ratio))
+        else:
+            # Smooth physical lethality curve vs kill_radius_m, range margin, and EW
+            cpa_ratio = cpa_m / max(2.0, kill_rad)
+            kin_pk = 1.0 / (1.0 + math.exp(3.2 * (cpa_ratio - 1.05)))
+            range_atten = 1.0 if range_ratio <= 0.88 else math.exp(-5.5 * (range_ratio - 0.88) ** 2)
+            env_atten = 1.0 if alt_env >= 0.0 else math.exp(6.0 * alt_env)
+            pk = max(0.005, min(0.985, kin_pk * range_atten * env_atten * (1.0 - 0.14 * ew_jam)))
+
+        # Ballistic kinetic debris throw distance downrange: v_horiz * sqrt(2*h/g) * drag_decay
+        fall_t = math.sqrt(2.0 * min(60_000.0, alt_m) / 9.80665)
+        debris_throw_km = min(35.0, (vt_max * 0.32 * fall_t * math.exp(-alt_m / 45000.0)) * 1e-3)
