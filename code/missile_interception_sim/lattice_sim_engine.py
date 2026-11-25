@@ -460,3 +460,60 @@ def execute_true_rk4_raid_simulation(
 
             tot_impact_s = wave.tot_arrival_window_s + float(rng.uniform(-6.0, 12.0))
             launch_t = tot_impact_s - flight_dur_s
+
+            threats.append(ActiveThreatBody(
+                uid=f"THREAT-{len(threats)+1:03d}-{prof.weapon_id[:8]}",
+                weapon_profile=prof,
+                launch_lat=l_lat,
+                launch_lon=l_lon,
+                target_lat=t_lat,
+                target_lon=t_lon,
+                target_id=tid,
+                is_sead_hunter=is_sead,
+                launch_time_s=launch_t,
+                impact_time_s=tot_impact_s,
+                ew_jam=min(1.0, prof.ew_jammer_SelfProtect + wave.ew_jamming_boost),
+            ))
+
+    if not threats:
+        return {"error": "No threats in strike plan"}
+
+    t_start = min(th.launch_time_s for th in threats)
+    t_end = max(th.impact_time_s for th in threats) + 12.0
+    dt_s = 2.0
+
+    in_flight_interceptors: List[ActiveInterceptorBody] = []
+    intercept_events: List[Dict[str, Any]] = []
+    sead_nodes_lost = 0
+    ew_soft_kills = 0
+    debris_collateral_events = 0
+    interceptor_spend_musd = 0.0
+
+    # Shift simulation timeline so earliest launch begins at T=0.0s
+    shift_s = -t_start if t_start < 0.0 else 0.0
+    for th in threats:
+        th.launch_time_s += shift_s
+        th.impact_time_s += shift_s
+    t_max = t_end + shift_s
+
+    cos_c = max(0.15, math.cos(math.radians(mesh.center_lat)))
+    sim_t = 0.0
+
+    while sim_t <= t_max:
+        # Cool down weapon launchers
+        for ast in cop.get_live_assets():
+            if ast.payloads:
+                for p in ast.payloads.payloads:
+                    p.cooldown_remaining_s = max(0.0, p.cooldown_remaining_s - dt_s)
+
+        # 1. Propagate all active threat 3D trajectories & MIRV bus separation
+        newly_spawned_mirvs: List[ActiveThreatBody] = []
+        for th in threats:
+            if th.is_neutralized or th.has_impacted:
+                continue
+            if sim_t < th.launch_time_s:
+                continue
+            th.is_active = True
+
+            dur = max(10.0, th.impact_time_s - th.launch_time_s)
+            u = min(1.0, max(0.0, (sim_t - th.launch_time_s) / dur))
