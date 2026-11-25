@@ -796,3 +796,71 @@ def update_self_healing_mesh_links(
     if not c2_anchors and infra_entities and infra_entities[0].location:
         p = infra_entities[0].location.position
         c2_anchors.append((p.latitude_degrees, p.longitude_degrees))
+
+    # Build peer-to-peer RF adjacency
+    adj: Dict[str, List[str]] = {a.entity_id: [] for a in live_assets}
+    for i, a1 in enumerate(live_assets):
+        p1 = a1.location.position
+        r1 = a1.mesh_link.comms_range_km if a1.mesh_link else 280.0
+        for j in range(i + 1, len(live_assets)):
+            a2 = live_assets[j]
+            p2 = a2.location.position
+            r2 = a2.mesh_link.comms_range_km if a2.mesh_link else 280.0
+            d_km = haversine_km(p1.latitude_degrees, p1.longitude_degrees, p2.latitude_degrees, p2.longitude_degrees)
+            if d_km <= max(r1, r2):
+                adj[a1.entity_id].append(a2.entity_id)
+                adj[a2.entity_id].append(a1.entity_id)
+
+    # Multi-source BFS from assets within RF range of C2 anchors
+    hops: Dict[str, int] = {}
+    queue: List[str] = []
+    for a in live_assets:
+        p = a.location.position
+        r = a.mesh_link.comms_range_km if a.mesh_link else 280.0
+        if any(haversine_km(p.latitude_degrees, p.longitude_degrees, clat, clon) <= r for clat, clon in c2_anchors):
+            hops[a.entity_id] = 1
+            queue.append(a.entity_id)
+
+    idx = 0
+    while idx < len(queue):
+        curr = queue[idx]
+        idx += 1
+        for nxt in adj[curr]:
+            if nxt not in hops:
+                hops[nxt] = hops[curr] + 1
+                queue.append(nxt)
+
+    online_cnt = 0
+    deg_sum = 0
+    hop_sum = 0
+    for a in live_assets:
+        if a.mesh_link is None:
+            a.mesh_link = lsdk.MeshLinkComponent()
+        a.mesh_link.connected_peer_ids = adj[a.entity_id]
+        deg_sum += len(adj[a.entity_id])
+        if a.entity_id in hops:
+            h = hops[a.entity_id]
+            a.mesh_link.hop_count_to_c2 = h
+            a.mesh_link.link_latency_ms = 6.0 * h
+            a.mesh_link.is_online_in_mesh = True
+            online_cnt += 1
+            hop_sum += h
+        elif a.mesh_link.satcom_fallback and satcom_health > 0.25:
+            # Self-healing L-band/Ka-band SATCOM beyond-line-of-sight fallback
+            a.mesh_link.hop_count_to_c2 = 3
+            a.mesh_link.link_latency_ms = 65.0
+            a.mesh_link.is_online_in_mesh = True
+            online_cnt += 1
+            hop_sum += 3
+        else:
+            a.mesh_link.hop_count_to_c2 = 99
+            a.mesh_link.link_latency_ms = 9999.0
+            a.mesh_link.is_online_in_mesh = False
+
+    n_live = max(1, len(live_assets))
+    return {
+        "online_nodes": online_cnt,
+        "total_live_nodes": len(live_assets),
+        "mean_hops": round(hop_sum / max(1, online_cnt), 2),
+        "redundancy_degree": round(deg_sum / n_live, 2),
+    }
