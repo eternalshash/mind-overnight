@@ -102,3 +102,56 @@ class AliasesComponent:
     name: str
     callsign: str = ""
 
+    def to_lattice_dict(self) -> Dict[str, Any]:
+        out = {"name": self.name}
+        if self.callsign:
+            out["callsign"] = self.callsign
+        return out
+
+
+@dataclass
+class Position:
+    """WGS84 geodetic coordinates with Height Above Ellipsoid (HAE) in meters."""
+    latitude_degrees: float
+    longitude_degrees: float
+    altitude_hae_meters: float = 0.0
+
+    def to_lattice_dict(self) -> Dict[str, float]:
+        return {
+            "latitudeDegrees": round(float(self.latitude_degrees), 6),
+            "longitudeDegrees": round(float(self.longitude_degrees), 6),
+            "altitudeHaeMeters": round(float(self.altitude_hae_meters), 2),
+        }
+
+
+@dataclass
+class VelocityEnu:
+    """Local East-North-Up Cartesian velocity vector in meters/second."""
+    e: float = 0.0
+    n: float = 0.0
+    u: float = 0.0
+
+    @property
+    def speed_mps(self) -> float:
+        return math.sqrt(self.e * self.e + self.n * self.n + self.u * self.u)
+
+    def to_lattice_dict(self) -> Dict[str, float]:
+        return {
+            "e": round(float(self.e), 2),
+            "n": round(float(self.n), 2),
+            "u": round(float(self.u), 2),
+        }
+
+
+@dataclass
+class LocationComponent:
+    """Spatial positioning, ENU velocity, and 3D positional error covariance (m^2)."""
+    position: Position
+    velocity_enu: VelocityEnu = field(default_factory=VelocityEnu)
+    # Diagonal 3x3 positional covariance [sigma_e^2, sigma_n^2, sigma_u^2] in m^2
+    pos_covariance_diag_m2: Tuple[float, float, float] = (2500.0, 2500.0, 3600.0)
+
+    @property
+    def position_sigma_m(self) -> float:
+        """RMS 3D positional uncertainty in meters (fire-control quality metric)."""
+        return math.sqrt(max(1e-3, sum(self.pos_covariance_diag_m2) / 3.0))
