@@ -792,3 +792,57 @@ def execute_true_rk4_raid_simulation(
                         debris_collateral_events += 1
                         inf_e.geo_infra.debris_collateral_hits += 1
                         inf_e.geo_infra.structural_health = max(0.0, inf_e.geo_infra.structural_health - 0.12)
+
+                intercept_events.append({
+                    "time_s": round(sim_t, 1),
+                    "threat_uid": ib.target_uid,
+                    "weapon": th_obj.weapon_profile.name,
+                    "effector": ib.shooter_spec.name,
+                    "salvo": ib.salvo_size,
+                    "mode": "ENGAGE_ON_REMOTE" if ib.engage_on_remote else "ORGANIC_LOS",
+                    "cpa_m": round(cpa_m, 2),
+                    "alt_km": round(th_obj.alt_msl_m * 1e-3, 2),
+                    "int_lat": round(th_obj.lat, 4),
+                    "int_lon": round(th_obj.lon, 4),
+                    "engage_on_remote": ib.engage_on_remote,
+                    "debris_violation": deb_viol,
+                })
+            else:
+                # Shoot-Look-Shoot BDA: clear in-flight counter so surviving track can be re-engaged!
+                if trk_ent and trk_ent.tracked_by:
+                    trk_ent.tracked_by.assigned_interceptors_in_flight = max(
+                        0, trk_ent.tracked_by.assigned_interceptors_in_flight - ib.salvo_size
+                    )
+
+        # 5. Resolve Leaker Impacts on Crucial Infrastructure or SEAD Radar Targets!
+        for th in threats:
+            if th.is_active and (not th.is_neutralized) and (not th.has_impacted) and sim_t >= th.impact_time_s:
+                th.has_impacted = True
+                cop.delete_entity(f"trk-{th.uid}")
+
+                if th.is_sead_hunter:
+                    ast_hit = cop.entities.get(th.target_id)
+                    if ast_hit and ast_hit.is_live:
+                        ast_hit.is_live = False
+                        sead_nodes_lost += 1
+                        # Self-healing Lattice mesh immediately recomputes multi-hop RF/SATCOM routing!
+                        lmesh.update_self_healing_mesh_links(cop.get_live_assets(), cop.get_infrastructure_entities())
+                else:
+                    inf_hit = infra_by_id.get(th.target_id)
+                    if inf_hit and inf_hit.geo_infra:
+                        inf_hit.geo_infra.leaker_direct_hits += 1
+                        dmg = min(0.85, 0.25 + th.weapon_profile.warhead_mass_kg / 750.0)
+                        inf_hit.geo_infra.structural_health = max(0.0, inf_hit.geo_infra.structural_health - dmg)
+
+        sim_t += dt_s
+
+    # Final Post-Raid BDA & Cascading Infrastructure Evaluation
+    struct_surv, op_surv = lmesh.evaluate_cascading_operational_health(list(infra_by_id.values()))
+    mesh_post = lmesh.update_self_healing_mesh_links(cop.get_live_assets(), cop.get_infrastructure_entities())
+
+    total_threats = len(threats)
+    kills = sum(1 for t in threats if t.is_neutralized)
+    leakers = sum(1 for t in threats if t.has_impacted)
+    eor_kills = sum(1 for e in intercept_events if e.get("engage_on_remote"))
+
+    deploy_spend = sum(a.node_cost_musd for a in cop.entities.values() if a.ontology and a.ontology.template == lsdk.OntologyTemplate.TEMPLATE_ASSET)
