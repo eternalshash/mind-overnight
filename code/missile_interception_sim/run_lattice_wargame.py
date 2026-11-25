@@ -318,3 +318,45 @@ def run_post_training_gauntlet(seed: int = 101) -> Dict[str, Any]:
                 "attacker_strike_cost_musd": r["attacker_strike_cost_musd"],
                 "favorable_shot_exchange_ratio": r["favorable_shot_exchange_ratio"],
             })
+
+        if featured_diag_data is None:
+            featured_diag_data = (reg["title"], infra_base, mesh, pl_n, res_n)
+            # Export Lattice SDK compliant Entity Snapshot & Tasks v2 log!
+            with open(os.path.join(BASE_DIR, "lattice_cop_snapshot.json"), "w", encoding="utf-8") as f:
+                json.dump(res_n["lattice_cop_snapshot"], f, indent=2)
+            with open(os.path.join(BASE_DIR, "lattice_tasks_stream.json"), "w", encoding="utf-8") as f:
+                json.dump(res_n["lattice_tasks_stream"], f, indent=2)
+
+    df = pd.DataFrame(rows)
+    csv_path = os.path.join(BASE_DIR, "lattice_gauntlet_summary.csv")
+    json_path = os.path.join(BASE_DIR, "lattice_gauntlet_results.json")
+    plot_path = os.path.join(BASE_DIR, "lattice_mesh_diagnostic.png")
+
+    df.to_csv(csv_path, index=False)
+    if featured_diag_data is not None:
+        render_spatial_mesh_diagnostic_plot(*featured_diag_data, df, plot_path)
+
+    agg = df.groupby("architecture")[
+        ["cascading_operational_survival_pct", "intercept_rate_pct", "engage_on_remote_kills", "ew_soft_kills", "debris_collateral_events", "interceptor_spend_musd"]
+    ].mean().round(2).to_dict(orient="index")
+
+    payload = {"aggregate_by_architecture": agg, "scenario_runs": rows}
+    with open(json_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2)
+
+    print("\n" + "=" * 104)
+    print("MEAN PERFORMANCE ACROSS ALL 4 UNSEEN GLOBAL GAUNTLET TESTS:")
+    for k, v in agg.items():
+        print(
+            f"  * {k:<25} -> Mean Survival: {v['cascading_operational_survival_pct']:5.1f}% | "
+            f"Mean Kills: {v['intercept_rate_pct']:5.1f}% | Mean Shot Spend: ${v['interceptor_spend_musd']:5.2f}M | "
+            f"Mean Debris Hits: {v['debris_collateral_events']:.2f}"
+        )
+    print("-" * 104)
+    print(f"Exported Gauntlet Summary CSV   : {csv_path}")
+    print(f"Exported Gauntlet Results JSON  : {json_path}")
+    print(f"Exported Lattice COP Snapshot   : {os.path.join(BASE_DIR, 'lattice_cop_snapshot.json')}")
+    print(f"Exported Lattice Tasks v2 Log   : {os.path.join(BASE_DIR, 'lattice_tasks_stream.json')}")
+    print(f"Exported Spatial Mesh Plot PNG  : {plot_path}")
+    print("=" * 104)
+    return payload
