@@ -517,3 +517,82 @@ def execute_true_rk4_raid_simulation(
 
             dur = max(10.0, th.impact_time_s - th.launch_time_s)
             u = min(1.0, max(0.0, (sim_t - th.launch_time_s) / dur))
+
+            # MIRV Post-Boost Vehicle bus separation at u = 0.42 in exo-atmosphere!
+            if th.weapon_profile.mirv_count > 1 and (not th.mirv_has_split) and u >= 0.42:
+                th.mirv_has_split = True
+                inf_vals = list(infra_by_id.values())
+                for m_i in range(1, th.weapon_profile.mirv_count):
+                    alt_inf = inf_vals[(m_i + len(newly_spawned_mirvs)) % len(inf_vals)]
+                    newly_spawned_mirvs.append(ActiveThreatBody(
+                        uid=f"{th.uid}-MIRV{m_i+1}",
+                        weapon_profile=th.weapon_profile,
+                        launch_lat=th.launch_lat,
+                        launch_lon=th.launch_lon,
+                        target_lat=alt_inf.location.position.latitude_degrees,
+                        target_lon=alt_inf.location.position.longitude_degrees,
+                        target_id=alt_inf.entity_id,
+                        is_sead_hunter=False,
+                        launch_time_s=th.launch_time_s,
+                        impact_time_s=th.impact_time_s + m_i * 2.5,
+                        ew_jam=th.ew_jam,
+                        mirv_has_split=True,
+                        is_active=True,
+                    ))
+
+            # Geodesic ground track + lateral hypersonic/quasi-ballistic weave
+            base_lat = th.launch_lat + (th.target_lat - th.launch_lat) * u
+            base_lon = th.launch_lon + (th.target_lon - th.launch_lon) * u
+            arch = th.weapon_profile.archetype_id
+
+            weave_lat = 0.0
+            if arch == 4 and 0.20 < u < 0.92:
+                weave_lat = 0.045 * math.sin(5.0 * math.pi * u)
+            elif arch == 3 and u > 0.70:
+                weave_lat = 0.015 * math.sin(9.0 * math.pi * u)
+
+            th.lat = base_lat + weave_lat
+            th.lon = base_lon
+            terr_h = lmesh.procedural_global_terrain_elevation_m(th.lat, th.lon, mesh.sea_azimuth_rad)
+
+            if arch in (0, 1):  # Terrain-following / sea-skimming drone or cruise
+                th.alt_msl_m = terr_h + th.weapon_profile.cruise_or_apogee_m
+            elif arch == 2:  # Supersonic ramjet high-low cruise
+                th.alt_msl_m = terr_h + (35.0 if u > 0.65 else min(12_000.0, th.weapon_profile.cruise_or_apogee_m))
+            elif arch == 4:  # Hypersonic boost-glide skip profile (glides 42-52 km until terminal dive u > 0.88)
+                glide_h = 45_000.0 + 5_500.0 * math.sin(3.5 * math.pi * u)
+                dive_env = 1.0 if u <= 0.86 else max(0.05, (1.0 - u) / 0.14)
+                th.alt_msl_m = max(terr_h + 25.0, glide_h * min(1.0, u / 0.14) * dive_env)
+            else:  # Ballistic / ICBM suborbital Keplerian arc
+                th.alt_msl_m = max(terr_h + 10.0, th.weapon_profile.cruise_or_apogee_m * 4.0 * u * (1.0 - u))
+
+            # ENU velocity vector
+            vn = ((th.target_lat - th.launch_lat) * 111_132.0) / dur
+            ve = ((th.target_lon - th.launch_lon) * 111_320.0 * cos_c) / dur
+            vu = -0.35 * th.weapon_profile.max_speed_mps if (arch >= 3 and u > 0.5) else 0.0
+            th.vel_enu = (ve, vn, vu)
+            if len(th.history_latlon) == 0 or int(sim_t) % 6 == 0:
+                th.history_latlon.append((th.lat, th.lon, th.alt_msl_m))
+
+        threats.extend(newly_spawned_mirvs)
+
+        # 2. Sensor 3D Terrain Raycasting & Multi-Sensor Kalman Track Fusion onto `EntityManagerCOP`
+        live_assets = cop.get_live_assets()
+        local_los_matrix: Dict[Tuple[str, str], bool] = {}
+
+        for th in threats:
+            if (not th.is_active) or th.is_neutralized or th.has_impacted:
+                cop.delete_entity(f"trk-{th.uid}")
+                continue
+
+            detecting: List[Tuple[str, float]] = []
+            # Space-IR boost cueing ONLY detects bright exo-atmospheric ballistic/ICBM plumes (>55 km alt) at coarse 135m sigma
+            if th.alt_msl_m > 55_000.0 and fire_control_mode != "siloed_greedy":
+                detecting.append(("space-ir-opir", 135.0))
+
+            for ast in live_assets:
+                if not ast.sensors or not ast.location:
+                    continue
+                sm = ast.sensors.sensors[0]
+                if not sm.operational or sm.max_range_km <= 1.0:
+                    continue
