@@ -1,0 +1,143 @@
+{
+  "device": "mps",
+  "cpu_cores_used": 32,
+  "stage1_rk4_surrogate": {
+    "resumed": true
+  },
+  "stage2_adversarial_self_play": {
+    "total_raid_episodes": 1001472,
+    "total_simulated_raid_threats": 16023552,
+    "elapsed_seconds": 429.336,
+    "episodes_per_second": 2332.6,
+    "final_deterministic_eval": {
+      "operational_survival_pct": 49.362,
+      "intercept_rate_pct": 73.26,
+      "mean_interceptor_spend_musd": 254.86,
+      "mean_attacker_cost_musd": 106.45,
+      "mean_debris_violations": 0.732,
+      "mean_reward": 1.483
+    },
+    "training_curve": [
+      {
+        "episodes_completed": 2048,
+        "adversarial_difficulty": 0.252,
+        "operational_survival_pct": 34.462,
+        "intercept_rate_pct": 58.6,
+        "mean_interceptor_spend_musd": 158.076,
+        "mean_attacker_cost_musd": 106.45,
+        "mean_debris_violations": 0.666,
+        "mean_reward": 1.041
+      },
+      {
+        "episodes_completed": 98304,
+        "adversarial_difficulty": 0.324,
+        "operational_survival_pct": 43.475,
+        "intercept_rate_pct": 68.561,
+        "mean_interceptor_spend_musd": 256.46,
+        "mean_attacker_cost_musd": 106.45,
+        "mean_debris_violations": 0.73,
+        "mean_reward": 1.287
+      },
+      {
+        "episodes_completed": 196608,
+        "adversarial_difficulty": 0.397,
+        "operational_survival_pct": 45.091,
+        "intercept_rate_pct": 70.251,
+        "mean_interceptor_spend_musd": 272.539,
+        "mean_attacker_cost_musd": 106.45,
+        "mean_debris_violations": 0.738,
+        "mean_reward": 1.34
+      },
+      {
+        "episodes_completed": 294912,
+        "adversarial_difficulty": 0.471,
+        "operational_survival_pct": 48.292,
+        "intercept_rate_pct": 72.198,
+        "mean_interceptor_spend_musd": 270.307,
+        "mean_attacker_cost_musd": 106.45,
+        "mean_debris_violations": 0.826,
+        "mean_reward": 1.426
+      },
+      {
+        "episodes_completed": 393216,
+        "adversarial_difficulty": 0.544,
+        "operational_survival_pct": 49.275,
+        "intercept_rate_pct": 72.733,
+        "mean_interceptor_spend_musd": 274.663,
+        "mean_attacker_cost_musd": 106.45,
+        "mean_debris_violations": 0.813,
+        "mean_reward": 1.46
+      },
+      {
+        "episodes_completed": 491520,
+        "adversarial_difficulty": 0.618,
+        "operational_survival_pct": 49.883,
+        "intercept_rate_pct": 72.937,
+        "mean_interceptor_spend_musd": 273.874,
+        "mean_attacker_cost_musd": 106.45,
+        "mean_debris_violations": 0.812,
+        "mean_reward": 1.482
+      },
+      {
+        "episodes_completed": 589824,
+        "adversarial_difficulty": 0.692,
+        "operational_survival_pct": 49.466,
+        "intercept_rate_pct": 73.178,
+        "mean_interceptor_spend_musd": 267.181,
+        "mean_attacker_cost_musd": 106.45,
+        "mean_debris_violations": 0.819,
+        "mean_reward": 1.471
+      },
+      {
+        "episodes_completed": 688128,
+        "adversarial_difficulty": 0.765,
+        "operational_survival_pct": 49.468,
+        "intercept_rate_pct": 73.636,
+        "mean_interceptor_spend_musd": 262.032,
+        "mean_attacker_cost_musd": 106.45,
+        "mean_debris_violations": 0.778,
+        "mean_reward": 1.477
+      },
+      {
+        "episodes_completed": 786432,
+        "adversarial_difficulty": 0.839,
+        "operational_survival_pct": 50.001,
+        "intercept_rate_pct": 73.102,
+        "mean_interceptor_spend_musd": 263.58,
+        "mean_attacker_cost_musd": 106.45,
+        "mean_debris_violations": 0.771,
+        "mean_reward": 1.495
+      },
+      {
+        "episodes_completed": 884736,
+        "adversarial_difficulty": 0.913,
+        "operational_survival_pct": 49.696,
+        "intercept_rate_pct": 73.242,
+        "mean_interceptor_spend_musd": 270.523,
+        "mean_attacker_cost_musd": 106.45,
+        "mean_debris_violations": 0.747,
+        "mean_reward": 1.486
+      },
+      {
+        "episodes_completed": 983040,
+        "adversarial_difficulty": 0.986,
+        "operational_survival_pct": 49.581,
+        "intercept_rate_pct": 73.029,
+        "mean_interceptor_spend_musd": 261.81,
+        "mean_attacker_cost_musd": 106.45,
+        "mean_debris_violations": 0.751,
+        "mean_reward": 1.485
+      },
+      {
+        "episodes_completed": 1001472,
+        "adversarial_difficulty": 1.0,
+        "operational_survival_pct": 49.348,
+        "intercept_rate_pct": 73.001,
+        "mean_interceptor_spend_musd": 255.13,
+        "mean_attacker_cost_musd": 106.45,
+        "mean_debris_violations": 0.722,
+        "mean_reward": 1.484
+      }
+    ]
+  }
+}
