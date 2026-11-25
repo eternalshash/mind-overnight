@@ -283,3 +283,37 @@ class ThreatWeaponProfile:
     decoy_count: int = 0
     warhead_mass_kg: float = 400.0
     can_target_sead: bool = False
+
+
+def build_threat_arsenal() -> Dict[str, ThreatWeaponProfile]:
+    """Loads `weapons_catalog.json` and enriches all offensive weapons with RCS, EW, MIRV & USD cost specs."""
+    cat_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "weapons_catalog.json")
+    raw_items = []
+    if os.path.exists(cat_path):
+        with open(cat_path, "r", encoding="utf-8") as f:
+            raw_items = json.load(f).get("weapons", [])
+
+    # Calibrated open-source CSIS / DoD unit cost ($M USD), RCS (m^2), maneuver G, EW susceptibility
+    enrichment = {
+        "shahed_136":            (0, 0.035, 0.08,  1.8, 0.00, 0.72, 1, 0, False),
+        "lancet_3":              (0, 0.040, 0.04,  4.5, 0.05, 0.65, 1, 0, True),
+        "switchblade_600":       (0, 0.085, 0.03,  4.0, 0.05, 0.55, 1, 0, True),
+        "anduril_bolt_m":        (0, 0.045, 0.02,  3.5, 0.05, 0.45, 1, 0, False),
+        "anduril_altius_700m":   (0, 0.160, 0.05,  5.0, 0.15, 0.35, 1, 0, True),
+        "bgm_109_tomahawk":      (1, 2.000, 0.05,  5.5, 0.20, 0.22, 1, 0, False),
+        "storm_shadow":          (1, 3.200, 0.015, 6.5, 0.35, 0.15, 1, 0, True),
+        "anduril_barracuda_100": (1, 0.190, 0.06,  5.0, 0.15, 0.30, 1, 0, False),
+        "anduril_barracuda_250": (1, 0.250, 0.05,  5.5, 0.20, 0.28, 1, 0, True),
+        "anduril_barracuda_500": (1, 0.380, 0.06,  5.5, 0.25, 0.25, 1, 0, False),
+        "kalibr_3m54":           (2, 1.800, 0.12, 10.0, 0.25, 0.18, 1, 0, False),
+        "brahmos":               (2, 3.500, 0.25, 14.0, 0.30, 0.12, 1, 0, True),
+        "mgm140_atacms":         (3, 1.500, 0.25, 12.0, 0.20, 0.05, 1, 0, True),
+        "iskander_m":            (3, 3.200, 0.15, 28.0, 0.55, 0.04, 1, 2, True),
+        "df_21d":                (3, 8.500, 0.30, 18.0, 0.45, 0.03, 1, 2, False),
+        "df_17":                 (4, 14.00, 0.08, 22.0, 0.50, 0.02, 1, 1, False),
+        "kh_47m2_kinzhal":       (4, 10.50, 0.14, 18.0, 0.45, 0.03, 1, 1, True),
+        "3m22_zircon":           (4, 12.00, 0.09, 16.0, 0.45, 0.02, 1, 0, False),
+        "agm_183a_arrw":         (4, 15.00, 0.07, 20.0, 0.40, 0.02, 1, 0, False),
+        "minuteman_iii":         (5, 45.00, 0.05,  8.0, 0.40, 0.00, 3, 4, False),
+        "rs_28_sarmat":          (5, 75.00, 0.06, 10.0, 0.60, 0.00, 6, 6, False),
+    }
