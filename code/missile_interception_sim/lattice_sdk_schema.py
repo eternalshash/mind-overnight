@@ -258,3 +258,55 @@ class PayloadsComponent:
         return sum(p.quantity_remaining for p in self.payloads)
 
     @property
+    def total_initial(self) -> int:
+        return max(1, sum(p.quantity_initial for p in self.payloads))
+
+    @property
+    def magazine_fraction(self) -> float:
+        return self.total_remaining / float(self.total_initial)
+
+    def to_lattice_dict(self) -> Dict[str, Any]:
+        return {
+            "payloads": [
+                {
+                    "payloadId": p.payload_id,
+                    "weaponName": p.weapon_name,
+                    "tier": p.tier,
+                    "quantityRemaining": p.quantity_remaining,
+                    "quantityInitial": p.quantity_initial,
+                    "unitShotCostMusd": p.unit_shot_cost_musd,
+                    "engageOnRemoteCapable": p.engage_on_remote_capable,
+                }
+                for p in self.payloads
+            ]
+        }
+
+
+@dataclass
+class TrackedByComponent:
+    """Kill-web provenance tracking which mesh sensors hold active custody of a Track."""
+    sensor_entity_ids: Set[str] = field(default_factory=set)
+    last_los_update_time_s: float = 0.0
+    is_coasting: bool = False
+    assigned_interceptors_in_flight: int = 0
+    ew_jammed_intensity: float = 0.0
+    ew_jam_attempted: bool = False
+
+    @property
+    def sensor_count(self) -> int:
+        return len(self.sensor_entity_ids)
+
+    def to_lattice_dict(self) -> Dict[str, Any]:
+        return {
+            "activelyTrackedByEntityIds": sorted(self.sensor_entity_ids),
+            "sensorCustodyCount": self.sensor_count,
+            "isCoasting": self.is_coasting,
+            "assignedInterceptorsInFlight": self.assigned_interceptors_in_flight,
+            "ewJammedIntensity": round(self.ew_jammed_intensity, 3),
+        }
+
+
+@dataclass
+class TaskCatalogComponent:
+    """Declares which Lattice `TaskType` commands an Asset can accept."""
+    supported_tasks: List[TaskType] = field(default_factory=list)
