@@ -401,3 +401,62 @@ def instantiate_lattice_asset_entity(
         ),
         node_cost_musd=spec.deploy_cost_musd,
     )
+
+
+# ==============================================================================
+# 3. TRUE 3-DOF RK4 CLOSED-LOOP RAID EXECUTION ENGINE
+# ==============================================================================
+
+def execute_true_rk4_raid_simulation(
+    cop: lsdk.EntityManagerCOP,
+    mesh: lmesh.GeodesicSpatialMesh,
+    strike_waves: List[StrikeWaveSpec],
+    fire_control_mode: str,  # "neural_lattice", "siloed_greedy", "heuristic_ring"
+    surrogate_net: Optional[tlm.LatticeKinematicSurrogateNet] = None,
+    killweb_net: Optional[tlm.LatticeKillWebPolicyNet] = None,
+    device: Optional[torch.device] = None,
+    seed: int = 101,
+) -> Dict[str, Any]:
+    """
+    Runs a complete time-stepped 3-DoF kinematic & RK4 terminal simulation (`dt=2.0s`
+    theater clock + `48-step RK4` terminal homing + quadratic sub-step CPA) to
+    evaluate defense performance without surrogate grading!
+    """
+    rng = np.random.default_rng(seed)
+    task_mgr = lsdk.LatticeTaskManager(cop)
+    infra_by_id = {e.entity_id: e for e in cop.get_infrastructure_entities()}
+    assets_list = cop.get_live_assets()
+
+    # 1. Instantiate all offensive threat bodies with synchronized Time-on-Target launch times!
+    threats: List[ActiveThreatBody] = []
+    attacker_total_cost_musd = 0.0
+
+    radar_targets = [
+        a for a in assets_list
+        if a.ontology and a.ontology.platform_type in ("lattice_sentry_tower", "patriot_pac3_mse", "thaad_battery")
+    ]
+
+    for w_i, wave in enumerate(strike_waves):
+        prof = lmesh.THREAT_ARSENAL[wave.weapon_id]
+        for c_i in range(wave.count):
+            attacker_total_cost_musd += prof.unit_cost_musd
+            is_sead = wave.target_node_id == "SEAD_RADAR" and len(radar_targets) > 0
+            if is_sead:
+                r_tgt = radar_targets[(w_i + c_i) % len(radar_targets)]
+                t_lat = r_tgt.location.position.latitude_degrees
+                t_lon = r_tgt.location.position.longitude_degrees
+                tid = r_tgt.entity_id
+            else:
+                inf_e = infra_by_id.get(wave.target_node_id, list(infra_by_id.values())[c_i % len(infra_by_id)])
+                t_lat = inf_e.location.position.latitude_degrees
+                t_lon = inf_e.location.position.longitude_degrees
+                tid = inf_e.entity_id
+
+            l_lat = wave.launch_lat + float(rng.uniform(-0.08, 0.08))
+            l_lon = wave.launch_lon + float(rng.uniform(-0.08, 0.08))
+            dist_m = lmesh.haversine_km(l_lat, l_lon, t_lat, t_lon) * 1000.0
+            avg_spd = max(55.0, prof.max_speed_mps * (0.86 if prof.archetype_id <= 2 else 0.78))
+            flight_dur_s = max(25.0, dist_m / avg_spd)
+
+            tot_impact_s = wave.tot_arrival_window_s + float(rng.uniform(-6.0, 12.0))
+            launch_t = tot_impact_s - flight_dur_s
