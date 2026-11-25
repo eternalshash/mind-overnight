@@ -990,3 +990,66 @@ def _neural_killweb_step(
                 spec.interceptor_speed_mps / 4500.0, spec.max_g_load / 40.0,
                 spec.weapon_range_km / 1200.0, a_env, sig / 150.0, is_eor,
             ]
+
+            pm = a.payloads.payloads[0]
+            mesh_ok = a.mesh_link is not None and a.mesh_link.is_online_in_mesh
+            eor_gate = has_loc or (mesh_ok and pm.engage_on_remote_capable and sig <= 85.0)
+            w_max = spec.ew_jam_radius_km if spec.role == "ew" else spec.weapon_range_km
+            alt_ok = (spec.min_alt_m * 0.80 <= talt <= spec.max_alt_m * 1.15)
+            ew_repeat_ok = (spec.role != "ew") or (not (tracks[i].tracked_by and tracks[i].tracked_by.ew_jam_attempted))
+            phys_mask[0, i, j] = (
+                a.is_live and pm.quantity_remaining > 0 and pm.cooldown_remaining_s <= 0.0
+                and slant_km <= w_max * 1.05 and alt_ok and eor_gate and ew_repeat_ok
+            )
+
+    with torch.no_grad():
+        trk_t = torch.tensor([trk_rows], dtype=torch.float32, device=device)
+        ast_t = torch.tensor([ast_rows], dtype=torch.float32, device=device)
+        surr_t = torch.tensor(surr_np, dtype=torch.float32, device=device)
+        mask_t = torch.tensor(phys_mask, dtype=torch.bool, device=device)
+
+        s_pk, _, s_tint, s_deb = surrogate_net(surr_t)
+        s_pk_np = s_pk[0].cpu().numpy()
+        s_tint_np = s_tint[0].cpu().numpy()
+        s_deb_np = s_deb[0].cpu().numpy()
+
+        edge_np = np.zeros((1, Nt, Na, 6), dtype=np.float32)
+        for i in range(Nt):
+            _, _, talt, tspd, etti, d_hva, ko_km, _, _ = trk_meta[i]
+            # Observable drone/subsonic EW susceptibility estimate from slow speed & low altitude
+            est_ew_susc = 0.68 if tspd < 130.0 else (0.24 if tspd < 340.0 else 0.04)
+            for j in range(Na):
+                spec = ast_specs[j]
+                if spec.role == "ew":
+                    pk_v = est_ew_susc * max(0.0, 1.15 - d_km_mat[i, j] / 55.0)
+                    ti_v = 3.0
+                else:
+                    pk_v = float(s_pk_np[i, j])
+                    ti_v = float(s_tint_np[i, j])
+                int_f = max(0.0, min(1.0, 1.0 - ti_v / max(1.0, etti)))
+                deb_ok = 1.0 if (d_hva * int_f) >= (ko_km + s_deb_np[i, j] * 0.35) else -1.0
+                edge_np[0, i, j] = [
+                    pk_v, ti_v / 150.0, (etti - ti_v) / 120.0, deb_ok,
+                    spec.shot_cost_musd / 25.0, surr_np[0, i, j, 13],
+                ]
+
+        edge_t = torch.tensor(edge_np, dtype=torch.float32, device=device)
+        act_logits, salvo_logits = killweb_net(trk_t, ast_t, edge_t, mask_t)
+        probs = torch.softmax(act_logits[0], dim=-1).cpu().numpy()
+        salvos = salvo_logits[0].argmax(dim=-1).cpu().numpy()
+
+    out: List[Tuple[lsdk.LatticeEntity, lsdk.LatticeEntity, int, float]] = []
+    used_cooldown_ids = set()
+    for i in range(Nt):
+        # Mask assets already committed in this exact millisecond sub-tick
+        row_p = probs[i].copy()
+        for j in range(Na):
+            if assets[j].entity_id in used_cooldown_ids:
+                row_p[j] = -1.0
+        best_j = int(np.argmax(row_p))
+        if best_j < Na and phys_mask[0, i, best_j] and row_p[best_j] > 0.0:
+            used_cooldown_ids.add(assets[best_j].entity_id)
+            out.append((tracks[i], assets[best_j], int(salvos[i]) + 1, float(row_p[best_j])))
+    return out
+
+
