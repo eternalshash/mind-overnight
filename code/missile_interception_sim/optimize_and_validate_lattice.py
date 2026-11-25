@@ -134,3 +134,50 @@ def run_full_optimization_and_validation() -> Dict[str, Any]:
             "neural_shot_spend_musd": res_n["interceptor_spend_musd"],
             "nodes_deployed": len(pl_n),
         })
+
+    # 2. Saturation Stress Multiplier Curve (1.0x, 1.5x, 2.0x, 3.0x)
+    print("\n[Study 2/4] Multi-Wave Saturation Raid Stress Curve ($320M Defense Budget):")
+    stress_rows = []
+    for mult in (1.0, 1.5, 2.0, 3.0):
+        waves_m = rlw.build_multi_wave_tot_strike(infra, sea_az, "combined_tot_saturation", attack_mult=mult)
+        cop_n, _, _ = lsim.deploy_neural_lattice_mesh(copy.deepcopy(infra), mesh, 320.0, dep, device)
+        res_n = lsim.execute_true_rk4_raid_simulation(cop_n, mesh, waves_m, "neural_lattice", surr, kw, device, seed=101)
+
+        cop_s, _, _ = lsim.deploy_baseline_defense("siloed_legacy", copy.deepcopy(infra), mesh, 320.0)
+        res_s = lsim.execute_true_rk4_raid_simulation(cop_s, mesh, waves_m, "siloed_greedy", seed=101)
+
+        print(
+            f"  Raid {mult:3.1f}x ({res_n['total_threats_with_mirvs']:3d} threats) -> "
+            f"Neural Lattice Surv: {res_n['cascading_operational_survival_pct']:5.1f}% ({res_n['threats_neutralized']}/{res_n['total_threats_with_mirvs']} kills) | "
+            f"Siloed Surv: {res_s['cascading_operational_survival_pct']:5.1f}% ({res_s['threats_neutralized']}/{res_s['total_threats_with_mirvs']} kills)"
+        )
+        stress_rows.append({
+            "raid_multiplier": mult,
+            "total_threats": res_n["total_threats_with_mirvs"],
+            "neural_survival_pct": res_n["cascading_operational_survival_pct"],
+            "siloed_survival_pct": res_s["cascading_operational_survival_pct"],
+            "neural_kills": res_n["threats_neutralized"],
+            "siloed_kills": res_s["threats_neutralized"],
+        })
+
+    # 3. SEAD Node-Attrition Mesh Self-Healing Validation
+    print("\n[Study 3/4] Pre-Raid SEAD Node-Attrition & Mesh Self-Healing Resilience ($300M Budget):")
+    sead_rows = []
+    for k_drop in (0, 1, 2, 3):
+        cop_n, _, _ = lsim.deploy_neural_lattice_mesh(copy.deepcopy(infra), mesh, 300.0, dep, device)
+        live_a = cop_n.get_live_assets()
+        for d_i in range(min(k_drop, max(0, len(live_a) - 2))):
+            live_a[d_i].is_live = False
+        mesh_stat = lmesh.update_self_healing_mesh_links(cop_n.get_live_assets(), cop_n.get_infrastructure_entities())
+        res_n = lsim.execute_true_rk4_raid_simulation(cop_n, mesh, waves_1x, "neural_lattice", surr, kw, device, seed=101)
+        online_pct = 100.0 * mesh_stat["online_nodes"] / max(1, mesh_stat["total_live_nodes"])
+        print(
+            f"  Destroyed Nodes: {k_drop} -> Surviving Mesh Online: {online_pct:5.1f}% "
+            f"(Mean Hops: {mesh_stat['mean_hops']:.2f}) | Operational Survival: {res_n['cascading_operational_survival_pct']:5.1f}%"
+        )
+        sead_rows.append({
+            "nodes_destroyed": k_drop,
+            "mesh_online_pct": round(online_pct, 1),
+            "mean_hops": mesh_stat["mean_hops"],
+            "operational_survival_pct": res_n["cascading_operational_survival_pct"],
+        })
