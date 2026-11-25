@@ -745,3 +745,74 @@ def run_batched_gpu_raid_episodes(
             act = logits.argmax(dim=-1)
         else:
             act = torch.multinomial(probs, num_samples=1).squeeze(-1)
+
+        is_stop = act == (M * 9)
+        active = can_continue & (~is_stop)
+        deploy_log_probs = deploy_log_probs + torch.where(can_continue, log_probs[batch_idx, act], torch.zeros_like(deploy_log_probs))
+        deploy_entropy = deploy_entropy + torch.where(can_continue, ent, torch.zeros_like(deploy_entropy))
+
+        safe_act = torch.clamp(act, max=M * 9 - 1)
+        m_idx = safe_act // 9
+        t_idx = safe_act % 9
+
+        cost_spent = torch.where(active, cat_t["deploy_cost"][t_idx], torch.zeros_like(rem_budget))
+        rem_budget = rem_budget - cost_spent
+
+        # Record placed node
+        placed_e[:, step] = mesh_e[batch_idx, m_idx]
+        placed_n[:, step] = mesh_n[batch_idx, m_idx]
+        placed_elev[:, step] = elev_km[batch_idx, m_idx]
+        placed_type[:, step] = t_idx
+        placed_valid[:, step] = active
+
+        occupied[batch_idx, m_idx] = occupied[batch_idx, m_idx] | active
+        one_hot_t = F.one_hot(t_idx, num_classes=9).float() * active.float().unsqueeze(1)
+        type_counts = type_counts + one_hot_t
+
+        # Update dynamic coverage state on mesh cells
+        d_from_new = mesh_pair_dist[batch_idx, m_idx]  # [B, M]
+        s_rng = cat_t["sensor_range"][t_idx].unsqueeze(1)
+        w_rng = cat_t["weapon_range"][t_idx].unsqueeze(1)
+        tier_v = cat_t["tier"][t_idx].unsqueeze(1)
+        act_f = active.float().unsqueeze(1)
+
+        dyn_cov[:, :, 0] += act_f * (d_from_new <= s_rng * 0.75).float() * 0.5
+        dyn_cov[:, :, 1] += act_f * (cat_t["is_ew"][t_idx].unsqueeze(1) > 0.5).float() * (d_from_new <= 55.0).float()
+        dyn_cov[:, :, 2] += act_f * ((tier_v >= 3.0) & (d_from_new <= w_rng)).float() * 0.5
+        dyn_cov[:, :, 3] += act_f * ((tier_v >= 1.0) & (tier_v <= 2.5) & (d_from_new <= w_rng)).float() * 0.5
+        dyn_cov = torch.clamp(dyn_cov, max=2.5)
+
+    # 4. Generate Multi-Wave Adversarial Time-on-Target Raid (2 Waves x 9 Tracks = 18 Threats/Raid)
+    # Wave 0: Drone-bait swarm + SEAD anti-radar strike + Subsonic stealth cruise
+    # Wave 1: Supersonic cruise + Quasi-ballistic weave + Mach 10 HGV + Exo-ICBM MIRVs
+    node_mags = cat_t["mag_size"][placed_type] * placed_valid.float()  # [B, Na]
+    node_init_mags = torch.clamp(node_mags.clone(), min=1.0)
+    node_alive = placed_valid.clone()
+
+    # SEAD Node Attrition Check before Wave 1: if Red launches SEAD and outer radar has zero SHORAD/EW cover, 35% chance lost!
+    sead_prob = 0.15 + 0.30 * adversarial_difficulty
+    ast_dist_pair = torch.sqrt(
+        (placed_e.unsqueeze(2) - placed_e.unsqueeze(1)) ** 2
+        + (placed_n.unsqueeze(2) - placed_n.unsqueeze(1)) ** 2 + 1e-4
+    )
+    shorad_ew_mask = placed_valid & ((cat_t["is_ew"][placed_type] > 0.5) | (cat_t["tier"][placed_type] >= 3.0))
+    protected_by_umbrella = ((ast_dist_pair <= 75.0) & shorad_ew_mask.unsqueeze(1)).any(dim=2)
+    sead_roll = torch.rand(B, max_placements, device=device)
+    sead_killed = (~protected_by_umbrella) & (sead_roll < sead_prob) & (cat_t["is_sensor"][placed_type] > 0.5)
+    node_alive = node_alive & (~sead_killed)
+
+    # Mesh connectivity check: isolated shooters (>350 km from any peer) suffer degraded link
+    peer_online = ((ast_dist_pair <= 340.0) & node_alive.unsqueeze(1)).sum(dim=2) >= 1
+    sensor_mask = node_alive & ((cat_t["sensor_range"][placed_type] >= 80.0))
+    airborne_isr_count = (node_alive & (placed_type == 1)).float().sum(dim=1)  # ALTIUS-600 count
+    sentry_ridge_count = (node_alive & (placed_type == 0)).float().sum(dim=1)
+
+    kw_log_probs = torch.zeros(B, device=device)
+    kw_entropy = torch.zeros(B, device=device)
+
+    infra_damage = torch.zeros(B, N_inf, device=device)
+    debris_penalties = torch.zeros(B, device=device)
+    interceptor_spend_musd = torch.zeros(B, device=device)
+    attacker_raid_cost_musd = torch.zeros(B, device=device)
+    total_threats_killed = torch.zeros(B, device=device)
+    total_threats_spawned = float(16)
