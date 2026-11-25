@@ -70,3 +70,35 @@ class TestLatticeKillWebSystem(unittest.TestCase):
         ent_json = snap["entities"][0]
         self.assertEqual(ent_json["ontology"]["template"], "TEMPLATE_TRACK")
         self.assertIn("velocityEnu", ent_json["location"])
+
+        # Advance clock past expiry_time_s -> track must automatically drop from COP!
+        self.assertEqual(len(cop.get_live_tracks(25.0)), 0)
+
+    def test_02_geodesic_mesh_3d_horizon_and_cascading_infrastructure(self):
+        """Verify 32-core 3D terrain horizon raycasting and upstream cascade dependencies."""
+        reg = copy.deepcopy(lmesh.GLOBAL_TEST_REGIONS["taiwan_silicon_shield"])
+        infra = reg["infrastructure"]
+        mesh = lmesh.generate_geodesic_spatial_mesh(infra, sea_azimuth_deg=reg["sea_azimuth_deg"])
+
+        self.assertEqual(mesh.features.shape[1], 12)
+        self.assertGreaterEqual(mesh.lats.shape[0], 80)
+
+        # Upstream POWER_GRID must have cascading_value strictly exceeding its intrinsic_value!
+        power_node = next(n for n in infra if n.category == "POWER_GRID")
+        self.assertGreater(power_node.cascading_value, power_node.intrinsic_value + 50.0)
+
+        # Airborne ALTIUS-600 (2,800m) must achieve far longer 35m sea-skimmer horizon than ground radar!
+        mean_ground_hor_norm = float(np.mean(mesh.features[:, 2]))
+        mean_air_hor_norm = float(np.mean(mesh.features[:, 3]))
+        self.assertGreater(mean_air_hor_norm, mean_ground_hor_norm * 1.4)
+
+    def test_03_trained_mps_models_exist_and_beat_siloed_baseline_in_rk4(self):
+        """Verify trained MPS checkpoints load cleanly and outperform Legacy Siloed Defense in true RK4."""
+        surr, dep, kw, device = tlm.load_trained_lattice_models()
+        self.assertIsNotNone(surr)
+
+        reg = copy.deepcopy(lmesh.GLOBAL_TEST_REGIONS["taiwan_silicon_shield"])
+        infra = reg["infrastructure"]
+        budget = float(reg["default_budget_musd"])
+        mesh = lmesh.generate_geodesic_spatial_mesh(infra, sea_azimuth_deg=reg["sea_azimuth_deg"])
+        waves = rlw.build_multi_wave_tot_strike(infra, reg["sea_azimuth_deg"], "combined_tot_saturation")
