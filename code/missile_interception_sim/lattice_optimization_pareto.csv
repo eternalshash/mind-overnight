@@ -1,0 +1,6 @@
+study,budget_musd,neural_survival_pct,siloed_survival_pct,neural_intercept_pct,siloed_intercept_pct,neural_shot_spend_musd,nodes_deployed
+budget_pareto,120.0,10.76,15.07,58.62,58.62,368.01,7
+budget_pareto,200.0,26.85,15.07,86.21,75.86,394.4,12
+budget_pareto,280.0,26.85,15.07,86.21,75.86,466.4,12
+budget_pareto,360.0,26.85,19.3,86.21,82.76,466.4,12
+budget_pareto,440.0,26.85,40.66,86.21,86.21,466.4,12
