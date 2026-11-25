@@ -403,3 +403,49 @@ def run_custom_user_plan(plan_path: str, attack_mult: float = 1.0) -> Dict[str, 
     return res
 
 
+def run_interactive_cli_wizard() -> None:
+    print("\n=== LATTICE GLOBAL RED-TEAM STRIKE WIZARD ===")
+    regions = list(lmesh.GLOBAL_TEST_REGIONS.keys())
+    for i, rk in enumerate(regions, 1):
+        print(f"  [{i}] {rk} — {lmesh.GLOBAL_TEST_REGIONS[rk]['title']}")
+    choice = input(f"Select target infrastructure region [1-{len(regions)}] (default 1): ").strip()
+    r_idx = int(choice) - 1 if choice.isdigit() and 1 <= int(choice) <= len(regions) else 0
+    reg_key = regions[r_idx]
+    reg = lmesh.GLOBAL_TEST_REGIONS[reg_key]
+
+    b_in = input(f"Enter AI Defense Budget in $M USD (default {reg['default_budget_musd']}): ").strip()
+    budget = float(b_in) if b_in else float(reg["default_budget_musd"])
+
+    m_in = input("Enter Attack Stress Multiplier [1.0=Fair, 2.0=Saturation, 3.0=Extreme] (default 1.0): ").strip()
+    mult = float(m_in) if m_in else 1.0
+
+    surrogate_net, deploy_net, killweb_net, device = tlm.load_trained_lattice_models()
+    infra_nodes = copy.deepcopy(reg["infrastructure"])
+    mesh = lmesh.generate_geodesic_spatial_mesh(infra_nodes, sea_azimuth_deg=reg["sea_azimuth_deg"])
+    cop, placements, spent = lsim.deploy_neural_lattice_mesh(copy.deepcopy(infra_nodes), mesh, budget, deploy_net, device)
+    waves = build_multi_wave_tot_strike(infra_nodes, reg["sea_azimuth_deg"], "combined_tot_saturation", attack_mult=mult)
+    res = lsim.execute_true_rk4_raid_simulation(cop, mesh, waves, "neural_lattice", surrogate_net, killweb_net, device)
+
+    print("\n" + "=" * 92)
+    print(f"RESULT -> Operational Survival: {res['cascading_operational_survival_pct']:.2f}% | Kills: {res['threats_neutralized']}/{res['total_threats_with_mirvs']}")
+    print(f"Nodes Placed ({len(placements)}, ${spent:.1f}M): " + ", ".join(p["node_type_id"] for p in placements))
+    print("=" * 92)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Lattice Post-Training RK4 Gauntlet & Custom Strike Wargame")
+    parser.add_argument("--mode", choices=["gauntlet", "custom", "interactive"], default="gauntlet")
+    parser.add_argument("--plan", type=str, default="", help="Path to custom JSON strike plan")
+    parser.add_argument("--attack-mult", type=float, default=1.0, help="Attack wave size stress multiplier")
+    args = parser.parse_args()
+
+    if args.mode == "interactive":
+        run_interactive_cli_wizard()
+    elif args.mode == "custom" or args.plan:
+        run_custom_user_plan(args.plan, attack_mult=args.attack_mult)
+    else:
+        run_post_training_gauntlet()
+
+
+if __name__ == "__main__":
+    main()
