@@ -1053,3 +1053,75 @@ def _neural_killweb_step(
     return out
 
 
+def _baseline_greedy_step(
+    mode: str,
+    tracks: List[lsdk.LatticeEntity],
+    assets: List[lsdk.LatticeEntity],
+    infra_ents: List[lsdk.LatticeEntity],
+    local_los_matrix: Dict[Tuple[str, str], bool],
+) -> List[Tuple[lsdk.LatticeEntity, lsdk.LatticeEntity, int, float]]:
+    """Greedy legacy fire control: fires nearest in-envelope battery at earliest contact (vulnerable to bait!)."""
+    out = []
+    used = set()
+    for tr in tracks:
+        p = tr.location.position
+        raw_uid = tr.entity_id.replace("trk-", "", 1)
+        best_a = None
+        best_d = 1e9
+        for a in assets:
+            if a.entity_id in used or not a.is_live or not a.payloads:
+                continue
+            pm = a.payloads.payloads[0]
+            if pm.quantity_remaining <= 0 or pm.cooldown_remaining_s > 0.0:
+                continue
+            spec = lmesh.NODE_BY_ID[a.ontology.platform_type]
+            if spec.role != "shooter":
+                continue
+            if mode == "siloed_greedy" and not local_los_matrix.get((raw_uid, a.entity_id), False):
+                continue
+            ap = a.location.position
+            dkm = lmesh.haversine_km(p.latitude_degrees, p.longitude_degrees, ap.latitude_degrees, ap.longitude_degrees)
+            slant = math.hypot(dkm, max(0.0, p.altitude_hae_meters - ap.altitude_hae_meters) * 1e-3)
+            if slant <= spec.weapon_range_km and spec.min_alt_m <= p.altitude_hae_meters <= spec.max_alt_m * 1.15:
+                if dkm < best_d:
+                    best_d = dkm
+                    best_a = a
+        if best_a is not None:
+            used.add(best_a.entity_id)
+            # Legacy Shoot-Shoot doctrine fires 2 rounds indiscriminately!
+            out.append((tr, best_a, 2, 0.5))
+    return out
+
+
+def _run_single_true_rk4_terminal_duel(
+    spec: lmesh.LatticeNodeSpec,
+    th: ActiveThreatBody,
+    track_sigma_m: float,
+    salvo_size: int,
+    rng: np.random.Generator,
+) -> Tuple[bool, float, float]:
+    """
+    Executes a true 48-step 3-DoF RK4 terminal homing simulation with APN/ZEM,
+    autopilot lag, altitude density G-scaling, target weave, and quadratic CPA!
+    """
+    alt_m = th.alt_msl_m
+    if alt_m < spec.min_alt_m * 0.75 or alt_m > spec.max_alt_m * 1.20:
+        return False, 450.0, 0.0
+
+    vt = th.weapon_profile.max_speed_mps
+    vm = spec.interceptor_speed_mps * (1.0 - 0.12 * math.exp(-alt_m / 7500.0))
+    vx_close = max(250.0, vm + vt * 0.65)
+    t_term = 9.0
+    steps = 48
+    dt = t_term / steps
+
+    best_cpa_m = 9999.0
+    killed_any = False
+
+    for _ in range(salvo_size):
+        rx = -vx_close * t_term
+        handoff = track_sigma_m * (1.0 + 0.75 * th.ew_jam)
+        ry = float(rng.normal(0.0, handoff * 0.65))
+        rz = float(rng.normal(0.0, handoff * 0.65))
+        vy = -ry / t_term + float(rng.normal(0.0, 14.0))
+        vz = -rz / t_term + float(rng.normal(0.0, 12.0))
