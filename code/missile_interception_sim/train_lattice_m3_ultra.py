@@ -520,3 +520,66 @@ class LatticeKillWebPolicyNet(nn.Module):
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         ht = self.trk_self_attn(self.trk_enc(trk_tok), self.trk_enc(trk_tok), kv_mask=trk_valid)
         ha = self.ast_self_attn(self.ast_enc(ast_tok), self.ast_enc(ast_tok), kv_mask=ast_valid)
+
+        qt = self.q_pair(ht).unsqueeze(2)  # [B, Nt, 1, 64]
+        ka = self.k_pair(ha).unsqueeze(1)  # [B, 1, Na, 64]
+        he = self.edge_enc(edge_feat)      # [B, Nt, Na, 32]
+
+        rel = F.silu(qt + ka)
+        pair_logits = self.pair_scorer(torch.cat([rel, he], dim=-1)).squeeze(-1)  # [B, Nt, Na]
+        hold_logits = self.hold_fire_head(ht)  # [B, Nt, 1]
+
+        action_logits = torch.cat([pair_logits, hold_logits], dim=-1)  # [B, Nt, Na + 1]
+        action_logits = action_logits.masked_fill(~pair_mask, -1e9)
+
+        # Salvo logits conditioned on track state + best available edge context
+        best_edge = he.max(dim=2).values  # [B, Nt, 32]
+        salvo_logits = self.salvo_head(torch.cat([ht, best_edge], dim=-1))  # [B, Nt, 2]
+        return action_logits, salvo_logits
+
+
+# ==============================================================================
+# 3. STAGE 2: GPU-BATCHED GLOBAL MULTI-WAVE RAID ENVIRONMENT (1,000,000+ EPISODES)
+# ==============================================================================
+
+def _build_node_catalog_tensors(device: torch.device) -> Dict[str, torch.Tensor]:
+    """Packs the 9 Lattice node specs onto `MPS` GPU tensors for vectorized rollout."""
+    costs = [n.deploy_cost_musd for n in lmesh.LATTICE_NODE_CATALOG]
+    shot_costs = [n.shot_cost_musd for n in lmesh.LATTICE_NODE_CATALOG]
+    mags = [float(n.magazine_size) for n in lmesh.LATTICE_NODE_CATALOG]
+    s_ranges = [n.sensor_range_km for n in lmesh.LATTICE_NODE_CATALOG]
+    s_sigmas = [n.sensor_sigma_m for n in lmesh.LATTICE_NODE_CATALOG]
+    p_alts = [n.platform_alt_agl_m for n in lmesh.LATTICE_NODE_CATALOG]
+    w_ranges = [n.weapon_range_km for n in lmesh.LATTICE_NODE_CATALOG]
+    min_alts = [n.min_alt_m for n in lmesh.LATTICE_NODE_CATALOG]
+    max_alts = [n.max_alt_m for n in lmesh.LATTICE_NODE_CATALOG]
+    speeds = [n.interceptor_speed_mps for n in lmesh.LATTICE_NODE_CATALOG]
+    max_gs = [n.max_g_load for n in lmesh.LATTICE_NODE_CATALOG]
+    tiers = [float(n.tier) for n in lmesh.LATTICE_NODE_CATALOG]
+    is_sensor = [1.0 if n.role == "sensor" else 0.0 for n in lmesh.LATTICE_NODE_CATALOG]
+    is_ew = [1.0 if n.role == "ew" else 0.0 for n in lmesh.LATTICE_NODE_CATALOG]
+    is_shooter = [1.0 if n.role == "shooter" else 0.0 for n in lmesh.LATTICE_NODE_CATALOG]
+    can_sea = [
+        1.0 if n.node_type_id in ("altius_600_isr_picket", "sm3_block_iia_complex") else 0.0
+        for n in lmesh.LATTICE_NODE_CATALOG
+    ]
+    return {
+        "deploy_cost": torch.tensor(costs, dtype=torch.float32, device=device),
+        "shot_cost": torch.tensor(shot_costs, dtype=torch.float32, device=device),
+        "mag_size": torch.tensor(mags, dtype=torch.float32, device=device),
+        "sensor_range": torch.tensor(s_ranges, dtype=torch.float32, device=device),
+        "sensor_sigma": torch.tensor(s_sigmas, dtype=torch.float32, device=device),
+        "plat_alt": torch.tensor(p_alts, dtype=torch.float32, device=device),
+        "weapon_range": torch.tensor(w_ranges, dtype=torch.float32, device=device),
+        "min_alt": torch.tensor(min_alts, dtype=torch.float32, device=device),
+        "max_alt": torch.tensor(max_alts, dtype=torch.float32, device=device),
+        "speed": torch.tensor(speeds, dtype=torch.float32, device=device),
+        "max_g": torch.tensor(max_gs, dtype=torch.float32, device=device),
+        "tier": torch.tensor(tiers, dtype=torch.float32, device=device),
+        "is_sensor": torch.tensor(is_sensor, dtype=torch.float32, device=device),
+        "is_ew": torch.tensor(is_ew, dtype=torch.float32, device=device),
+        "is_shooter": torch.tensor(is_shooter, dtype=torch.float32, device=device),
+        "can_sea": torch.tensor(can_sea, dtype=torch.float32, device=device),
+    }
+
+
