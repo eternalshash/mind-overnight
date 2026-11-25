@@ -678,3 +678,51 @@ class LatticeTaskManager:
                     task.status_reason = "OUTSIDE_PHYSICAL_ALTITUDE_ENVELOPE"
                     self.task_history.append(task)
                     return task
+
+            # Engage-on-Remote validation: if shooter lacks organic LOS, requires
+            # active mesh link + multi-sensor fire-control track covariance!
+            if not local_los_available:
+                mesh_ok = asset.mesh_link is not None and asset.mesh_link.is_online_in_mesh
+                if not mesh_ok or not primary_payload.engage_on_remote_capable:
+                    task.status = TaskStatus.STATUS_REJECTED
+                    task.status_reason = "ENGAGE_ON_REMOTE_LINK_UNAVAILABLE"
+                    self.task_history.append(task)
+                    return task
+                if track.location and not track.location.is_fire_control_quality:
+                    task.status = TaskStatus.STATUS_REJECTED
+                    task.status_reason = f"TRACK_COVARIANCE_TOO_HIGH ({track.location.position_sigma_m:.1f}m > 85m)"
+                    self.task_history.append(task)
+                    return task
+
+            actual_salvo = min(task.salvo_count, primary_payload.quantity_remaining)
+            primary_payload.quantity_remaining -= actual_salvo
+            primary_payload.cooldown_remaining_s = 1.5
+            task.salvo_count = actual_salvo
+            task.status = TaskStatus.STATUS_EXECUTING
+            task.status_reason = "ENGAGE_ON_REMOTE_LAUNCH" if task.engage_on_remote else "ORGANIC_LOS_LAUNCH"
+            if track.tracked_by:
+                track.tracked_by.assigned_interceptors_in_flight += actual_salvo
+
+        elif task_type == TaskType.TASK_JAM_SECTOR:
+            task.status = TaskStatus.STATUS_EXECUTING
+            task.status_reason = "EW_JAMMING_ACTIVE"
+        else:
+            task.status = TaskStatus.STATUS_DONE_OK
+            task.status_reason = "ACKNOWLEDGED"
+
+        self.task_history.append(task)
+        return task
+
+    def export_tasks_log(self) -> Dict[str, Any]:
+        return {
+            "schema": "anduril.tasks.v2.TaskStream",
+            "totalTasksIssued": len(self.task_history),
+            "tasksExecuted": sum(1 for t in self.task_history if t.status in (TaskStatus.STATUS_EXECUTING, TaskStatus.STATUS_DONE_OK)),
+            "engageOnRemoteLaunches": sum(
+                1 for t in self.task_history
+                if t.task_type == TaskType.TASK_INTERCEPT_TRACK
+                and t.engage_on_remote
+                and t.status == TaskStatus.STATUS_EXECUTING
+            ),
+            "tasks": [t.to_lattice_dict() for t in self.task_history],
+        }
