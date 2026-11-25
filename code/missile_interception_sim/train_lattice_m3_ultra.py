@@ -665,3 +665,83 @@ def run_batched_gpu_raid_episodes(
     min_d_inf = dm_inf.min(dim=2).values
     tot_cval = cascade_val.sum(dim=1, keepdim=True)
     w_dist_inf = (dm_inf * cascade_val.unsqueeze(1)).sum(dim=2) / tot_cval
+
+    inside_ko = (dm_inf < keepout_km.unsqueeze(1)).any(dim=2).float()
+    standoff_score = torch.where(
+        inside_ko > 0.5,
+        torch.full_like(min_d_inf, 0.12),
+        torch.exp(-torch.abs(min_d_inf - 34.0) / 55.0),
+    )
+    umb_45 = ((dm_inf <= 48.0).float() * cascade_val.unsqueeze(1)).sum(dim=2) / tot_cval
+    umb_105 = ((dm_inf <= 105.0).float() * cascade_val.unsqueeze(1)).sum(dim=2) / tot_cval
+    umb_220 = ((dm_inf <= 220.0).float() * cascade_val.unsqueeze(1)).sum(dim=2) / tot_cval
+
+    static_mesh_14 = torch.stack([
+        elev_km, prominence, g_low_hor_norm, air_low_hor_norm, drone_hor_norm,
+        torch.clamp(min_d_inf / 100.0, 0.0, 3.0),
+        torch.clamp(w_dist_inf / 100.0, 0.0, 3.0),
+        standoff_score, umb_45, umb_105, umb_220, is_sea,
+        mesh_e / 200.0, mesh_n / 200.0,
+    ], dim=-1)  # [B, M, 14]
+
+    # 3. Sequential Budget-Constrained Mesh Placement Rollout (Strict Fog of War!)
+    init_budget = torch.rand(B, device=device) * 220.0 + 160.0  # $160M - $380M
+    rem_budget = init_budget.clone()
+    occupied = torch.zeros(B, M, dtype=torch.bool, device=device)
+    type_counts = torch.zeros(B, 9, device=device)
+    dyn_cov = torch.zeros(B, M, 4, device=device)
+
+    placed_e = torch.zeros(B, max_placements, device=device)
+    placed_n = torch.zeros(B, max_placements, device=device)
+    placed_elev = torch.zeros(B, max_placements, device=device)
+    placed_type = torch.zeros(B, max_placements, dtype=torch.long, device=device)
+    placed_valid = torch.zeros(B, max_placements, dtype=torch.bool, device=device)
+
+    deploy_log_probs = torch.zeros(B, device=device)
+    deploy_entropy = torch.zeros(B, device=device)
+    first_val_pred: Optional[torch.Tensor] = None
+
+    mesh_pair_dist = torch.sqrt(
+        (mesh_e.unsqueeze(2) - mesh_e.unsqueeze(1)) ** 2
+        + (mesh_n.unsqueeze(2) - mesh_n.unsqueeze(1)) ** 2 + 1e-4
+    )  # [B, M, M]
+
+    min_node_cost = float(cat_t["deploy_cost"].min().item())
+    batch_idx = torch.arange(B, device=device)
+
+    for step in range(max_placements):
+        can_continue = rem_budget >= min_node_cost
+        if not can_continue.any():
+            break
+
+        mesh_tok = torch.cat([static_mesh_14, dyn_cov], dim=-1)  # [B, M, 18]
+        budget_ctx = torch.cat([
+            (rem_budget / 400.0).unsqueeze(1),
+            (rem_budget / init_budget).unsqueeze(1),
+            type_counts / 6.0,
+            torch.full((B, 1), step / float(max_placements), device=device),
+        ], dim=-1)  # [B, 12]
+
+        # Build physical feasibility mask [B, M, 9]
+        affordable = cat_t["deploy_cost"].view(1, 1, 9) <= rem_budget.view(B, 1, 1)
+        terrain_ok = (is_sea.unsqueeze(2) < 0.5) | (cat_t["can_sea"].view(1, 1, 9) > 0.5)
+        cell_free = ~occupied.unsqueeze(2)
+        valid_mn = affordable & terrain_ok & cell_free  # [B, M, 9]
+        has_any_valid = valid_mn.view(B, -1).any(dim=1)
+
+        # Prevent premature STOP while >= 45% of defense budget remains unspent
+        allow_stop = (~has_any_valid) | ((rem_budget / init_budget) < 0.20)
+        action_mask = torch.cat([valid_mn.reshape(B, M * 9), allow_stop.unsqueeze(1)], dim=-1)
+
+        logits, v_pred = deploy_net(infra_tok, mesh_tok, budget_ctx, action_mask)
+        if first_val_pred is None:
+            first_val_pred = v_pred
+
+        probs = torch.softmax(logits, dim=-1)
+        log_probs = torch.log_softmax(logits, dim=-1)
+        ent = -(probs * torch.clamp(log_probs, min=-20.0)).sum(dim=-1)
+
+        if deterministic:
+            act = logits.argmax(dim=-1)
+        else:
+            act = torch.multinomial(probs, num_samples=1).squeeze(-1)
