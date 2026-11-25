@@ -360,3 +360,46 @@ def run_post_training_gauntlet(seed: int = 101) -> Dict[str, Any]:
     print(f"Exported Spatial Mesh Plot PNG  : {plot_path}")
     print("=" * 104)
     return payload
+
+
+# ==============================================================================
+# 4. CUSTOM USER GLOBAL ATTACK PLANNER (JSON/YAML OR INTERACTIVE CLI)
+# ==============================================================================
+
+def run_custom_user_plan(plan_path: str, attack_mult: float = 1.0) -> Dict[str, Any]:
+    with open(plan_path, "r", encoding="utf-8") as f:
+        cfg = json.load(f)
+
+    surrogate_net, deploy_net, killweb_net, device = tlm.load_trained_lattice_models()
+    infra_nodes = [lmesh.CrucialInfraNode(**nd) for nd in cfg["infrastructure"]]
+    sea_az = float(cfg.get("sea_azimuth_deg", 180.0))
+    budget = float(cfg.get("defense_budget_musd", 280.0))
+
+    waves = [
+        lsim.StrikeWaveSpec(
+            weapon_id=w["weapon_id"],
+            count=max(1, int(round(w["count"] * attack_mult))),
+            launch_lat=float(w["launch_lat"]),
+            launch_lon=float(w["launch_lon"]),
+            target_node_id=w["target_node_id"],
+            tot_arrival_window_s=float(w.get("tot_arrival_window_s", 300.0)),
+            ew_jamming_boost=float(w.get("ew_jamming_boost", 0.0)),
+        )
+        for w in cfg["strike_waves"]
+    ]
+
+    mesh = lmesh.generate_geodesic_spatial_mesh(infra_nodes, sea_azimuth_deg=sea_az)
+    cop, placements, spent = lsim.deploy_neural_lattice_mesh(copy.deepcopy(infra_nodes), mesh, budget, deploy_net, device)
+    res = lsim.execute_true_rk4_raid_simulation(cop, mesh, waves, "neural_lattice", surrogate_net, killweb_net, device)
+
+    print("=" * 96)
+    print(f"CUSTOM USER STRIKE PLAN EVALUATION: {cfg.get('name', plan_path)}")
+    print(f"AI Pre-Raid Mesh Spend : ${spent:.2f}M / ${budget:.2f}M ({len(placements)} Decoupled Lattice Nodes)")
+    print(f"Operational Survival   : {res['cascading_operational_survival_pct']:.2f}% (Structural: {res['structural_survival_pct']:.2f}%)")
+    print(f"Intercepts Confirmed   : {res['threats_neutralized']}/{res['total_threats_with_mirvs']} ({res['intercept_rate_pct']:.1f}%)")
+    print(f"Engage-on-Remote Kills : {res['engage_on_remote_kills']} | EW Soft-Kills: {res['ew_soft_kills']}")
+    print(f"Cost Exchange          : Attacker Spent ${res['attacker_strike_cost_musd']:.2f}M vs Defender Shots ${res['interceptor_spend_musd']:.2f}M")
+    print("=" * 96)
+    return res
+
+
