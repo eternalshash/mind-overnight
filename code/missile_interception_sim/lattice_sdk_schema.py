@@ -471,3 +471,50 @@ def fuse_sensor_measurements(
             c0, c1, c2 = prior_location.pos_covariance_diag_m2
             return new_pos, v, (c0 + growth, c1 + growth, c2 + growth * 1.2)
         return Position(true_lat, true_lon, true_alt_m), VelocityEnu(*true_vel_enu), (9000.0, 9000.0, 9000.0)
+
+    # Combine inverse variances across all mesh sensors holding LOS
+    inv_var_sum = 0.0
+    for _, sigma_m in detecting_sensors:
+        eff_sigma = max(8.0, float(sigma_m))
+        inv_var_sum += 1.0 / (eff_sigma * eff_sigma)
+
+    # Incorporate prior Kalman prediction information if available
+    if prior_location is not None:
+        prior_var = (prior_location.position_sigma_m ** 2) + (18.0 * dt_s) ** 2
+        inv_var_sum += 0.45 / max(25.0, prior_var)
+
+    # Multi-angle geometric dilution reduction bonus when >=2 distinct sensors fuse
+    triangulation_factor = 0.68 if len(detecting_sensors) >= 2 else 1.0
+    fused_var_m2 = (1.0 / max(1e-6, inv_var_sum)) * (triangulation_factor ** 2)
+    fused_sigma_m = math.sqrt(fused_var_m2)
+
+    # Sample realistic bounded sensor estimation error
+    err_e = float(rng.normal(0.0, fused_sigma_m * 0.35))
+    err_n = float(rng.normal(0.0, fused_sigma_m * 0.35))
+    err_u = float(rng.normal(0.0, fused_sigma_m * 0.40))
+
+    lat_rad = math.radians(true_lat)
+    est_lat = true_lat + err_n / 111_132.0
+    est_lon = true_lon + err_e / max(1000.0, 111_320.0 * math.cos(lat_rad))
+    est_alt = max(0.0, true_alt_m + err_u)
+
+    vel_sigma = max(2.0, fused_sigma_m * 0.12)
+    est_vel = VelocityEnu(
+        e=true_vel_enu[0] + float(rng.normal(0.0, vel_sigma * 0.25)),
+        n=true_vel_enu[1] + float(rng.normal(0.0, vel_sigma * 0.25)),
+        u=true_vel_enu[2] + float(rng.normal(0.0, vel_sigma * 0.25)),
+    )
+    cov_diag = (fused_var_m2, fused_var_m2, fused_var_m2 * 1.15)
+    return Position(est_lat, est_lon, est_alt), est_vel, cov_diag
+
+
+class EntityManagerCOP:
+    """
+    Central Lattice `EntityManager` Common Operational Picture store.
+    Strict Fog-of-War guarantee: the Autonomous C2 Policy ONLY sees entities
+    published here (never raw ground-truth unspotted threats!).
+    """
+
+    def __init__(self, track_coast_timeout_s: float = 12.0):
+        self.entities: Dict[str, LatticeEntity] = {}
+        self.track_coast_timeout_s = track_coast_timeout_s
