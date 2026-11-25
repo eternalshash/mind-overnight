@@ -596,3 +596,69 @@ def execute_true_rk4_raid_simulation(
                 sm = ast.sensors.sensors[0]
                 if not sm.operational or sm.max_range_km <= 1.0:
                     continue
+
+                ap = ast.location.position
+                has_los, slant_km = lmesh.check_3d_los_raycast(
+                    ap.latitude_degrees, ap.longitude_degrees, ap.altitude_hae_meters,
+                    th.lat, th.lon, th.alt_msl_m, mesh.sea_azimuth_rad,
+                )
+                # Radar range equation RCS + EW self-protect jamming burn-through reduction
+                rcs_factor = max(0.42, (th.weapon_profile.rcs_m2 / 0.25) ** 0.25)
+                jam_factor = 1.0 / ((1.0 + 1.8 * th.ew_jam) ** 0.25)
+                eff_max_range_km = sm.max_range_km * rcs_factor * jam_factor
+
+                if has_los and slant_km <= eff_max_range_km and sm.min_alt_m <= th.alt_msl_m <= sm.max_alt_m:
+                    local_los_matrix[(th.uid, ast.entity_id)] = True
+                    # In siloed_legacy mode, batteries DO NOT share tracks onto a fused mesh!
+                    range_sigma = sm.base_sigma_m * (0.65 + 0.85 * (slant_km / max(10.0, sm.max_range_km))) * (1.0 + 0.6 * th.ew_jam)
+                    detecting.append((ast.entity_id, range_sigma))
+                else:
+                    local_los_matrix[(th.uid, ast.entity_id)] = False
+
+            trk_eid = f"trk-{th.uid}"
+            existing = cop.entities.get(trk_eid)
+
+            if detecting:
+                prior_loc = existing.location if (existing and existing.is_live) else None
+                # Siloed mode cannot multi-sensor triangulate covariance!
+                fusion_inputs = [min(detecting, key=lambda x: x[1])] if fire_control_mode == "siloed_greedy" else detecting
+                est_pos, est_vel, cov_diag = lsdk.fuse_sensor_measurements(
+                    th.lat, th.lon, th.alt_msl_m, th.vel_enu, fusion_inputs, prior_loc, dt_s, rng
+                )
+                in_fl = existing.tracked_by.assigned_interceptors_in_flight if (existing and existing.tracked_by) else 0
+                ew_j_cur = existing.tracked_by.ew_jammed_intensity if (existing and existing.tracked_by) else 0.0
+                ew_att = existing.tracked_by.ew_jam_attempted if (existing and existing.tracked_by) else False
+
+                trk_ent = lsdk.LatticeEntity(
+                    entity_id=trk_eid,
+                    is_live=True,
+                    created_time_s=existing.created_time_s if existing else sim_t,
+                    expiry_time_s=sim_t + 10.0,  # Track coasts up to 10s if LOS is subsequently lost!
+                    description=f"Tracked Inbound Contact {th.uid}",
+                    provenance=lsdk.Provenance("lattice-sensor-fusion", "FusedTrack", sim_t),
+                    aliases=lsdk.AliasesComponent(name=th.uid),
+                    location=lsdk.LocationComponent(est_pos, est_vel, cov_diag),
+                    mil_view=lsdk.MilViewComponent(
+                        lsdk.Disposition.DISPOSITION_HOSTILE,
+                        lsdk.Environment.ENVIRONMENT_SPACE if est_pos.altitude_hae_meters > 80_000.0 else lsdk.Environment.ENVIRONMENT_AIR,
+                    ),
+                    ontology=lsdk.OntologyComponent(lsdk.OntologyTemplate.TEMPLATE_TRACK, "AERIAL_THREAT"),
+                    tracked_by=lsdk.TrackedByComponent(
+                        sensor_entity_ids={sid for sid, _ in detecting},
+                        last_los_update_time_s=sim_t,
+                        is_coasting=False,
+                        assigned_interceptors_in_flight=in_fl,
+                        ew_jammed_intensity=ew_j_cur,
+                        ew_jam_attempted=ew_att,
+                    ),
+                )
+                cop.publish_entity(trk_ent)
+            elif existing and existing.is_live and sim_t <= existing.expiry_time_s:
+                # Coasting track with growing covariance until `expiry_time_s`!
+                est_pos, est_vel, cov_diag = lsdk.fuse_sensor_measurements(
+                    th.lat, th.lon, th.alt_msl_m, th.vel_enu, [], existing.location, dt_s, rng
+                )
+                existing.location = lsdk.LocationComponent(est_pos, est_vel, cov_diag)
+                if existing.tracked_by:
+                    existing.tracked_by.sensor_entity_ids = set()
+                    existing.tracked_by.is_coasting = True
