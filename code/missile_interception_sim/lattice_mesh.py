@@ -864,3 +864,65 @@ def update_self_healing_mesh_links(
         "mean_hops": round(hop_sum / max(1, online_cnt), 2),
         "redundancy_degree": round(deg_sum / n_live, 2),
     }
+
+
+def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = phi2 - phi1
+    dlam = math.radians(lon2 - lon1)
+    a = math.sin(dphi * 0.5) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlam * 0.5) ** 2
+    return EARTH_RADIUS_KM * 2.0 * math.atan2(math.sqrt(a), math.sqrt(max(0.0, 1.0 - a)))
+
+
+# ==============================================================================
+# 5. UNSEEN GLOBAL CRUCIAL INFRASTRUCTURE GAUNTLET REGIONS (HELD-OUT TEST SET)
+# ==============================================================================
+
+GLOBAL_TEST_REGIONS: Dict[str, Dict[str, Any]] = {
+    "taiwan_silicon_shield": {
+        "title": "Taiwan Silicon Shield & Northern Grid (Unseen Held-Out Region)",
+        "sea_azimuth_deg": 295.0,
+        "default_budget_musd": 280.0,
+        "infrastructure": [
+            CrucialInfraNode("inf-taipower-grid", "Lungtan Ultra-High-Voltage Power Grid Hub", "POWER_GRID", 24.86, 121.21, 145.0, 10.0, 3.0, []),
+            CrucialInfraNode("inf-satcom-taipei", "Yangmingshan SATCOM & Submarine Cable Gateway", "SATCOM_C2", 25.16, 121.56, 140.0, 10.0, 2.5, ["inf-taipower-grid"]),
+            CrucialInfraNode("inf-tsmc-hsinchu", "Hsinchu 2nm Extreme-UV Semiconductor Megafab", "SEMICONDUCTOR_FAB", 24.78, 121.01, 180.0, 16.0, 2.0, ["inf-taipower-grid", "inf-satcom-taipei"]),
+            CrucialInfraNode("inf-hengshan-bunker", "Heng Shan Joint C2 Command Complex", "COMMAND_BUNKER", 25.08, 121.53, 165.0, 8.0, 4.0, ["inf-satcom-taipei"]),
+            CrucialInfraNode("inf-keelung-naval", "Keelung Strategic Naval & Logistics Port", "NAVAL_PORT", 25.14, 121.74, 125.0, 11.0, 3.5, ["inf-taipower-grid"]),
+        ],
+    },
+    "hormuz_energy_corridor": {
+        "title": "Strait of Hormuz Energy & Fleet Infrastructure (Unseen Held-Out Region)",
+        "sea_azimuth_deg": 35.0,
+        "default_budget_musd": 280.0,
+        "infrastructure": [
+            CrucialInfraNode("inf-gulf-desal-power", "Jebel Ali Cogeneration Power & Desalination Plant", "POWER_GRID", 25.01, 55.06, 155.0, 14.0, 3.0, []),
+            CrucialInfraNode("inf-dhafra-c2", "Al Dhafra Joint Air Defense & SATCOM Uplink", "SATCOM_C2", 24.25, 54.55, 150.0, 10.0, 3.5, ["inf-gulf-desal-power"]),
+            CrucialInfraNode("inf-fujairah-oil", "Fujairah Strategic Crude Export Terminal", "NAVAL_PORT", 25.18, 56.36, 175.0, 15.0, 3.0, ["inf-gulf-desal-power"]),
+            CrucialInfraNode("inf-minhad-wing", "Al Minhad Coalition Airbase & Tanker Hub", "AIRBASE", 25.02, 55.37, 135.0, 12.0, 3.5, ["inf-dhafra-c2"]),
+        ],
+    },
+    "pacific_nw_strategic_corridor": {
+        "title": "US Pacific Northwest Submarine, Grid & Cloud Corridor (Unseen Held-Out Region)",
+        "sea_azimuth_deg": 265.0,
+        "default_budget_musd": 320.0,
+        "infrastructure": [
+            CrucialInfraNode("inf-bonneville-grid", "Puget Sound High-Voltage Hydro Substation", "POWER_GRID", 47.48, -121.80, 145.0, 11.0, 3.0, []),
+            CrucialInfraNode("inf-jimcreek-c2", "Jim Creek Strategic VLF / SATCOM Naval Relay", "SATCOM_C2", 48.20, -121.92, 160.0, 10.0, 3.0, ["inf-bonneville-grid"]),
+            CrucialInfraNode("inf-bangor-sub", "Naval Base Kitsap-Bangor Strategic Submarine Base", "NAVAL_PORT", 47.73, -122.71, 190.0, 14.0, 4.0, ["inf-jimcreek-c2", "inf-bonneville-grid"]),
+            CrucialInfraNode("inf-mcchord-afb", "Joint Base Lewis-McChord Airlift & Defense Wing", "AIRBASE", 47.14, -122.48, 140.0, 12.0, 3.5, ["inf-bonneville-grid"]),
+            CrucialInfraNode("inf-seattle-cloud", "Redmond/Seattle Hyperscale Defense Cloud & Metro", "METRO", 47.64, -122.13, 165.0, 18.0, 2.5, ["inf-bonneville-grid", "inf-jimcreek-c2"]),
+        ],
+    },
+    "baltic_nordic_shield": {
+        "title": "Baltic-Nordic NATO C2, Cable & Air Defense Grid (Unseen Held-Out Region)",
+        "sea_azimuth_deg": 115.0,
+        "default_budget_musd": 260.0,
+        "infrastructure": [
+            CrucialInfraNode("inf-estlink-power", "Porkkala HVDC Cross-Baltic Power Interconnector", "POWER_GRID", 60.05, 24.42, 140.0, 10.0, 3.0, []),
+            CrucialInfraNode("inf-upinniemi-c2", "Gulf of Finland Underground C2 & Sensor Hub", "COMMAND_BUNKER", 60.03, 24.35, 165.0, 9.0, 4.0, ["inf-estlink-power"]),
+            CrucialInfraNode("inf-helsinki-cable", "Nordic Fiber/SATCOM Sovereign Data Center", "SATCOM_C2", 60.22, 24.81, 150.0, 14.0, 2.5, ["inf-estlink-power"]),
+            CrucialInfraNode("inf-tampere-airbase", "Pirkkala Dispersed Fighter & ISR Wing", "AIRBASE", 61.41, 23.60, 135.0, 12.0, 3.5, ["inf-upinniemi-c2", "inf-helsinki-cable"]),
+        ],
+    },
+}
