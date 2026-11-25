@@ -680,3 +680,67 @@ def compute_mesh_horizon_features_numba(
         feats[m, 9] = umb_105 / total_val
         feats[m, 10] = umb_220 / total_val
         feats[m, 11] = is_sea
+
+    return feats
+
+
+# ==============================================================================
+# 4. GEODESIC HEXAGONAL-RING MESH GENERATOR & SELF-HEALING MESH GRAPH
+# ==============================================================================
+
+@dataclass
+class GeodesicSpatialMesh:
+    """Discretized 3D geodesic placement mesh around a global infrastructure cluster."""
+    center_lat: float
+    center_lon: float
+    sea_azimuth_rad: float
+    lats: np.ndarray          # [M]
+    lons: np.ndarray          # [M]
+    rel_east_km: np.ndarray   # [M]
+    rel_north_km: np.ndarray  # [M]
+    features: np.ndarray      # [M, 12] normalized topographic/horizon/umbrella tensor
+
+
+def generate_geodesic_spatial_mesh(
+    infra_nodes: List[CrucialInfraNode],
+    sea_azimuth_deg: float = 135.0,
+) -> GeodesicSpatialMesh:
+    """
+    Generates a 96-vertex concentric geodesic hexagonal/polar mesh spanning from
+    inner infrastructure perimeters (12 km) out to forward early-warning pickets (210 km),
+    and computes 3D terrain ridge & curvature horizon tensors across all 32 CPU cores.
+    """
+    compute_cascading_infrastructure_values(infra_nodes)
+    vals = np.array([n.cascading_value for n in infra_nodes], dtype=np.float64)
+    tot_v = max(1.0, float(np.sum(vals)))
+    c_lat = float(np.sum([n.lat * n.cascading_value for n in infra_nodes]) / tot_v)
+    c_lon = float(np.sum([n.lon * n.cascading_value for n in infra_nodes]) / tot_v)
+    cos_c = max(0.15, math.cos(math.radians(c_lat)))
+
+    pts_lat: List[float] = []
+    pts_lon: List[float] = []
+    pts_e: List[float] = []
+    pts_n: List[float] = []
+
+    # 1. Local micro-rings around each crucial infrastructure node (standoff perimeter)
+    for node in infra_nodes:
+        for r_km, n_ang in ((14.0, 4), (32.0, 6)):
+            for k in range(n_ang):
+                ang = k * (2.0 * math.pi / n_ang) + 0.25
+                d_n = (node.lat - c_lat) * 111.132 + r_km * math.cos(ang)
+                d_e = (node.lon - c_lon) * 111.320 * cos_c + r_km * math.sin(ang)
+                pts_lat.append(c_lat + d_n / 111.132)
+                pts_lon.append(c_lon + d_e / (111.320 * cos_c))
+                pts_e.append(d_e)
+                pts_n.append(d_n)
+
+    # 2. Theater-wide outer geodesic picket rings (65 km, 125 km, 195 km)
+    for r_km, n_ang in ((68.0, 12), (128.0, 14), (195.0, 14)):
+        for k in range(n_ang):
+            ang = k * (2.0 * math.pi / n_ang)
+            d_n = r_km * math.cos(ang)
+            d_e = r_km * math.sin(ang)
+            pts_lat.append(c_lat + d_n / 111.132)
+            pts_lon.append(c_lon + d_e / (111.320 * cos_c))
+            pts_e.append(d_e)
+            pts_n.append(d_n)
