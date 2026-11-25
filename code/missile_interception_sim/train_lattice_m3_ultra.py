@@ -1340,3 +1340,83 @@ def train_all_models(
 
     n_updates = max(1, math.ceil(raid_episodes / raid_batch_size))
     sched_rl = torch.optim.lr_scheduler.CosineAnnealingLR(opt_rl, T_max=n_updates, eta_min=1.5e-4)
+
+    print(
+        f"\n[Stage 2] Launching {n_updates * raid_batch_size:,} Global Multi-Wave Raid Episodes "
+        f"({n_updates} GPU batches x {raid_batch_size} parallel theaters on {str(device).upper()})..."
+    )
+    t_rl0 = time.time()
+    running_baseline: Optional[float] = None
+    history_log: List[Dict[str, Any]] = []
+
+    for upd in range(1, n_updates + 1):
+        deploy_net.train()
+        killweb_net.train()
+
+        prog = upd / float(n_updates)
+        adv_diff = min(1.0, 0.25 + 0.75 * prog)
+        ent_coef = 0.025 * (1.0 - 0.80 * prog)
+
+        reward, log_prob, val_pred, ent, metrics = run_batched_gpu_raid_episodes(
+            batch_size=raid_batch_size,
+            deploy_net=deploy_net,
+            killweb_net=killweb_net,
+            surrogate_net=surrogate_net,
+            cat_t=cat_t,
+            device=device,
+            adversarial_difficulty=adv_diff,
+            deterministic=False,
+        )
+
+        mean_r = float(reward.mean().item())
+        running_baseline = mean_r if running_baseline is None else (0.92 * running_baseline + 0.08 * mean_r)
+
+        # Variance-reduced advantage using learned critic + exponential baseline
+        baseline_t = 0.70 * val_pred.detach() + 0.30 * running_baseline
+        adv = reward - baseline_t
+        adv = (adv - adv.mean()) / (adv.std() + 1e-6)
+
+        policy_loss = -(adv * log_prob).mean()
+        critic_loss = F.smooth_l1_loss(val_pred, reward.detach()) * 0.5
+        loss_total = policy_loss + critic_loss - ent_coef * ent.mean()
+
+        opt_rl.zero_grad()
+        loss_total.backward()
+        torch.nn.utils.clip_grad_norm_(params, max_norm=2.0)
+        opt_rl.step()
+        sched_rl.step()
+
+        if upd == 1 or upd % max(1, n_updates // 10) == 0 or upd == n_updates:
+            ep_done = upd * raid_batch_size
+            elapsed = time.time() - t_rl0
+            eps_per_sec = ep_done / max(1e-6, elapsed)
+            print(
+                f"  [Episodes {ep_done:9,}/{n_updates * raid_batch_size:,}] "
+                f"Surv: {metrics['operational_survival_pct']:5.1f}% | "
+                f"Kills: {metrics['intercept_rate_pct']:5.1f}% | "
+                f"DefSpend: ${metrics['mean_interceptor_spend_musd']:5.1f}M vs Atk: ${metrics['mean_attacker_cost_musd']:5.1f}M | "
+                f"DebrisHits: {metrics['mean_debris_violations']:.2f} | "
+                f"{eps_per_sec:,.0f} raids/s"
+            )
+            history_log.append({
+                "episodes_completed": ep_done,
+                "adversarial_difficulty": round(adv_diff, 3),
+                **{k: round(v, 3) for k, v in metrics.items()},
+            })
+
+    rl_elapsed_s = time.time() - t_rl0
+
+    # Deterministic post-training policy check on high-difficulty raids
+    deploy_net.eval()
+    killweb_net.eval()
+    with torch.no_grad():
+        _, _, _, _, eval_metrics = run_batched_gpu_raid_episodes(
+            batch_size=1024,
+            deploy_net=deploy_net,
+            killweb_net=killweb_net,
+            surrogate_net=surrogate_net,
+            cat_t=cat_t,
+            device=device,
+            adversarial_difficulty=1.0,
+            deterministic=True,
+        )
