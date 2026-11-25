@@ -268,3 +268,53 @@ def run_post_training_gauntlet(seed: int = 101) -> Dict[str, Any]:
             f"{'EW Kills':<8} | {'DebrisHit':<9} | {'ShotSpend':<10} | {'SEAD Lost'}"
         )
         print("-" * 104)
+
+        # 1. Pure Learned Neural Lattice Kill-Web
+        cop_n, pl_n, _ = lsim.deploy_neural_lattice_mesh(
+            copy.deepcopy(infra_base), mesh, budget_musd, deploy_net, device
+        )
+        res_n = lsim.execute_true_rk4_raid_simulation(
+            cop_n, mesh, waves, "neural_lattice", surrogate_net, killweb_net, device, seed=seed
+        )
+
+        # 2. Heuristic Ring Mesh Baseline (Same $B Budget)
+        cop_h, _, _ = lsim.deploy_baseline_defense("heuristic_ring", copy.deepcopy(infra_base), mesh, budget_musd)
+        res_h = lsim.execute_true_rk4_raid_simulation(cop_h, mesh, waves, "heuristic_ring", seed=seed)
+
+        # 3. Legacy Siloed Co-Located Batteries (Same $B Budget, No Engage-on-Remote)
+        cop_s, _, _ = lsim.deploy_baseline_defense("siloed_legacy", copy.deepcopy(infra_base), mesh, budget_musd)
+        res_s = lsim.execute_true_rk4_raid_simulation(cop_s, mesh, waves, "siloed_greedy", seed=seed)
+
+        for arch_name, r in [
+            ("Neural Lattice Kill-Web", res_n),
+            ("Heuristic Ring Mesh", res_h),
+            ("Legacy Siloed Batteries", res_s),
+        ]:
+            print(
+                f"{arch_name:<26} | "
+                f"{r['cascading_operational_survival_pct']:6.1f}%  | "
+                f"{r['threats_neutralized']:2d}/{r['total_threats_with_mirvs']:<2d}     | "
+                f"{r['engage_on_remote_kills']:<9d} | "
+                f"{r['ew_soft_kills']:<8d} | "
+                f"{r['debris_collateral_events']:<9d} | "
+                f"${r['interceptor_spend_musd']:7.2f}M  | "
+                f"{r['sead_nodes_destroyed']}"
+            )
+            rows.append({
+                "scenario": scen_label,
+                "region": reg_key,
+                "architecture": arch_name,
+                "budget_musd": budget_musd,
+                "cascading_operational_survival_pct": r["cascading_operational_survival_pct"],
+                "structural_survival_pct": r["structural_survival_pct"],
+                "intercept_rate_pct": r["intercept_rate_pct"],
+                "threats_neutralized": r["threats_neutralized"],
+                "total_threats": r["total_threats_with_mirvs"],
+                "engage_on_remote_kills": r["engage_on_remote_kills"],
+                "ew_soft_kills": r["ew_soft_kills"],
+                "debris_collateral_events": r["debris_collateral_events"],
+                "sead_nodes_destroyed": r["sead_nodes_destroyed"],
+                "interceptor_spend_musd": r["interceptor_spend_musd"],
+                "attacker_strike_cost_musd": r["attacker_strike_cost_musd"],
+                "favorable_shot_exchange_ratio": r["favorable_shot_exchange_ratio"],
+            })
