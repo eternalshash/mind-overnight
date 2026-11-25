@@ -846,3 +846,83 @@ def execute_true_rk4_raid_simulation(
     eor_kills = sum(1 for e in intercept_events if e.get("engage_on_remote"))
 
     deploy_spend = sum(a.node_cost_musd for a in cop.entities.values() if a.ontology and a.ontology.template == lsdk.OntologyTemplate.TEMPLATE_ASSET)
+
+    return {
+        "fire_control_mode": fire_control_mode,
+        "structural_survival_pct": round(struct_surv, 2),
+        "cascading_operational_survival_pct": round(op_surv, 2),
+        "total_threats_with_mirvs": total_threats,
+        "threats_neutralized": kills,
+        "intercept_rate_pct": round(100.0 * kills / max(1, total_threats), 2),
+        "leaker_impacts": leakers,
+        "engage_on_remote_kills": eor_kills,
+        "ew_soft_kills": ew_soft_kills,
+        "debris_collateral_events": debris_collateral_events,
+        "sead_nodes_destroyed": sead_nodes_lost,
+        "mesh_self_healing_post_raid": mesh_post,
+        "deployment_spend_musd": round(deploy_spend, 2),
+        "interceptor_spend_musd": round(interceptor_spend_musd, 2),
+        "attacker_strike_cost_musd": round(attacker_total_cost_musd, 2),
+        "favorable_shot_exchange_ratio": round(attacker_total_cost_musd / max(0.5, interceptor_spend_musd), 2),
+        "intercept_events": intercept_events,
+        "infrastructure_bda": [
+            {
+                "entity_id": e.entity_id,
+                "name": e.aliases.name if e.aliases else e.entity_id,
+                "category": e.geo_infra.infra_category,
+                "structural_health_pct": round(e.geo_infra.structural_health * 100.0, 1),
+                "operational_capacity_pct": round(e.geo_infra.operational_capacity * 100.0, 1),
+                "direct_leaker_hits": e.geo_infra.leaker_direct_hits,
+                "debris_collateral_hits": e.geo_infra.debris_collateral_hits,
+            }
+            for e in infra_by_id.values() if e.geo_infra
+        ],
+        "threat_trajectories": [
+            {
+                "uid": t.uid, "weapon": t.weapon_profile.name, "neutralized": t.is_neutralized,
+                "impacted": t.has_impacted, "path": t.history_latlon,
+            }
+            for t in threats
+        ],
+        "lattice_cop_snapshot": cop.export_cop_snapshot(sim_t),
+        "lattice_tasks_stream": task_mgr.export_tasks_log(),
+    }
+
+
+def _neural_killweb_step(
+    tracks: List[lsdk.LatticeEntity],
+    assets: List[lsdk.LatticeEntity],
+    infra_ents: List[lsdk.LatticeEntity],
+    mesh: lmesh.GeodesicSpatialMesh,
+    local_los_matrix: Dict[Tuple[str, str], bool],
+    surrogate_net: tlm.LatticeKinematicSurrogateNet,
+    killweb_net: tlm.LatticeKillWebPolicyNet,
+    device: torch.device,
+) -> List[Tuple[lsdk.LatticeEntity, lsdk.LatticeEntity, int, float]]:
+    """
+    Pure Learned Neural C2 Inference over live `EntityManagerCOP` entities!
+    Zero hardcoded weapon-matching rules: builds Track, Asset, and Surrogate
+    Edge tensors and decodes `LatticeKillWebPolicyNet` logits directly.
+    """
+    cos_c = max(0.15, math.cos(math.radians(mesh.center_lat)))
+    Nt = len(tracks)
+    Na = len(assets)
+
+    trk_rows = []
+    trk_meta = []
+    for tr in tracks:
+        p = tr.location.position
+        v = tr.location.velocity_enu
+        spd = max(30.0, v.speed_mps)
+        de = (p.longitude_degrees - mesh.center_lon) * 111.320 * cos_c
+        dn = (p.latitude_degrees - mesh.center_lat) * 111.132
+
+        # Estimate threatened HVA purely from observable position & velocity bearing!
+        best_inf = infra_ents[0]
+        min_d = 1e9
+        for inf in infra_ents:
+            ip = inf.location.position
+            d = lmesh.haversine_km(p.latitude_degrees, p.longitude_degrees, ip.latitude_degrees, ip.longitude_degrees)
+            if d < min_d:
+                min_d = d
+                best_inf = inf
