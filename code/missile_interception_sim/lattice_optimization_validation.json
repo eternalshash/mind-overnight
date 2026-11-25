@@ -1,0 +1,121 @@
+{
+  "elapsed_seconds": 41.3,
+  "budget_pareto_frontier": [
+    {
+      "study": "budget_pareto",
+      "budget_musd": 120.0,
+      "neural_survival_pct": 10.76,
+      "siloed_survival_pct": 15.07,
+      "neural_intercept_pct": 58.62,
+      "siloed_intercept_pct": 58.62,
+      "neural_shot_spend_musd": 368.01,
+      "nodes_deployed": 7
+    },
+    {
+      "study": "budget_pareto",
+      "budget_musd": 200.0,
+      "neural_survival_pct": 26.85,
+      "siloed_survival_pct": 15.07,
+      "neural_intercept_pct": 86.21,
+      "siloed_intercept_pct": 75.86,
+      "neural_shot_spend_musd": 394.4,
+      "nodes_deployed": 12
+    },
+    {
+      "study": "budget_pareto",
+      "budget_musd": 280.0,
+      "neural_survival_pct": 26.85,
+      "siloed_survival_pct": 15.07,
+      "neural_intercept_pct": 86.21,
+      "siloed_intercept_pct": 75.86,
+      "neural_shot_spend_musd": 466.4,
+      "nodes_deployed": 12
+    },
+    {
+      "study": "budget_pareto",
+      "budget_musd": 360.0,
+      "neural_survival_pct": 26.85,
+      "siloed_survival_pct": 19.3,
+      "neural_intercept_pct": 86.21,
+      "siloed_intercept_pct": 82.76,
+      "neural_shot_spend_musd": 466.4,
+      "nodes_deployed": 12
+    },
+    {
+      "study": "budget_pareto",
+      "budget_musd": 440.0,
+      "neural_survival_pct": 26.85,
+      "siloed_survival_pct": 40.66,
+      "neural_intercept_pct": 86.21,
+      "siloed_intercept_pct": 86.21,
+      "neural_shot_spend_musd": 466.4,
+      "nodes_deployed": 12
+    }
+  ],
+  "saturation_stress_curve": [
+    {
+      "raid_multiplier": 1.0,
+      "total_threats": 29,
+      "neural_survival_pct": 55.02,
+      "siloed_survival_pct": 15.07,
+      "neural_kills": 26,
+      "siloed_kills": 22
+    },
+    {
+      "raid_multiplier": 1.5,
+      "total_threats": 58,
+      "neural_survival_pct": 18.82,
+      "siloed_survival_pct": 10.76,
+      "neural_kills": 51,
+      "siloed_kills": 38
+    },
+    {
+      "raid_multiplier": 2.0,
+      "total_threats": 58,
+      "neural_survival_pct": 18.82,
+      "siloed_survival_pct": 10.76,
+      "neural_kills": 51,
+      "siloed_kills": 38
+    },
+    {
+      "raid_multiplier": 3.0,
+      "total_threats": 87,
+      "neural_survival_pct": 10.76,
+      "siloed_survival_pct": 10.76,
+      "neural_kills": 69,
+      "siloed_kills": 54
+    }
+  ],
+  "sead_self_healing_sweep": [
+    {
+      "nodes_destroyed": 0,
+      "mesh_online_pct": 100.0,
+      "mean_hops": 1.0,
+      "operational_survival_pct": 55.02
+    },
+    {
+      "nodes_destroyed": 1,
+      "mesh_online_pct": 100.0,
+      "mean_hops": 1.0,
+      "operational_survival_pct": 55.02
+    },
+    {
+      "nodes_destroyed": 2,
+      "mesh_online_pct": 100.0,
+      "mean_hops": 1.0,
+      "operational_survival_pct": 55.02
+    },
+    {
+      "nodes_destroyed": 3,
+      "mesh_online_pct": 100.0,
+      "mean_hops": 1.0,
+      "operational_survival_pct": 26.85
+    }
+  ],
+  "submesh_ridge_micro_optimization": {
+    "mean_ridge_elevation_gain_m": 96.15,
+    "max_ridge_elevation_gain_m": 107.7,
+    "discrete_mesh_survival_pct": 26.85,
+    "micro_optimized_survival_pct": 48.26
+  }
+}
