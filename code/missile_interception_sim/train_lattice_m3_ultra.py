@@ -292,3 +292,76 @@ def generate_rk4_engagement_dataset_numba(
         # Ballistic kinetic debris throw distance downrange: v_horiz * sqrt(2*h/g) * drag_decay
         fall_t = math.sqrt(2.0 * min(60_000.0, alt_m) / 9.80665)
         debris_throw_km = min(35.0, (vt_max * 0.32 * fall_t * math.exp(-alt_m / 45000.0)) * 1e-3)
+
+        X[i, 0] = slant_km / 1000.0
+        X[i, 1] = ground_range_km / 1000.0
+        X[i, 2] = alt_m / 200_000.0
+        X[i, 3] = math.log1p(alt_m) / 15.0
+        X[i, 4] = vt_max / 7500.0
+        X[i, 5] = closing_cos
+        X[i, 6] = man_g / 30.0
+        X[i, 7] = ew_jam
+        X[i, 8] = vm_nom / 4500.0
+        X[i, 9] = s_max_g / 40.0
+        X[i, 10] = s_range_km / 1200.0
+        X[i, 11] = alt_env
+        X[i, 12] = track_sigma_m / 150.0
+        X[i, 13] = is_eor
+
+        Y[i, 0] = pk
+        Y[i, 1] = cpa_m
+        Y[i, 2] = t_int_s
+        Y[i, 3] = debris_throw_km
+
+    return X, Y
+
+
+# ==============================================================================
+# 2. NEURAL NETWORK ARCHITECTURES (COORDINATE-INVARIANT PYTORCH MPS MODELS)
+# ==============================================================================
+
+class ResidualBlock(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+        self.fc1 = nn.Linear(dim, dim)
+        self.ln1 = nn.LayerNorm(dim)
+        self.fc2 = nn.Linear(dim, dim)
+        self.ln2 = nn.LayerNorm(dim)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        h = F.silu(self.ln1(self.fc1(x)))
+        h = self.ln2(self.fc2(h))
+        return F.silu(x + h)
+
+
+class LatticeKinematicSurrogateNet(nn.Module):
+    """
+    Physics-Informed Neural Surrogate trained on 2,000,000+ 3-DoF RK4 engagements.
+    Predicts [pk, cpa_miss_m, t_intercept_s, debris_throw_km] in microseconds.
+    """
+
+    def __init__(self, in_dim: int = 14, hidden_dim: int = 192):
+        super().__init__()
+        self.stem = nn.Sequential(
+            nn.Linear(in_dim, hidden_dim),
+            nn.LayerNorm(hidden_dim),
+            nn.SiLU(),
+        )
+        self.b1 = ResidualBlock(hidden_dim)
+        self.b2 = ResidualBlock(hidden_dim)
+        self.b3 = ResidualBlock(hidden_dim)
+        self.head = nn.Linear(hidden_dim, 4)
+
+    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        h = self.b3(self.b2(self.b1(self.stem(x))))
+        raw = self.head(h)
+        pk = torch.sigmoid(raw[..., 0])
+        cpa_m = F.softplus(raw[..., 1]) * 25.0
+        t_int_s = F.softplus(raw[..., 2]) * 80.0
+        debris_km = F.softplus(raw[..., 3]) * 8.0
+        return pk, cpa_m, t_int_s, debris_km
+
+
+class MultiHeadSetAttention(nn.Module):
+    """Explicit MPS-native multi-head self/cross attention without CPU fallback."""
+
