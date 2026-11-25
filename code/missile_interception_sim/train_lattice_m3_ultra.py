@@ -816,3 +816,75 @@ def run_batched_gpu_raid_episodes(
     attacker_raid_cost_musd = torch.zeros(B, device=device)
     total_threats_killed = torch.zeros(B, device=device)
     total_threats_spawned = float(16)
+
+    for wave_idx in range(2):
+        Nt = 8
+        # Wave 0 = 5 cheap drones ($0.04M) + 3 stealth sea-skimming cruise ($2.2M) -> BAIT WAVE!
+        # Wave 1 = 2 supersonic cruise ($3.5M) + 2 ballistic ($4.5M) + 2 HGV ($13M) + 2 MIRV RVs ($28M) -> LETHAL WAVE!
+        if wave_idx == 0:
+            arch_ids = torch.tensor([0, 0, 0, 0, 0, 1, 1, 1], device=device).unsqueeze(0).expand(B, -1)
+            t_speeds = torch.tensor([65., 75., 85., 70., 95., 265., 285., 275.], device=device).unsqueeze(0).expand(B, -1)
+            t_alts = torch.tensor([180., 260., 320., 150., 400., 35., 30., 45.], device=device).unsqueeze(0).expand(B, -1)
+            t_man_g = torch.tensor([2.5, 3.0, 4.0, 2.0, 4.5, 5.5, 6.0, 5.5], device=device).unsqueeze(0).expand(B, -1)
+            t_ew_jam = torch.tensor([0.05, 0.05, 0.1, 0.05, 0.15, 0.25, 0.35, 0.25], device=device).unsqueeze(0).expand(B, -1)
+            t_ew_susc = torch.tensor([0.72, 0.68, 0.60, 0.72, 0.50, 0.24, 0.18, 0.25], device=device).unsqueeze(0).expand(B, -1)
+            t_costs = torch.tensor([0.04, 0.04, 0.08, 0.04, 0.15, 2.0, 3.2, 1.9], device=device).unsqueeze(0).expand(B, -1)
+            t_dmg = torch.tensor([0.32, 0.32, 0.34, 0.32, 0.36, 0.68, 0.75, 0.68], device=device).unsqueeze(0).expand(B, -1)
+            sub_ranges = (98.0, 40.0)  # Two range-closing ticks: Outer (only PAC-3 reaches -> learn HOLD_FIRE on drones!) -> Inner (EW/SHORAD kill zone!)
+        else:
+            arch_ids = torch.tensor([2, 2, 3, 3, 4, 4, 5, 5], device=device).unsqueeze(0).expand(B, -1)
+            t_speeds = torch.tensor([980., 1050., 1950., 2400., 2950., 3350., 6200., 6800.], device=device).unsqueeze(0).expand(B, -1)
+            t_alts = torch.tensor([120., 3500., 48000., 85000., 44000., 48000., 260000., 380000.], device=device).unsqueeze(0).expand(B, -1)
+            t_man_g = torch.tensor([12.0, 14.0, 24.0, 16.0, 22.0, 20.0, 0.8, 0.8], device=device).unsqueeze(0).expand(B, -1)
+            t_ew_jam = torch.tensor([0.28, 0.30, 0.50, 0.45, 0.50, 0.45, 0.45, 0.55], device=device).unsqueeze(0).expand(B, -1) * (0.6 + 0.6 * adversarial_difficulty)
+            t_ew_susc = torch.tensor([0.14, 0.12, 0.04, 0.03, 0.02, 0.02, 0.0, 0.0], device=device).unsqueeze(0).expand(B, -1)
+            t_costs = torch.tensor([2.8, 3.5, 3.2, 8.5, 12.0, 14.0, 25.0, 30.0], device=device).unsqueeze(0).expand(B, -1)
+            t_dmg = torch.tensor([0.80, 0.82, 0.92, 0.95, 0.98, 0.98, 1.0, 1.0], device=device).unsqueeze(0).expand(B, -1)
+            sub_ranges = (520.0, 82.0)  # Tick 0: Exo/Upper midcourse window (SM-3/THAAD!) -> Tick 1: Endo terminal window (PAC-3/SHORAD!)
+
+        attacker_raid_cost_musd = attacker_raid_cost_musd + t_costs.sum(dim=1)
+
+        tgt_idx = torch.randint(0, N_inf, (B, Nt), device=device)
+        tgt_e = torch.gather(inf_e, 1, tgt_idx)
+        tgt_n = torch.gather(inf_n, 1, tgt_idx)
+        tgt_cval = torch.gather(cascade_val, 1, tgt_idx)
+        tgt_ko = torch.gather(keepout_km, 1, tgt_idx)
+        ing_ang = sea_az + (torch.rand(B, Nt, device=device) - 0.5) * (math.pi * 1.4)
+
+        track_alive = torch.ones(B, Nt, dtype=torch.bool, device=device)
+        ew_tried = torch.zeros(B, Nt, dtype=torch.bool, device=device)
+
+        for sub_idx, nom_r_km in enumerate(sub_ranges):
+            if not track_alive.any():
+                break
+
+            # Exo/Upper threats stand further out on Tick 0; cruise/drones close in
+            cur_det_km = torch.where(
+                (wave_idx == 1) & (sub_idx == 0) & (t_alts < 20_000.0),
+                torch.full((B, Nt), 102.0, device=device),
+                torch.where(
+                    (wave_idx == 1) & (sub_idx == 0) & (t_alts >= 20_000.0) & (t_alts < 100_000.0),
+                    torch.full((B, Nt), 175.0, device=device),
+                    torch.full((B, Nt), nom_r_km, device=device),
+                ),
+            )
+
+            trk_e = tgt_e + cur_det_km * torch.sin(ing_ang)
+            trk_n = tgt_n + cur_det_km * torch.cos(ing_ang)
+            d_trk_ast = torch.sqrt(
+                (trk_e.unsqueeze(2) - placed_e.unsqueeze(1)) ** 2
+                + (trk_n.unsqueeze(2) - placed_n.unsqueeze(1)) ** 2 + 1e-4
+            )
+
+            # 3D Ridge-Shadowed Horizon: low-elevation ground radars (<0.55 km) only see <500m threats within 26 km!
+            ast_s_rng = cat_t["sensor_range"][placed_type].unsqueeze(1)
+            ast_p_alt = cat_t["plat_alt"][placed_type].unsqueeze(1) + placed_elev.unsqueeze(1) * 1000.0
+            smooth_hor = 4.12 * (torch.sqrt(ast_p_alt) + torch.sqrt(t_alts.unsqueeze(2)))
+            ridge_cap = torch.where(
+                (t_alts.unsqueeze(2) < 500.0) & (ast_p_alt < 600.0),
+                torch.full_like(smooth_hor, 26.0),
+                smooth_hor,
+            )
+            can_see = node_alive.unsqueeze(1) & (d_trk_ast <= torch.minimum(ast_s_rng, ridge_cap))
+            space_cue = (t_alts > 55_000.0).float()
+            custody_cnt = can_see.float().sum(dim=2) + space_cue
