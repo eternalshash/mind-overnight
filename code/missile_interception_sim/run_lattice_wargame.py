@@ -223,3 +223,48 @@ def render_spatial_mesh_diagnostic_plot(
         ax2.tick_params(colors="#94a3b8", labelsize=8.5)
         ax2.grid(axis="y", color="#1e293b", linestyle=":", linewidth=0.7)
         ax2.legend(loc="upper right", facecolor="#0f172a", edgecolor="#334155", labelcolor="white", fontsize=8.5)
+
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=220, facecolor=fig.get_facecolor())
+    plt.close(fig)
+
+
+# ==============================================================================
+# 3. 4-PART POST-TRAINING VERIFICATION GAUNTLET
+# ==============================================================================
+
+def run_post_training_gauntlet(seed: int = 101) -> Dict[str, Any]:
+    """
+    Executes all 4 post-training verification tests inside TRUE 3-DoF RK4 physics
+    on held-out world regions never seen during training.
+    """
+    surrogate_net, deploy_net, killweb_net, device = tlm.load_trained_lattice_models()
+
+    scenarios = [
+        ("ZeroShot_Taiwan_ToT", "taiwan_silicon_shield", "combined_tot_saturation"),
+        ("ZeroShot_Hormuz_ToT", "hormuz_energy_corridor", "combined_tot_saturation"),
+        ("SEAD_SelfHealing_Test", "baltic_nordic_shield", "sead_and_jamming_surge"),
+        ("DroneBait_CostTrap_Test", "pacific_nw_strategic_corridor", "drone_bait_cost_trap"),
+    ]
+
+    rows: List[Dict[str, Any]] = []
+    featured_diag_data = None
+
+    print("=" * 104)
+    print("POST-TRAINING TRUE 3-DOF RK4 VERIFICATION GAUNTLET (UNSEEN GLOBAL REGIONS | STRICT FOG OF WAR)")
+    print("=" * 104)
+
+    for scen_label, reg_key, strike_style in scenarios:
+        reg = lmesh.GLOBAL_TEST_REGIONS[reg_key]
+        infra_base = copy.deepcopy(reg["infrastructure"])
+        budget_musd = float(reg["default_budget_musd"])
+        mesh = lmesh.generate_geodesic_spatial_mesh(infra_base, sea_azimuth_deg=reg["sea_azimuth_deg"])
+        waves = build_multi_wave_tot_strike(infra_base, reg["sea_azimuth_deg"], preset_style=strike_style, attack_mult=1.0)
+
+        print(f"\n>>> SCENARIO: {scen_label} | {reg['title']} | Budget: ${budget_musd:.0f}M")
+        print("-" * 104)
+        print(
+            f"{'Architecture':<26} | {'OpSurv%':<8} | {'Kills':<9} | {'EoR Kills':<9} | "
+            f"{'EW Kills':<8} | {'DebrisHit':<9} | {'ShotSpend':<10} | {'SEAD Lost'}"
+        )
+        print("-" * 104)
