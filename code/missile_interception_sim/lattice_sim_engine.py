@@ -287,3 +287,44 @@ def deploy_baseline_defense(
                 "terrain_elev_m": round(terr_m, 1), "deploy_cost_musd": spec.deploy_cost_musd,
             })
             idx += 1
+
+    lmesh.update_self_healing_mesh_links(cop.get_live_assets(), cop.get_infrastructure_entities())
+    return cop, placements, round(budget_musd - rem_b, 2)
+
+
+def register_infrastructure_on_cop(cop: lsdk.EntityManagerCOP, infra_nodes: List[lmesh.CrucialInfraNode]) -> None:
+    lmesh.compute_cascading_infrastructure_values(infra_nodes)
+    for n in infra_nodes:
+        ent = lsdk.LatticeEntity(
+            entity_id=n.node_id,
+            is_live=True,
+            expiry_time_s=999_999.0,
+            description=f"Crucial Infrastructure: {n.name}",
+            provenance=lsdk.Provenance("lattice-geo-registry", "CrucialInfrastructure"),
+            aliases=lsdk.AliasesComponent(name=n.name),
+            location=lsdk.LocationComponent(position=lsdk.Position(n.lat, n.lon, 15.0)),
+            mil_view=lsdk.MilViewComponent(lsdk.Disposition.DISPOSITION_FRIENDLY, lsdk.Environment.ENVIRONMENT_LAND),
+            ontology=lsdk.OntologyComponent(lsdk.OntologyTemplate.TEMPLATE_GEO, n.category),
+            geo_infra=lsdk.GeoInfrastructureComponent(
+                infra_category=n.category,
+                intrinsic_value=n.intrinsic_value,
+                cascading_systemic_value=n.cascading_value,
+                debris_keep_out_km=n.debris_keep_out_km,
+                blast_radius_km=n.blast_radius_km,
+                upstream_dependencies=list(n.upstream_ids),
+            ),
+        )
+        cop.publish_entity(ent)
+
+
+def instantiate_lattice_asset_entity(
+    entity_id: str,
+    spec: lmesh.LatticeNodeSpec,
+    lat: float,
+    lon: float,
+    terrain_elev_m: float,
+    engage_on_remote_override: Optional[bool] = None,
+) -> lsdk.LatticeEntity:
+    alt_msl = terrain_elev_m + spec.platform_alt_agl_m
+    env = lsdk.Environment.ENVIRONMENT_AIR if spec.platform_alt_agl_m > 500.0 else lsdk.Environment.ENVIRONMENT_LAND
+    eor = spec.engage_on_remote if engage_on_remote_override is None else engage_on_remote_override
