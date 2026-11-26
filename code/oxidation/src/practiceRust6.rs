@@ -96,9 +96,6 @@ fn main() {
     safe_read(&numbers, 5);
     // safe_read(&numbers[10..20], 20); <- this would cause the runtime error 
     // indexing on a slice ^
-
-    
-    
 }
 // worked well 
 
